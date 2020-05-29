@@ -7,118 +7,54 @@ struct Config {
 
 #[derive(Clone, Debug, Default)]
 struct Middle {
+    config: Config,
     source_file: std::path::PathBuf,
     source_file_stem: String,
     temp_dir: std::path::PathBuf,
     wavm_precompiled_wasm: std::path::PathBuf,
 }
 
-struct Wavm {
-    config: Config,
-    middle: std::rc::Rc<std::cell::RefCell<Middle>>,
+fn wasc_create_build_temp_dir(middle: &mut Middle) {
+    let temp_dir_root = std::env::temp_dir();
+    let random_4_byte = rand::thread_rng().gen::<[u8; 4]>();
+    let random_4_byte_hex = hex::encode(random_4_byte);
+    let temp_dir_basename = String::from("wasc-") + &random_4_byte_hex;
+    let temp_dir = temp_dir_root.join(temp_dir_basename);
+    rog::debugln!("wasc_create_build_temp_dir temp_dir={:?}", temp_dir);
+    std::fs::create_dir(temp_dir.clone()).unwrap();
+    middle.temp_dir = temp_dir;
 }
 
-impl Wavm {
-    fn compile(&self) {
-        let file_stem = String::from(
-            self.middle
-                .borrow()
-                .source_file
-                .file_stem()
-                .unwrap()
-                .to_str()
-                .unwrap(),
-        );
-        self.middle.borrow_mut().source_file_stem = file_stem.clone();
-        let dest_path = self
-            .middle
-            .borrow()
-            .temp_dir
-            .join(file_stem)
-            .with_extension("wasm");
-        rog::debugln!("wavm.compile dest_path={:?}", dest_path);
-        let mut cmd = std::process::Command::new(self.config.wavm_binary.clone());
-        cmd.arg("compile")
-            .arg("--enable")
-            .arg("all")
-            .arg(self.middle.borrow().source_file.clone())
-            .arg(dest_path.to_str().unwrap());
-        rog::debugln!("wavm.compile {:?}", cmd);
-        cmd.spawn().unwrap().wait().unwrap();
-        self.middle.borrow_mut().wavm_precompiled_wasm = dest_path;
-    }
-}
-
-#[derive(Default)]
-struct Wasc {
-    config: Config,
-    middle: std::rc::Rc<std::cell::RefCell<Middle>>,
-}
-
-impl Wasc {
-    fn compile<P: AsRef<std::path::Path>>(&mut self, source: P) {
-        rog::debugln!("wasc.compile source={:?}", source.as_ref());
-        self.create_build_temp_dir();
-        let source_path = source.as_ref();
-        let source_file_name = source_path.clone().file_name().unwrap();
-        let dest_path = self.middle.borrow().temp_dir.clone().join(source_file_name);
-        rog::debugln!(
-            "wasc.compile copy from={:?} to={:?}",
-            source_path,
-            dest_path
-        );
-        std::fs::copy(source_path, dest_path.clone()).unwrap();
-        self.middle.borrow_mut().source_file = dest_path;
-        let wavm = Wavm {
-            config: self.config.clone(),
-            middle: self.middle.clone(),
-        };
-        wavm.compile();
-        self.remove_build_temp_dir();
-    }
-
-    fn create_build_temp_dir(&mut self) {
-        let temp_dir_root = std::env::temp_dir();
-        let random_4_byte = rand::thread_rng().gen::<[u8; 4]>();
-        let random_4_byte_hex = hex::encode(random_4_byte);
-        let temp_dir_basename = String::from("wasc-") + &random_4_byte_hex;
-        let temp_dir = temp_dir_root.join(temp_dir_basename);
-        rog::debugln!("wasc.create_build_temp_dir temp_dir={:?}", temp_dir);
-        std::fs::create_dir(temp_dir.clone()).unwrap();
-        self.middle.borrow_mut().temp_dir = temp_dir;
-    }
-
-    fn remove_build_temp_dir(&self) {
-        rog::debugln!(
-            "wasc.remove_build_temp_dir temp_dir={:?}",
-            self.middle.borrow().temp_dir
-        );
-        std::fs::remove_dir_all(self.middle.borrow().temp_dir.clone()).unwrap();
-    }
-}
-
-const WAVM_BINARY: &str = "third_party/WAVM/build/bin/wavm";
-
-fn wavm_compile<P: AsRef<std::path::Path>>(source: P) {
+fn wasc_init<P: AsRef<std::path::Path>>(middle: &mut Middle, source: P) {
     let source_path = source.as_ref();
-    let parent = source_path.parent().unwrap();
-    let file_stem = source_path.file_stem().unwrap();
-    rog::debugln!(
-        "wavm_compile source_path={:?} file_stem={:?}",
-        source_path,
-        file_stem
-    );
-    let dest_path = parent.join(file_stem).with_extension("wasm");
-    rog::debugln!("wavm_compile dest_path={:?}", dest_path);
+    let source_file_name = source_path.clone().file_name().unwrap();
+    let dest_path = middle.temp_dir.clone().join(source_file_name);
+    rog::debugln!("wasc_init copy from={:?} to={:?}", source_path, dest_path);
+    std::fs::copy(source_path, dest_path.clone()).unwrap();
+    middle.source_file = dest_path.clone();
+    middle.source_file_stem = dest_path.file_stem().unwrap().to_str().unwrap().into();
+}
 
-    let mut cmd = std::process::Command::new(WAVM_BINARY);
+fn wasc_remove_build_temp_dir(middle: &mut Middle) {
+    rog::debugln!("wasc_remove_build_temp_dir temp_dir={:?}", middle.temp_dir);
+    std::fs::remove_dir_all(middle.temp_dir.clone()).unwrap();
+}
+
+fn wavm_compile(middle: &mut Middle) {
+    let outwasm = middle
+        .temp_dir
+        .join(middle.source_file_stem.clone() + "_precompiled")
+        .with_extension("wasm");
+    rog::debugln!("wavm_compile outwasm={:?}", outwasm);
+    let mut cmd = std::process::Command::new(middle.config.wavm_binary.clone());
     cmd.arg("compile")
         .arg("--enable")
         .arg("all")
-        .arg(source_path.to_str().unwrap())
-        .arg(dest_path.to_str().unwrap());
-    rog::debugln!("wavm_compile {:?}", cmd);
+        .arg(middle.source_file.clone())
+        .arg(outwasm.to_str().unwrap());
+    rog::debugln!("wavm_compile command={:?}", cmd);
     cmd.spawn().unwrap().wait().unwrap();
+    middle.wavm_precompiled_wasm = outwasm;
 }
 
 fn main() {
@@ -136,13 +72,14 @@ fn main() {
         wavm_binary: String::from("/src/wasc/third_party/WAVM/build/bin/wavm"),
     };
     rog::debugln!("main config={:?}", config);
-    let mut wasc = Wasc {
-        config: config,
-        middle: std::rc::Rc::new(std::cell::RefCell::new(Middle::default())),
-    };
-    wasc.compile(source);
+    let mut middle = Middle::default();
+    middle.config = config;
 
-    // wavm_compile("examples/helloworld.wast");
+    wasc_create_build_temp_dir(&mut middle);
+    wasc_init(&mut middle, source);
+    wavm_compile(&mut middle);
+    wasc_remove_build_temp_dir(&mut middle);
+
     // aot("examples/helloworld.wasm", "examples/helloworld");
 
     // std::fs::write(
@@ -179,12 +116,6 @@ enum CurrentSection {
 }
 
 fn aot(source: &str, dest: &str) {
-    drop(env_logger::init());
-    // let args = env::args().collect::<Vec<_>>();
-    // if args.len() != 3 {
-    //     println!("Usage: {} <input wasm file> <output module name>", args[0]);
-    //     return;
-    // }
     let buf: Vec<u8> = read_wasm(source).unwrap();
     let mut glue_file = File::create(format!("{}_glue.h", dest)).expect("create glue file");
     let mut object_file = File::create(format!("{}.o", dest)).expect("create object file");
