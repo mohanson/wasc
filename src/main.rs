@@ -18,7 +18,7 @@ fn wavm_compile<P: AsRef<std::path::Path>>(source: P) {
         .arg("all")
         .arg(source_path.to_str().unwrap())
         .arg(dest_path.to_str().unwrap());
-    rog::debugln!("wavm_compile exec {:?}", cmd);
+    rog::debugln!("wavm_compile {:?}", cmd);
     cmd.spawn().unwrap().wait().unwrap();
 }
 
