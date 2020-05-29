@@ -11,6 +11,33 @@ struct Middle {
     temp_dir: std::path::PathBuf,
 }
 
+struct Wavm {
+    config: Config,
+    middle: std::rc::Rc<std::cell::RefCell<Middle>>,
+}
+
+impl Wavm {
+    fn compile(&self) {
+        let middle = self.middle.borrow();
+        let file_stem = middle.source_file.file_stem().unwrap().to_str().unwrap();
+        let dest_path = self
+            .middle
+            .borrow()
+            .temp_dir
+            .join(file_stem)
+            .with_extension("wasm");
+        rog::debugln!("wavm.compile dest_path={:?}", dest_path);
+        let mut cmd = std::process::Command::new(self.config.wavm_binary.clone());
+        cmd.arg("compile")
+            .arg("--enable")
+            .arg("all")
+            .arg(middle.source_file.clone())
+            .arg(dest_path.to_str().unwrap());
+        rog::debugln!("wavm.compile {:?}", cmd);
+        cmd.spawn().unwrap().wait().unwrap();
+    }
+}
+
 #[derive(Default)]
 struct Wasc {
     config: Config,
@@ -31,11 +58,16 @@ impl Wasc {
         );
         std::fs::copy(source_path, dest_path.clone()).unwrap();
         self.middle.borrow_mut().source_file = dest_path;
+        let wavm = Wavm {
+            config: self.config.clone(),
+            middle: self.middle.clone(),
+        };
+        wavm.compile();
         self.remove_build_temp_dir();
     }
 
     fn create_build_temp_dir(&mut self) {
-        let mut temp_dir_root = std::env::temp_dir();
+        let temp_dir_root = std::env::temp_dir();
         let random_4_byte = rand::thread_rng().gen::<[u8; 4]>();
         let random_4_byte_hex = hex::encode(random_4_byte);
         let temp_dir_basename = String::from("wasc-") + &random_4_byte_hex;
