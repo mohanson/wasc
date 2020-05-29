@@ -1,3 +1,35 @@
+use rand::Rng;
+
+#[derive(Debug)]
+struct GlobalConfig {
+    wavm_binary: String,
+}
+
+struct Wasc {
+    global_config: GlobalConfig,
+    temp_dir: std::path::PathBuf,
+}
+
+impl Wasc {
+    fn compile() {}
+
+    fn create_build_temp_dir(&mut self) {
+        let mut temp_dir_root = std::env::temp_dir();
+        let random_4_byte = rand::thread_rng().gen::<[u8; 4]>();
+        let random_4_byte_hex = hex::encode(random_4_byte);
+        let temp_dir_basename = String::from("wasc-") + &random_4_byte_hex;
+        let temp_dir = temp_dir_root.join(temp_dir_basename);
+        rog::debugln!("wasc.create_build_temp_dir temp_dir={:?}", temp_dir);
+        std::fs::create_dir(temp_dir.clone()).unwrap();
+        self.temp_dir = temp_dir;
+    }
+
+    fn remove_build_temp_dir(&self) {
+        rog::debugln!("wasc.remove_build_temp_dir temp_dir={:?}", self.temp_dir);
+        std::fs::remove_dir_all(self.temp_dir.clone()).unwrap();
+    }
+}
+
 const WAVM_BINARY: &str = "third_party/WAVM/build/bin/wavm";
 
 fn wavm_compile<P: AsRef<std::path::Path>>(source: P) {
@@ -24,18 +56,40 @@ fn wavm_compile<P: AsRef<std::path::Path>>(source: P) {
 
 fn main() {
     rog::reg("wasc");
-    wavm_compile("examples/helloworld.wast");
-    aot("examples/helloworld.wasm", "examples/helloworld");
 
-    std::fs::write("examples/dummy.c", "#include \"helloworld_glue.h\"\n#include \"../abi/posix_wasi_abi.h\"");
+    let mut source = String::from("");
+    let mut ap = argparse::ArgumentParser::new();
+    ap.set_description("WASC: WebAssembly native compilter");
+    ap.refer(&mut source)
+        .add_argument("source", argparse::Store, "WASM/WA(S)T source file");
+    ap.parse_args_or_exit();
 
-    let mut cmd = std::process::Command::new("gcc");
-    cmd.arg("-g")
-        .arg("-o")
-        .arg("examples/helloworld")
-        .arg("examples/helloworld.o")
-        .arg("examples/dummy.c");
-    cmd.spawn().unwrap().wait().unwrap();
+    let global_config = GlobalConfig {
+        wavm_binary: String::from("/src/wasc/third_party/WAVM/build/bin/wavm"),
+    };
+    rog::debugln!("main global_config = {:?}", global_config);
+    let mut wasc = Wasc {
+        global_config: global_config,
+        temp_dir: std::path::PathBuf::from(""),
+    };
+    wasc.create_build_temp_dir();
+    wasc.remove_build_temp_dir();
+
+    // wavm_compile("examples/helloworld.wast");
+    // aot("examples/helloworld.wasm", "examples/helloworld");
+
+    // std::fs::write(
+    //     "examples/dummy.c",
+    //     "#include \"helloworld_glue.h\"\n#include \"../abi/posix_wasi_abi.h\"",
+    // );
+
+    // let mut cmd = std::process::Command::new("gcc");
+    // cmd.arg("-g")
+    //     .arg("-o")
+    //     .arg("examples/helloworld")
+    //     .arg("examples/helloworld.o")
+    //     .arg("examples/dummy.c");
+    // cmd.spawn().unwrap().wait().unwrap();
 }
 
 #[macro_use]
@@ -65,7 +119,7 @@ fn aot(source: &str, dest: &str) {
     //     return;
     // }
     let buf: Vec<u8> = read_wasm(source).unwrap();
-    let mut glue_file = File::create(format!("{}_glue.h", dest )).expect("create glue file");
+    let mut glue_file = File::create(format!("{}_glue.h", dest)).expect("create glue file");
     let mut object_file = File::create(format!("{}.o", dest)).expect("create object file");
     let header_id = format!("{}_GLUE_H", dest);
     glue_file
