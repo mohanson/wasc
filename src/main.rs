@@ -7,6 +7,7 @@ struct Config {
 
 #[derive(Clone, Debug, Default)]
 struct Middle {
+    source_file: std::path::PathBuf,
     temp_dir: std::path::PathBuf,
 }
 
@@ -20,6 +21,16 @@ impl Wasc {
     fn compile<P: AsRef<std::path::Path>>(&mut self, source: P) {
         rog::debugln!("wasc.compile source={:?}", source.as_ref());
         self.create_build_temp_dir();
+        let source_path = source.as_ref();
+        let source_file_name = source_path.clone().file_name().unwrap();
+        let dest_path = self.middle.borrow().temp_dir.clone().join(source_file_name);
+        rog::debugln!(
+            "wasc.compile copy from={:?} to={:?}",
+            source_path,
+            dest_path
+        );
+        std::fs::copy(source_path, dest_path.clone()).unwrap();
+        self.middle.borrow_mut().source_file = dest_path;
         self.remove_build_temp_dir();
     }
 
@@ -81,7 +92,7 @@ fn main() {
     let config = Config {
         wavm_binary: String::from("/src/wasc/third_party/WAVM/build/bin/wavm"),
     };
-    rog::debugln!("main config = {:?}", config);
+    rog::debugln!("main config={:?}", config);
     let mut wasc = Wasc {
         config: config,
         middle: std::rc::Rc::new(std::cell::RefCell::new(Middle::default())),
