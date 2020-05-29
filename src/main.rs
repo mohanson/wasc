@@ -8,6 +8,7 @@ struct Config {
 #[derive(Clone, Debug, Default)]
 struct Middle {
     source_file: std::path::PathBuf,
+    source_file_stem: String,
     temp_dir: std::path::PathBuf,
     wavm_precompiled_wasm: std::path::PathBuf,
 }
@@ -19,19 +20,32 @@ struct Wavm {
 
 impl Wavm {
     fn compile(&self) {
-        let mut middle = self.middle.borrow_mut();
-        let file_stem = middle.source_file.file_stem().unwrap().to_str().unwrap();
-        let dest_path = middle.temp_dir.join(file_stem).with_extension("wasm");
+        let file_stem = String::from(
+            self.middle
+                .borrow()
+                .source_file
+                .file_stem()
+                .unwrap()
+                .to_str()
+                .unwrap(),
+        );
+        self.middle.borrow_mut().source_file_stem = file_stem.clone();
+        let dest_path = self
+            .middle
+            .borrow()
+            .temp_dir
+            .join(file_stem)
+            .with_extension("wasm");
         rog::debugln!("wavm.compile dest_path={:?}", dest_path);
         let mut cmd = std::process::Command::new(self.config.wavm_binary.clone());
         cmd.arg("compile")
             .arg("--enable")
             .arg("all")
-            .arg(middle.source_file.clone())
+            .arg(self.middle.borrow().source_file.clone())
             .arg(dest_path.to_str().unwrap());
         rog::debugln!("wavm.compile {:?}", cmd);
         cmd.spawn().unwrap().wait().unwrap();
-        middle.wavm_precompiled_wasm = dest_path;
+        self.middle.borrow_mut().wavm_precompiled_wasm = dest_path;
     }
 }
 
