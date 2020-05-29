@@ -9,6 +9,7 @@ struct Config {
 struct Middle {
     source_file: std::path::PathBuf,
     temp_dir: std::path::PathBuf,
+    wavm_precompiled_wasm: std::path::PathBuf,
 }
 
 struct Wavm {
@@ -18,14 +19,9 @@ struct Wavm {
 
 impl Wavm {
     fn compile(&self) {
-        let middle = self.middle.borrow();
+        let mut middle = self.middle.borrow_mut();
         let file_stem = middle.source_file.file_stem().unwrap().to_str().unwrap();
-        let dest_path = self
-            .middle
-            .borrow()
-            .temp_dir
-            .join(file_stem)
-            .with_extension("wasm");
+        let dest_path = middle.temp_dir.join(file_stem).with_extension("wasm");
         rog::debugln!("wavm.compile dest_path={:?}", dest_path);
         let mut cmd = std::process::Command::new(self.config.wavm_binary.clone());
         cmd.arg("compile")
@@ -35,6 +31,7 @@ impl Wavm {
             .arg(dest_path.to_str().unwrap());
         rog::debugln!("wavm.compile {:?}", cmd);
         cmd.spawn().unwrap().wait().unwrap();
+        middle.wavm_precompiled_wasm = dest_path;
     }
 }
 
