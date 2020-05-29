@@ -1,17 +1,27 @@
 use rand::Rng;
 
-#[derive(Debug)]
-struct GlobalConfig {
+#[derive(Clone, Debug, Default)]
+struct Config {
     wavm_binary: String,
 }
 
-struct Wasc {
-    global_config: GlobalConfig,
+#[derive(Clone, Debug, Default)]
+struct Middle {
     temp_dir: std::path::PathBuf,
 }
 
+#[derive(Default)]
+struct Wasc {
+    config: Config,
+    middle: std::rc::Rc<std::cell::RefCell<Middle>>,
+}
+
 impl Wasc {
-    fn compile() {}
+    fn compile<P: AsRef<std::path::Path>>(&mut self, source: P) {
+        rog::debugln!("wasc.compile source={:?}", source.as_ref());
+        self.create_build_temp_dir();
+        self.remove_build_temp_dir();
+    }
 
     fn create_build_temp_dir(&mut self) {
         let mut temp_dir_root = std::env::temp_dir();
@@ -21,12 +31,15 @@ impl Wasc {
         let temp_dir = temp_dir_root.join(temp_dir_basename);
         rog::debugln!("wasc.create_build_temp_dir temp_dir={:?}", temp_dir);
         std::fs::create_dir(temp_dir.clone()).unwrap();
-        self.temp_dir = temp_dir;
+        self.middle.borrow_mut().temp_dir = temp_dir;
     }
 
     fn remove_build_temp_dir(&self) {
-        rog::debugln!("wasc.remove_build_temp_dir temp_dir={:?}", self.temp_dir);
-        std::fs::remove_dir_all(self.temp_dir.clone()).unwrap();
+        rog::debugln!(
+            "wasc.remove_build_temp_dir temp_dir={:?}",
+            self.middle.borrow().temp_dir
+        );
+        std::fs::remove_dir_all(self.middle.borrow().temp_dir.clone()).unwrap();
     }
 }
 
@@ -58,22 +71,22 @@ fn main() {
     rog::reg("wasc");
 
     let mut source = String::from("");
-    let mut ap = argparse::ArgumentParser::new();
-    ap.set_description("WASC: WebAssembly native compilter");
-    ap.refer(&mut source)
-        .add_argument("source", argparse::Store, "WASM/WA(S)T source file");
-    ap.parse_args_or_exit();
-
-    let global_config = GlobalConfig {
+    {
+        let mut ap = argparse::ArgumentParser::new();
+        ap.set_description("WASC: WebAssembly native compilter");
+        ap.refer(&mut source)
+            .add_argument("source", argparse::Store, "WASM/WA(S)T source file");
+        ap.parse_args_or_exit();
+    }
+    let config = Config {
         wavm_binary: String::from("/src/wasc/third_party/WAVM/build/bin/wavm"),
     };
-    rog::debugln!("main global_config = {:?}", global_config);
+    rog::debugln!("main config = {:?}", config);
     let mut wasc = Wasc {
-        global_config: global_config,
-        temp_dir: std::path::PathBuf::from(""),
+        config: config,
+        middle: std::rc::Rc::new(std::cell::RefCell::new(Middle::default())),
     };
-    wasc.create_build_temp_dir();
-    wasc.remove_build_temp_dir();
+    wasc.compile(source);
 
     // wavm_compile("examples/helloworld.wast");
     // aot("examples/helloworld.wasm", "examples/helloworld");
