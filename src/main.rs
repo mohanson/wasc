@@ -78,22 +78,26 @@ fn main() {
     wasc_create_build_temp_dir(&mut middle);
     wasc_init(&mut middle, source);
     wavm_compile(&mut middle);
+    glue(&mut middle);
+
+    std::fs::write(
+        middle.temp_dir.join("dummy.c").to_str().unwrap(),
+        "#include \"helloworld_glue.h\"\n#include \"/src/wasc/abi/posix_wasi_abi.h\"",
+    );
+
+    let mut cmd = std::process::Command::new("gcc");
+    cmd.arg("-g")
+        .arg("-o")
+        .arg(middle.temp_dir.join("helloworld").to_str().unwrap())
+        .arg(middle.temp_dir.join("helloworld.o").to_str().unwrap())
+        .arg(middle.temp_dir.join("dummy.c").to_str().unwrap());
+    cmd.spawn().unwrap().wait().unwrap();
+
+    let mut cmdrun =
+        std::process::Command::new(middle.temp_dir.join("helloworld").to_str().unwrap());
+    cmdrun.spawn().unwrap().wait().unwrap();
+
     wasc_remove_build_temp_dir(&mut middle);
-
-    // aot("examples/helloworld.wasm", "examples/helloworld");
-
-    // std::fs::write(
-    //     "examples/dummy.c",
-    //     "#include \"helloworld_glue.h\"\n#include \"../abi/posix_wasi_abi.h\"",
-    // );
-
-    // let mut cmd = std::process::Command::new("gcc");
-    // cmd.arg("-g")
-    //     .arg("-o")
-    //     .arg("examples/helloworld")
-    //     .arg("examples/helloworld.o")
-    //     .arg("examples/dummy.c");
-    // cmd.spawn().unwrap().wait().unwrap();
 }
 
 #[macro_use]
@@ -115,11 +119,16 @@ enum CurrentSection {
     Element,
 }
 
-fn aot(source: &str, dest: &str) {
-    let buf: Vec<u8> = read_wasm(source).unwrap();
-    let mut glue_file = File::create(format!("{}_glue.h", dest)).expect("create glue file");
-    let mut object_file = File::create(format!("{}.o", dest)).expect("create object file");
-    let header_id = format!("{}_GLUE_H", dest);
+fn glue(middle: &mut Middle) {
+    let buf: Vec<u8> = read_wasm(middle.wavm_precompiled_wasm.to_str().unwrap()).unwrap();
+    let glue_file_path = middle
+        .temp_dir
+        .join(middle.source_file_stem.clone() + "_glue.h");
+    let object_file_path = middle.temp_dir.join(middle.source_file_stem.clone() + ".o");
+
+    let mut glue_file = File::create(glue_file_path).expect("create glue file");
+    let mut object_file = File::create(object_file_path).expect("create object file");
+    let header_id = format!("{}_GLUE_H", middle.source_file_stem);
     glue_file
         .write_all(
             format!(
