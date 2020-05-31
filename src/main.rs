@@ -97,14 +97,9 @@ fn main() {
         std::process::Command::new(middle.temp_dir.join("helloworld").to_str().unwrap());
     cmdrun.spawn().unwrap().wait().unwrap();
 
-    wasc_remove_build_temp_dir(&mut middle);
+    // wasc_remove_build_temp_dir(&mut middle);
 }
 
-#[macro_use]
-extern crate log;
-
-use std::env;
-use std::fs::File;
 use std::io::{self, prelude::*};
 use wasmparser::{
     ElemSectionEntryTable, ElementItem, ExternalKind, FuncType, GlobalType, ImportSectionEntryType,
@@ -120,54 +115,24 @@ enum CurrentSection {
 }
 
 fn glue(middle: &mut Middle) {
-    let buf: Vec<u8> = read_wasm(middle.wavm_precompiled_wasm.to_str().unwrap()).unwrap();
-    let glue_file_path = middle
-        .temp_dir
-        .join(middle.source_file_stem.clone() + "_glue.h");
-    let object_file_path = middle.temp_dir.join(middle.source_file_stem.clone() + ".o");
+    let wasm_data: Vec<u8> = std::fs::read(middle.wavm_precompiled_wasm.to_str().unwrap()).unwrap();
+    rog::debugln!("glue wasm_data.length={:?}", wasm_data.len());
+    let file_stem = middle.source_file_stem.clone();
+    let glue_path = middle.temp_dir.join(file_stem.clone() + "_glue.h");
+    let object_path = middle.temp_dir.join(file_stem.clone() + ".o");
+    let mut glue_file = std::fs::File::create(glue_path).unwrap();
+    let mut object_file = std::fs::File::create(object_path).unwrap();
 
-    let mut glue_file = File::create(glue_file_path).expect("create glue file");
-    let mut object_file = File::create(object_file_path).expect("create object file");
-    let header_id = format!("{}_GLUE_H", middle.source_file_stem);
+    let header_id = format!("{}_GLUE_H", file_stem);
     glue_file
         .write_all(
-            format!(
-                "#include<stddef.h>
-#include<stdint.h>
-
-#ifndef {}
-#define {}
-
-typedef struct {{
-  void* dummy;
-  int32_t value;
-}} wavm_ret_int32_t;
-
-typedef struct {{
-  void* dummy;
-  int64_t value;
-}} wavm_ret_int64_t;
-
-typedef struct {{
-  void* dummy;
-  float value;
-}} wavm_ret_float;
-
-typedef struct {{
-  void* dummy;
-  double value;
-}} wavm_ret_double;
-
-const uint64_t functionDefMutableData = 0;
-const uint64_t biasedInstanceId = 0;
-\n",
-                header_id, header_id
-            )
-            .as_bytes(),
+            wasc::glue::TEXT_HEADER_HEAD_TEMPLATE
+                .replace("${header_id}", header_id.as_str())
+                .as_bytes(),
         )
-        .expect("write glue file");
+        .unwrap();
 
-    let mut parser = Parser::new(&buf);
+    let mut parser = Parser::new(&wasm_data);
     let mut section_name: Option<String> = None;
     let mut type_entries: Vec<FuncType> = vec![];
     let mut next_import_index = 0;
@@ -320,7 +285,7 @@ const uint64_t functionDefMutableDatas{} = 0;\n",
                     next_global_index += 1;
                 }
                 CurrentSection::Empty => {
-                    debug!("Omitted init expression: {:?}", value);
+                    rog::debugln!("Omitted init expression: {:?}", value);
                 }
             },
             ParserState::DataSectionEntryBodyChunk(data) => {
@@ -365,7 +330,7 @@ const uint64_t functionDefMutableDatas{} = 0;\n",
             }
             ParserState::EndWasm => break,
             ParserState::Error(ref err) => panic!("Error: {:?}", err),
-            _ => debug!("Unprocessed states: {:?}", state),
+            _ => rog::debugln!("Unprocessed states: {:?}", state),
         }
     }
 
@@ -499,13 +464,6 @@ fn convert_func_type_to_c_function(func_type: &FuncType, name: String) -> String
         "void*".to_string()
     };
     format!("{} ({}) ({})", return_type, name, fields.join(", ")).to_string()
-}
-
-fn read_wasm(file: &str) -> io::Result<Vec<u8>> {
-    let mut data = Vec::new();
-    let mut f = File::open(file)?;
-    f.read_to_end(&mut data)?;
-    Ok(data)
 }
 
 fn generate_global_entry(
