@@ -1,5 +1,6 @@
 use rand::Rng;
 use std::io::Write;
+use wasmparser::WasmDecoder;
 
 // A Config specifies the global config for a build.
 #[derive(Clone, Debug, Default)]
@@ -125,12 +126,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 
-use wasmparser::{
-    ElemSectionEntryTable, ElementItem, ExternalKind, FuncType, GlobalType, ImportSectionEntryType,
-    MemoryType, Operator, Parser, ParserState, ResizableLimits, SectionCode, TableType, Type,
-    WasmDecoder,
-};
-
 enum CurrentSection {
     Empty,
     Data,
@@ -158,9 +153,9 @@ fn glue(middle: &mut Middle) {
         )
         .unwrap();
 
-    let mut parser = Parser::new(&wasm_data);
+    let mut parser = wasmparser::Parser::new(&wasm_data);
     let mut section_name: Option<String> = None;
-    let mut type_entries: Vec<FuncType> = vec![];
+    let mut type_entries: Vec<wasmparser::FuncType> = vec![];
     let mut next_import_index = 0;
     let mut next_function_index = 0;
     let mut function_entries: Vec<Option<usize>> = vec![];
@@ -170,7 +165,7 @@ fn glue(middle: &mut Middle) {
     let mut data_offset: Option<usize> = None;
     let mut current_section = CurrentSection::Empty;
     let mut next_global_index = 0;
-    let mut global_content_type = Type::EmptyBlockType;
+    let mut global_content_type = wasmparser::Type::EmptyBlockType;
     let mut global_mutable = false;
     let mut tables: Vec<Vec<String>> = vec![];
     let mut table_index: Option<usize> = None;
@@ -178,20 +173,20 @@ fn glue(middle: &mut Middle) {
     loop {
         let state = parser.read();
         match *state {
-            ParserState::BeginSection { code, .. } => {
-                if let SectionCode::Custom { name, .. } = code {
+            wasmparser::ParserState::BeginSection { code, .. } => {
+                if let wasmparser::SectionCode::Custom { name, .. } = code {
                     section_name = Some(name.to_string());
                 }
             }
-            ParserState::EndSection => {
+            wasmparser::ParserState::EndSection => {
                 section_name = None;
             }
-            ParserState::SectionRawData(data) => {
+            wasmparser::ParserState::SectionRawData(data) => {
                 if section_name.clone().unwrap_or("".to_string()) == "wavm.precompiled_object" {
                     object_file.write_all(data).expect("write object file");
                 }
             }
-            ParserState::TypeSectionEntry(ref t) => {
+            wasmparser::ParserState::TypeSectionEntry(ref t) => {
                 glue_file
                     .write_all(
                         format!("const uint64_t typeId{} = 0;\n", type_entries.len()).as_bytes(),
@@ -199,10 +194,10 @@ fn glue(middle: &mut Middle) {
                     .expect("write glue file");
                 type_entries.push(t.clone());
             }
-            ParserState::ImportSectionEntry {
+            wasmparser::ParserState::ImportSectionEntry {
                 module,
                 field,
-                ty: ImportSectionEntryType::Function(index),
+                ty: wasmparser::ImportSectionEntryType::Function(index),
             } => {
                 function_entries.push(None);
                 let func_type = &type_entries[index as usize];
@@ -222,7 +217,7 @@ fn glue(middle: &mut Middle) {
                     )
                     .expect("write glue file");
             }
-            ParserState::FunctionSectionEntry(type_entry_index) => {
+            wasmparser::ParserState::FunctionSectionEntry(type_entry_index) => {
                 let func_type = &type_entries[type_entry_index as usize];
                 let name = format!("functionDef{}", next_function_index);
                 glue_file
@@ -239,9 +234,9 @@ const uint64_t functionDefMutableDatas{} = 0;\n",
                 function_entries.push(Some(next_function_index));
                 next_function_index += 1;
             }
-            ParserState::ExportSectionEntry {
+            wasmparser::ParserState::ExportSectionEntry {
                 field,
-                kind: ExternalKind::Function,
+                kind: wasmparser::ExternalKind::Function,
                 index,
             } => {
                 let function_index =
@@ -260,39 +255,39 @@ const uint64_t functionDefMutableDatas{} = 0;\n",
                     has_main = true;
                 }
             }
-            ParserState::TableSectionEntry(TableType {
-                element_type: Type::AnyFunc,
-                limits: ResizableLimits { initial: count, .. },
+            wasmparser::ParserState::TableSectionEntry(wasmparser::TableType {
+                element_type: wasmparser::Type::AnyFunc,
+                limits: wasmparser::ResizableLimits { initial: count, .. },
             }) => {
                 let mut table = vec![];
                 table.resize(count as usize, "0".to_string());
                 tables.push(table);
             }
-            ParserState::MemorySectionEntry(MemoryType {
-                limits: ResizableLimits { initial: pages, .. },
+            wasmparser::ParserState::MemorySectionEntry(wasmparser::MemoryType {
+                limits: wasmparser::ResizableLimits { initial: pages, .. },
                 ..
             }) => {
                 let mut mem = vec![];
                 mem.resize(pages as usize * 64 * 1024, 0);
                 memories.push(mem);
             }
-            ParserState::BeginActiveDataSectionEntry(i) => {
+            wasmparser::ParserState::BeginActiveDataSectionEntry(i) => {
                 data_index = Some(i as usize);
                 current_section = CurrentSection::Data;
             }
-            ParserState::EndDataSectionEntry => {
+            wasmparser::ParserState::EndDataSectionEntry => {
                 data_index = None;
                 data_offset = None;
                 current_section = CurrentSection::Empty;
             }
-            ParserState::InitExpressionOperator(ref value) => match current_section {
+            wasmparser::ParserState::InitExpressionOperator(ref value) => match current_section {
                 CurrentSection::Data => {
-                    if let Operator::I32Const { value } = value {
+                    if let wasmparser::Operator::I32Const { value } = value {
                         data_offset = Some(*value as usize);
                     }
                 }
                 CurrentSection::Element => {
-                    if let Operator::I32Const { value } = value {
+                    if let wasmparser::Operator::I32Const { value } = value {
                         table_offset = Some(*value as usize);
                     }
                 }
@@ -314,24 +309,24 @@ const uint64_t functionDefMutableDatas{} = 0;\n",
                     rog::debugln!("Omitted init expression: {:?}", value);
                 }
             },
-            ParserState::DataSectionEntryBodyChunk(data) => {
+            wasmparser::ParserState::DataSectionEntryBodyChunk(data) => {
                 let index = data_index.unwrap();
                 let offset = data_offset.unwrap();
                 memories[index][offset..offset + data.len()].copy_from_slice(&data);
                 data_offset = Some(offset + data.len());
             }
-            ParserState::ElementSectionEntryBody(ref items) => {
+            wasmparser::ParserState::ElementSectionEntryBody(ref items) => {
                 let index = table_index.unwrap();
                 let offset = table_offset.unwrap();
 
                 for (i, item) in items.iter().enumerate() {
-                    if let ElementItem::Func(func_index) = item {
+                    if let wasmparser::ElementItem::Func(func_index) = item {
                         tables[index][offset + i] =
                             format!("((uintptr_t) (functionDef{}))", func_index);
                     }
                 }
             }
-            ParserState::BeginGlobalSectionEntry(GlobalType {
+            wasmparser::ParserState::BeginGlobalSectionEntry(wasmparser::GlobalType {
                 content_type,
                 mutable,
             }) => {
@@ -339,23 +334,23 @@ const uint64_t functionDefMutableDatas{} = 0;\n",
                 global_mutable = mutable;
                 current_section = CurrentSection::Global;
             }
-            ParserState::EndGlobalSectionEntry => {
+            wasmparser::ParserState::EndGlobalSectionEntry => {
                 current_section = CurrentSection::Empty;
             }
-            ParserState::BeginElementSectionEntry {
-                table: ElemSectionEntryTable::Active(i),
-                ty: Type::AnyFunc,
+            wasmparser::ParserState::BeginElementSectionEntry {
+                table: wasmparser::ElemSectionEntryTable::Active(i),
+                ty: wasmparser::Type::AnyFunc,
             } => {
                 table_index = Some(i as usize);
                 current_section = CurrentSection::Element;
             }
-            ParserState::EndElementSectionEntry => {
+            wasmparser::ParserState::EndElementSectionEntry => {
                 table_index = None;
                 table_offset = None;
                 current_section = CurrentSection::Empty;
             }
-            ParserState::EndWasm => break,
-            ParserState::Error(ref err) => panic!("Error: {:?}", err),
+            wasmparser::ParserState::EndWasm => break,
+            wasmparser::ParserState::Error(ref err) => panic!("Error: {:?}", err),
             _ => rog::debugln!("Unprocessed states: {:?}", state),
         }
     }
@@ -464,18 +459,18 @@ const uint64_t functionDefMutableDatas{} = 0;\n",
         .expect("write glue file");
 }
 
-fn wasm_type_to_c_type(t: Type) -> String {
+fn wasm_type_to_c_type(t: wasmparser::Type) -> String {
     match t {
-        Type::I32 => "int32_t".to_string(),
-        Type::I64 => "int64_t".to_string(),
-        Type::F32 => "float".to_string(),
-        Type::F64 => "double".to_string(),
+        wasmparser::Type::I32 => "int32_t".to_string(),
+        wasmparser::Type::I64 => "int64_t".to_string(),
+        wasmparser::Type::F32 => "float".to_string(),
+        wasmparser::Type::F64 => "double".to_string(),
         _ => panic!("Unsupported type: {:?}", t),
     }
 }
 
-fn convert_func_type_to_c_function(func_type: &FuncType, name: String) -> String {
-    if func_type.form != Type::Func || func_type.returns.len() > 1 {
+fn convert_func_type_to_c_function(func_type: &wasmparser::FuncType, name: String) -> String {
+    if func_type.form != wasmparser::Type::Func || func_type.returns.len() > 1 {
         panic!("Invalid func type: {:?}", func_type);
     }
     let mut fields: Vec<String> = func_type
@@ -494,23 +489,23 @@ fn convert_func_type_to_c_function(func_type: &FuncType, name: String) -> String
 
 fn generate_global_entry(
     index: usize,
-    content_type: &Type,
+    content_type: &wasmparser::Type,
     mutable: bool,
-    value: &Operator,
+    value: &wasmparser::Operator,
 ) -> String {
     let mutable_string = if mutable { "" } else { "const " };
     let type_string = wasm_type_to_c_type(content_type.clone());
 
     let value_string = match content_type {
-        Type::I32 => {
-            if let Operator::I32Const { value } = value {
+        wasmparser::Type::I32 => {
+            if let wasmparser::Operator::I32Const { value } = value {
                 value.to_string()
             } else {
                 panic!("Invalid global value {:?} for type {:?}",)
             }
         }
-        Type::I64 => {
-            if let Operator::I64Const { value } = value {
+        wasmparser::Type::I64 => {
+            if let wasmparser::Operator::I64Const { value } = value {
                 value.to_string()
             } else {
                 panic!("Invalid global value {:?} for type {:?}",)
