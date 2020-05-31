@@ -124,7 +124,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 
-use std::io::{self, prelude::*};
 use wasmparser::{
     ElemSectionEntryTable, ElementItem, ExternalKind, FuncType, GlobalType, ImportSectionEntryType,
     MemoryType, Operator, Parser, ParserState, ResizableLimits, SectionCode, TableType, Type,
