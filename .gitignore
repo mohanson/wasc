@@ -1,4 +1,5 @@
 /bin
 /examples
+/sandbox
 /target
 /third_party/WAVM

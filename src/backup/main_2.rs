@@ -1,21 +1,15 @@
 use rand::Rng;
 
-// A Config specifies the global config for a build.
 #[derive(Clone, Debug, Default)]
 struct Config {
-    wavm_binary: String, // Path of wavm binary, usually the result of "$ which wavm".
+    wavm_binary: String,
 }
 
 #[derive(Clone, Debug, Default)]
 struct Middle {
-    // Config is the global config for a build.
     config: Config,
-    // Source wasm/wast file.
-    file: std::path::PathBuf,
-    // File stem is the source wasm/wast file's name without extension.
-    // Example:
-    //   file_stem(helloworld.wasm) => helloworld
-    file_stem: String,
+    source_file: std::path::PathBuf,
+    source_file_stem: String,
     temp_dir: std::path::PathBuf,
     wavm_precompiled_wasm: std::path::PathBuf,
 }
@@ -37,8 +31,8 @@ fn wasc_init<P: AsRef<std::path::Path>>(middle: &mut Middle, source: P) {
     let dest_path = middle.temp_dir.clone().join(source_file_name);
     rog::debugln!("wasc_init copy from={:?} to={:?}", source_path, dest_path);
     std::fs::copy(source_path, dest_path.clone()).unwrap();
-    middle.file = dest_path.clone();
-    middle.file_stem = dest_path.file_stem().unwrap().to_str().unwrap().into();
+    middle.source_file = dest_path.clone();
+    middle.source_file_stem = dest_path.file_stem().unwrap().to_str().unwrap().into();
 }
 
 fn wasc_remove_build_temp_dir(middle: &mut Middle) {
@@ -49,14 +43,14 @@ fn wasc_remove_build_temp_dir(middle: &mut Middle) {
 fn wavm_compile(middle: &mut Middle) {
     let outwasm = middle
         .temp_dir
-        .join(middle.file_stem.clone() + "_precompiled")
+        .join(middle.source_file_stem.clone() + "_precompiled")
         .with_extension("wasm");
     rog::debugln!("wavm_compile outwasm={:?}", outwasm);
     let mut cmd = std::process::Command::new(middle.config.wavm_binary.clone());
     cmd.arg("compile")
         .arg("--enable")
         .arg("all")
-        .arg(middle.file.clone())
+        .arg(middle.source_file.clone())
         .arg(outwasm.to_str().unwrap());
     rog::debugln!("wavm_compile command={:?}", cmd);
     cmd.spawn().unwrap().wait().unwrap();
@@ -123,7 +117,7 @@ enum CurrentSection {
 fn glue(middle: &mut Middle) {
     let wasm_data: Vec<u8> = std::fs::read(middle.wavm_precompiled_wasm.to_str().unwrap()).unwrap();
     rog::debugln!("glue wasm_data.length={:?}", wasm_data.len());
-    let file_stem = middle.file_stem.clone();
+    let file_stem = middle.source_file_stem.clone();
     let glue_path = middle.temp_dir.join(file_stem.clone() + "_glue.h");
     let object_path = middle.temp_dir.join(file_stem.clone() + ".o");
     let mut glue_file = std::fs::File::create(glue_path).unwrap();
