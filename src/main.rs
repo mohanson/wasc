@@ -28,34 +28,36 @@ struct Middle {
     wavm_precompiled_wasm: std::path::PathBuf,
 }
 
-fn wasc_create_build_temp_dir(middle: &mut Middle) {
+fn wasc_create_build_temp_dir(middle: &mut Middle) -> Result<(), Box<dyn std::error::Error>> {
     let temp_dir_root = std::env::temp_dir();
     let random_4_byte = rand::thread_rng().gen::<[u8; 4]>();
     let random_4_byte_hex = hex::encode(random_4_byte);
     let temp_dir_basename = String::from("wasc-") + &random_4_byte_hex;
     let temp_dir = temp_dir_root.join(temp_dir_basename);
     rog::debugln!("wasc_create_build_temp_dir temp_dir={:?}", temp_dir);
-    std::fs::create_dir(temp_dir.clone()).unwrap();
+    std::fs::create_dir(temp_dir.clone())?;
     middle.temp_dir = temp_dir;
+    Ok(())
 }
 
-fn wasc_init(middle: &mut Middle) {
+fn wasc_init(middle: &mut Middle) -> Result<(), Box<dyn std::error::Error>> {
     let file_name = middle.file.file_name().unwrap().clone();
     let dest_path = middle.temp_dir.clone().join(file_name);
     rog::debugln!("wasc_init copy from={:?} to={:?}", middle.file, dest_path);
-    std::fs::copy(middle.file.clone(), dest_path.clone()).unwrap();
+    std::fs::copy(middle.file.clone(), dest_path.clone())?;
+    Ok(())
 }
 
-fn wasc_remove_build_temp_dir(middle: &mut Middle) {
+fn wasc_remove_build_temp_dir(middle: &mut Middle) -> Result<(), Box<dyn std::error::Error>> {
     rog::debugln!("wasc_remove_build_temp_dir temp_dir={:?}", middle.temp_dir);
-    std::fs::remove_dir_all(middle.temp_dir.clone()).unwrap();
+    std::fs::remove_dir_all(middle.temp_dir.clone())?;
+    Ok(())
 }
 
-fn wavm_compile(middle: &mut Middle) {
+fn wavm_compile(middle: &mut Middle) -> Result<(), Box<dyn std::error::Error>> {
     let outwasm = middle
         .temp_dir
-        .join(middle.file_stem.clone() + "_precompiled")
-        .with_extension("wasm");
+        .join(middle.file_stem.clone() + "_precompiled.wasm");
     rog::debugln!("wavm_compile outwasm={:?}", outwasm);
     let mut cmd = std::process::Command::new(middle.config.wavm_binary.clone());
     cmd.arg("compile")
@@ -64,8 +66,9 @@ fn wavm_compile(middle: &mut Middle) {
         .arg(middle.file.clone())
         .arg(outwasm.to_str().unwrap());
     rog::debugln!("wavm_compile command={:?}", cmd);
-    cmd.spawn().unwrap().wait().unwrap();
+    cmd.spawn()?.wait()?;
     middle.wavm_precompiled_wasm = outwasm;
+    Ok(())
 }
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -95,9 +98,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .unwrap()
         .to_string();
 
-    wasc_create_build_temp_dir(&mut middle);
-    wasc_init(&mut middle);
-    wavm_compile(&mut middle);
+    wasc_create_build_temp_dir(&mut middle)?;
+    wasc_init(&mut middle)?;
+    wavm_compile(&mut middle)?;
     glue(&mut middle);
 
     std::fs::write(
@@ -117,7 +120,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         std::process::Command::new(middle.temp_dir.join("helloworld").to_str().unwrap());
     cmdrun.spawn().unwrap().wait().unwrap();
 
-    wasc_remove_build_temp_dir(&mut middle);
+    wasc_remove_build_temp_dir(&mut middle)?;
     Ok(())
 }
 
