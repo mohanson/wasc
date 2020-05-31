@@ -10,13 +10,20 @@ struct Config {
 struct Middle {
     // Config is the global config for a build.
     config: Config,
+    // Dir is the caller's working directory, or the empty string to use
+    // the current directory of the running process.
+    dir: std::path::PathBuf,
     // Source wasm/wast file.
     file: std::path::PathBuf,
     // File stem is the source wasm/wast file's name without extension.
     // Example:
     //   file_stem(helloworld.wasm) => helloworld
     file_stem: String,
+    // A directory on the file system that is deleted when build process stoped,
+    // all temporary files during the build process will be stored here
+    // Note: If you quit unexpectedly, it will not be cleaned up.
     temp_dir: std::path::PathBuf,
+    // Precompiled wasm file built by wavm.
     wavm_precompiled_wasm: std::path::PathBuf,
 }
 
@@ -31,14 +38,11 @@ fn wasc_create_build_temp_dir(middle: &mut Middle) {
     middle.temp_dir = temp_dir;
 }
 
-fn wasc_init<P: AsRef<std::path::Path>>(middle: &mut Middle, source: P) {
-    let source_path = source.as_ref();
-    let source_file_name = source_path.clone().file_name().unwrap();
-    let dest_path = middle.temp_dir.clone().join(source_file_name);
-    rog::debugln!("wasc_init copy from={:?} to={:?}", source_path, dest_path);
-    std::fs::copy(source_path, dest_path.clone()).unwrap();
-    middle.file = dest_path.clone();
-    middle.file_stem = dest_path.file_stem().unwrap().to_str().unwrap().into();
+fn wasc_init(middle: &mut Middle) {
+    let file_name = middle.file.file_name().unwrap().clone();
+    let dest_path = middle.temp_dir.clone().join(file_name);
+    rog::debugln!("wasc_init copy from={:?} to={:?}", middle.file, dest_path);
+    std::fs::copy(middle.file.clone(), dest_path.clone()).unwrap();
 }
 
 fn wasc_remove_build_temp_dir(middle: &mut Middle) {
@@ -63,7 +67,7 @@ fn wavm_compile(middle: &mut Middle) {
     middle.wavm_precompiled_wasm = outwasm;
 }
 
-fn main() {
+fn main() -> Result<(), Box<dyn std::error::Error>> {
     rog::reg("wasc");
 
     let mut source = String::from("");
@@ -80,9 +84,18 @@ fn main() {
     rog::debugln!("main config={:?}", config);
     let mut middle = Middle::default();
     middle.config = config;
+    middle.dir = std::env::current_dir()?;
+    middle.file = std::path::PathBuf::from(source);
+    middle.file_stem = middle
+        .file
+        .file_stem()
+        .unwrap()
+        .to_str()
+        .unwrap()
+        .to_string();
 
     wasc_create_build_temp_dir(&mut middle);
-    wasc_init(&mut middle, source);
+    wasc_init(&mut middle);
     wavm_compile(&mut middle);
     glue(&mut middle);
 
@@ -104,6 +117,7 @@ fn main() {
     cmdrun.spawn().unwrap().wait().unwrap();
 
     wasc_remove_build_temp_dir(&mut middle);
+    Ok(())
 }
 
 use std::io::{self, prelude::*};
