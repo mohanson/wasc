@@ -144,6 +144,8 @@ fn glue(middle: &mut Middle) {
     let file_stem = middle.file_stem.clone();
     let glue_path = middle.temp_dir.join(file_stem.clone() + "_glue.h");
     let object_path = middle.temp_dir.join(file_stem.clone() + ".o");
+    rog::debugln!("glue glue_path={:?}", glue_path);
+    rog::debugln!("glue object_path={:?}", object_path);
     let mut glue_file = std::fs::File::create(glue_path).unwrap();
     let mut object_file = std::fs::File::create(object_path).unwrap();
 
