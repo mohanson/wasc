@@ -3,7 +3,8 @@ use rand::Rng;
 // A Config specifies the global config for a build.
 #[derive(Clone, Debug, Default)]
 struct Config {
-    wavm_binary: String, // Path of wavm binary, usually the result of "$ which wavm".
+    // Path of wavm binary, usually the result of "$ which wavm".
+    wavm_binary: String,
 }
 
 #[derive(Clone, Debug, Default)]
