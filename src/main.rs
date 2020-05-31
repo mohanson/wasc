@@ -1,4 +1,5 @@
 use rand::Rng;
+use std::io::Write;
 
 // A Config specifies the global config for a build.
 #[derive(Clone, Debug, Default)]
