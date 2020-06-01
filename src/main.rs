@@ -231,34 +231,30 @@ const uint64_t biasedInstanceId = 0;
                 let func_type = &type_entries[index as usize];
                 let name = format!("wavm_{}_{}", module, field);
                 let import_symbol = format!("functionImport{}", next_import_index);
-                glue_file
-                    .write_all(format!("#define {} {}\n", name, import_symbol).as_bytes())
-                    .expect("write glue file");
+                glue_file.write_all(format!("#define {} {}\n", name, import_symbol).as_bytes())?;
                 next_import_index += 1;
-                glue_file
-                    .write_all(
-                        format!(
-                            "extern {};\n",
-                            convert_func_type_to_c_function(&func_type, import_symbol)
-                        )
-                        .as_bytes(),
+                glue_file.write_all(
+                    format!(
+                        "extern {};\n",
+                        convert_func_type_to_c_function(&func_type, import_symbol)
                     )
-                    .expect("write glue file");
+                    .as_bytes(),
+                )?;
             }
             wasmparser::ParserState::FunctionSectionEntry(type_entry_index) => {
                 let func_type = &type_entries[type_entry_index as usize];
                 let name = format!("functionDef{}", next_function_index);
-                glue_file
-                    .write_all(
-                        format!(
-                            "extern {};
-const uint64_t functionDefMutableDatas{} = 0;\n",
-                            convert_func_type_to_c_function(&func_type, name),
-                            next_function_index,
-                        )
-                        .as_bytes(),
+                glue_file.write_all(
+                    format!(
+                        "\
+extern {};
+const uint64_t functionDefMutableDatas{} = 0;
+",
+                        convert_func_type_to_c_function(&func_type, name),
+                        next_function_index,
                     )
-                    .expect("write glue file");
+                    .as_bytes(),
+                )?;
                 function_entries.push(Some(next_function_index));
                 next_function_index += 1;
             }
