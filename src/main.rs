@@ -103,12 +103,12 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     wasc_create_build_temp_dir(&mut middle)?;
     wasc_init(&mut middle)?;
     wavm_compile(&mut middle)?;
-    glue(&mut middle);
+    glue(&mut middle)?;
 
     std::fs::write(
         middle.temp_dir.join("dummy.c").to_str().unwrap(),
         "#include \"helloworld_glue.h\"\n#include \"/src/wasc/abi/posix_wasi_abi.h\"",
-    );
+    )?;
 
     let mut cmd = std::process::Command::new("gcc");
     cmd.arg("-g")
@@ -133,7 +133,7 @@ enum CurrentSection {
     Element,
 }
 
-fn glue(middle: &mut Middle) {
+fn glue(middle: &mut Middle) -> Result<(), Box<dyn std::error::Error>> {
     let wasm_data: Vec<u8> = std::fs::read(middle.wavm_precompiled_wasm.to_str().unwrap()).unwrap();
     rog::debugln!("glue wasm_data.length={:?}", wasm_data.len());
     let file_stem = middle.file_stem.clone();
@@ -145,13 +145,42 @@ fn glue(middle: &mut Middle) {
     let mut object_file = std::fs::File::create(object_path).unwrap();
 
     let header_id = format!("{}_GLUE_H", file_stem);
-    glue_file
-        .write_all(
-            wasc::glue::TEXT_HEADER_HEAD_TEMPLATE
-                .replace("${header_id}", header_id.as_str())
-                .as_bytes(),
+    glue_file.write_all(
+        format!(
+            "\
+#include<stddef.h>
+#include<stdint.h>
+
+#ifndef {}
+#define {}
+
+typedef struct {{
+void* dummy;
+int32_t value;
+}} wavm_ret_int32_t;
+
+typedef struct {{
+void* dummy;
+int64_t value;
+}} wavm_ret_int64_t;
+
+typedef struct {{
+void* dummy;
+float value;
+}} wavm_ret_float;
+
+typedef struct {{
+void* dummy;
+double value;
+}} wavm_ret_double;
+
+const uint64_t functionDefMutableData = 0;
+const uint64_t biasedInstanceId = 0;
+",
+            header_id, header_id
         )
-        .unwrap();
+        .as_bytes(),
+    )?;
 
     let mut parser = wasmparser::Parser::new(&wasm_data);
     let mut section_name: Option<String> = None;
@@ -183,7 +212,7 @@ fn glue(middle: &mut Middle) {
             }
             wasmparser::ParserState::SectionRawData(data) => {
                 if section_name.clone().unwrap_or("".to_string()) == "wavm.precompiled_object" {
-                    object_file.write_all(data).expect("write object file");
+                    object_file.write_all(data)?;
                 }
             }
             wasmparser::ParserState::TypeSectionEntry(ref t) => {
@@ -351,7 +380,7 @@ const uint64_t functionDefMutableDatas{} = 0;\n",
             }
             wasmparser::ParserState::EndWasm => break,
             wasmparser::ParserState::Error(ref err) => panic!("Error: {:?}", err),
-            _ => rog::debugln!("Unprocessed states: {:?}", state),
+            _ => rog::debugln!("glue unprocessed parser state: {:?}", state),
         }
     }
 
@@ -457,6 +486,8 @@ const uint64_t functionDefMutableDatas{} = 0;\n",
     glue_file
         .write_all(format!("\n#endif /* {} */\n", header_id).as_bytes())
         .expect("write glue file");
+
+    Ok(())
 }
 
 fn wasm_type_to_c_type(t: wasmparser::Type) -> String {
