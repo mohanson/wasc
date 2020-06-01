@@ -265,16 +265,13 @@ const uint64_t functionDefMutableDatas{} = 0;
             } => {
                 let function_index =
                     function_entries[index as usize].expect("Exported function should exist!");
-                glue_file
-                    .write_all(
-                        format!(
-                            "#define wavm_exported_function_{} functionDef{}\n",
-                            field, function_index,
-                        )
-                        .as_bytes(),
+                glue_file.write_all(
+                    format!(
+                        "#define wavm_exported_function_{} functionDef{}\n",
+                        field, function_index,
                     )
-                    .expect("write glue file");
-
+                    .as_bytes(),
+                )?;
                 if field == "_start" {
                     has_main = true;
                 }
@@ -316,21 +313,19 @@ const uint64_t functionDefMutableDatas{} = 0;
                     }
                 }
                 CurrentSection::Global => {
-                    glue_file
-                        .write_all(
-                            generate_global_entry(
-                                next_global_index,
-                                &global_content_type,
-                                global_mutable,
-                                &value,
-                            )
-                            .as_bytes(),
+                    glue_file.write_all(
+                        generate_global_entry(
+                            next_global_index,
+                            &global_content_type,
+                            global_mutable,
+                            &value,
                         )
-                        .expect("write glue file!");
+                        .as_bytes(),
+                    )?;
                     next_global_index += 1;
                 }
                 CurrentSection::Empty => {
-                    rog::debugln!("Omitted init expression: {:?}", value);
+                    rog::debugln!("glue omitted init expression: {:?}", value);
                 }
             },
             wasmparser::ParserState::DataSectionEntryBodyChunk(data) => {
@@ -381,11 +376,8 @@ const uint64_t functionDefMutableDatas{} = 0;
 
     for (i, table) in tables.iter().enumerate() {
         glue_file
-            .write_all(format!("uint32_t table{}_length = {};\n", i, table.len()).as_bytes())
-            .expect("write glue file");
-        glue_file
-            .write_all(format!("uintptr_t table{}[{}] = {{", i, table.len()).as_bytes())
-            .expect("write glue file");
+            .write_all(format!("uint32_t table{}_length = {};\n", i, table.len()).as_bytes())?;
+        glue_file.write_all(format!("uintptr_t table{}[{}] = {{", i, table.len()).as_bytes())?;
         let reversed_striped_table: Vec<String> = table
             .iter()
             .rev()
@@ -398,40 +390,35 @@ const uint64_t functionDefMutableDatas{} = 0;
         }
         for (j, c) in striped_table.iter().enumerate() {
             if j % 4 == 0 {
-                glue_file.write_all(b"\n  ").expect("write glue file");
+                glue_file.write_all(b"\n  ")?;
             }
-            glue_file.write_all(c.as_bytes()).expect("write glue file");
+            glue_file.write_all(c.as_bytes())?;
             if j < striped_table.len() - 1 {
-                glue_file.write_all(b", ").expect("write glue file");
+                glue_file.write_all(b", ")?;
             }
         }
-        glue_file.write_all(b"\n};\n").expect("write glue file");
-        glue_file
-            .write_all(
-                format!(
-                    "uintptr_t* tableOffset{} = table{};
+        glue_file.write_all(b"\n};\n")?;
+        glue_file.write_all(
+            format!(
+                "uintptr_t* tableOffset{} = table{};
 #define TABLE{}_DEFINED 1\n",
-                    i, i, i
-                )
-                .as_bytes(),
+                i, i, i
             )
-            .expect("write glue file");
+            .as_bytes(),
+        )?;
     }
 
     for (i, mem) in memories.iter().enumerate() {
         glue_file
-            .write_all(format!("uint32_t memory{}_length = {};\n", i, mem.len()).as_bytes())
-            .expect("write glue file");
-        glue_file
-            .write_all(
-                format!(
-                    "uint8_t __attribute__((section (\".wasm_memory\"))) memory{}[{}] = {{",
-                    i,
-                    mem.len()
-                )
-                .as_bytes(),
+            .write_all(format!("uint32_t memory{}_length = {};\n", i, mem.len()).as_bytes())?;
+        glue_file.write_all(
+            format!(
+                "uint8_t __attribute__((section (\".wasm_memory\"))) memory{}[{}] = {{",
+                i,
+                mem.len()
             )
-            .expect("write glue file");
+            .as_bytes(),
+        )?;
         let reversed_striped_mem: Vec<u8> = mem
             .iter()
             .rev()
@@ -444,43 +431,35 @@ const uint64_t functionDefMutableDatas{} = 0;
         }
         for (j, c) in striped_mem.iter().enumerate() {
             if j % 32 == 0 {
-                glue_file.write_all(b"\n  ").expect("write glue file");
+                glue_file.write_all(b"\n  ")?;
             }
-            glue_file
-                .write_all(format!("0x{:x}", c).as_bytes())
-                .expect("write glue file");
+            glue_file.write_all(format!("0x{:x}", c).as_bytes())?;
             if j < striped_mem.len() - 1 {
-                glue_file.write_all(b", ").expect("write glue file");
+                glue_file.write_all(b", ")?;
             }
         }
-        glue_file.write_all(b"\n};\n").expect("write glue file");
-        glue_file
-            .write_all(
-                format!(
-                    "uint8_t* memoryOffset{} = memory{};
+        glue_file.write_all(b"\n};\n")?;
+        glue_file.write_all(
+            format!(
+                "uint8_t* memoryOffset{} = memory{};
 #define MEMORY{}_DEFINED 1\n",
-                    i, i, i
-                )
-                .as_bytes(),
+                i, i, i
             )
-            .expect("write glue file");
+            .as_bytes(),
+        )?;
     }
 
     if has_main {
-        glue_file
-            .write_all(
-                b"\nint main() {
+        glue_file.write_all(
+            b"\nint main() {
   wavm_exported_function__start(NULL);
   // This should not be reached
   return -1;
 }\n",
-            )
-            .expect("write glue file");
+        )?;
     }
 
-    glue_file
-        .write_all(format!("\n#endif /* {} */\n", header_id).as_bytes())
-        .expect("write glue file");
+    glue_file.write_all(format!("\n#endif /* {} */\n", header_id).as_bytes())?;
 
     Ok(())
 }
