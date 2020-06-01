@@ -133,22 +133,21 @@ enum CurrentSection {
     Element,
 }
 
-fn glue(middle: &mut Middle) -> Result<(), Box<dyn std::error::Error>> {
-    let wasm_data: Vec<u8> = std::fs::read(middle.wavm_precompiled_wasm.to_str().unwrap()).unwrap();
+fn glue(middle: &Middle) -> Result<(), Box<dyn std::error::Error>> {
+    let wasm_data: Vec<u8> = std::fs::read(middle.wavm_precompiled_wasm.to_str().unwrap())?;
     rog::debugln!("glue wasm_data.length={:?}", wasm_data.len());
     let file_stem = middle.file_stem.clone();
     let glue_path = middle.temp_dir.join(file_stem.clone() + "_glue.h");
     let object_path = middle.temp_dir.join(file_stem.clone() + ".o");
     rog::debugln!("glue glue_path={:?}", glue_path);
     rog::debugln!("glue object_path={:?}", object_path);
-    let mut glue_file = std::fs::File::create(glue_path).unwrap();
-    let mut object_file = std::fs::File::create(object_path).unwrap();
+    let mut glue_file = std::fs::File::create(glue_path)?;
+    let mut object_file = std::fs::File::create(object_path)?;
 
     let header_id = format!("{}_GLUE_H", file_stem);
     glue_file.write_all(
         format!(
-            "\
-#include<stddef.h>
+            "#include<stddef.h>
 #include<stdint.h>
 
 #ifndef {}
@@ -176,7 +175,7 @@ typedef struct {{
 
 const uint64_t functionDefMutableData = 0;
 const uint64_t biasedInstanceId = 0;
-",
+\n",
             header_id, header_id
         )
         .as_bytes(),
@@ -212,8 +211,7 @@ const uint64_t biasedInstanceId = 0;
             }
             wasmparser::ParserState::SectionRawData(data) => {
                 if section_name.clone().unwrap_or("".to_string()) == "wavm.precompiled_object" {
-                    rog::debugln!("glue find wavm.precompiled_object");
-                    object_file.write_all(data)?;
+                    object_file.write_all(data).expect("write object file");
                 }
             }
             wasmparser::ParserState::TypeSectionEntry(ref t) => {
@@ -246,10 +244,8 @@ const uint64_t biasedInstanceId = 0;
                 let name = format!("functionDef{}", next_function_index);
                 glue_file.write_all(
                     format!(
-                        "\
-extern {};
-const uint64_t functionDefMutableDatas{} = 0;
-",
+                        "extern {};
+const uint64_t functionDefMutableDatas{} = 0;\n",
                         convert_func_type_to_c_function(&func_type, name),
                         next_function_index,
                     )
@@ -272,6 +268,7 @@ const uint64_t functionDefMutableDatas{} = 0;
                     )
                     .as_bytes(),
                 )?;
+
                 if field == "_start" {
                     has_main = true;
                 }
@@ -313,19 +310,21 @@ const uint64_t functionDefMutableDatas{} = 0;
                     }
                 }
                 CurrentSection::Global => {
-                    glue_file.write_all(
-                        generate_global_entry(
-                            next_global_index,
-                            &global_content_type,
-                            global_mutable,
-                            &value,
+                    glue_file
+                        .write_all(
+                            generate_global_entry(
+                                next_global_index,
+                                &global_content_type,
+                                global_mutable,
+                                &value,
+                            )
+                            .as_bytes(),
                         )
-                        .as_bytes(),
-                    )?;
+                        .expect("write glue file!");
                     next_global_index += 1;
                 }
                 CurrentSection::Empty => {
-                    rog::debugln!("glue omitted init expression: {:?}", value);
+                    rog::debugln!("Omitted init expression: {:?}", value);
                 }
             },
             wasmparser::ParserState::DataSectionEntryBodyChunk(data) => {
@@ -370,7 +369,7 @@ const uint64_t functionDefMutableDatas{} = 0;
             }
             wasmparser::ParserState::EndWasm => break,
             wasmparser::ParserState::Error(ref err) => panic!("Error: {:?}", err),
-            _ => rog::debugln!("glue unprocessed parser state: {:?}", state),
+            _ => rog::debugln!("Unprocessed states: {:?}", state),
         }
     }
 
