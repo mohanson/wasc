@@ -155,23 +155,23 @@ fn glue(middle: &mut Middle) -> Result<(), Box<dyn std::error::Error>> {
 #define {}
 
 typedef struct {{
-void* dummy;
-int32_t value;
+  void* dummy;
+  int32_t value;
 }} wavm_ret_int32_t;
 
 typedef struct {{
-void* dummy;
-int64_t value;
+  void* dummy;
+  int64_t value;
 }} wavm_ret_int64_t;
 
 typedef struct {{
-void* dummy;
-float value;
+  void* dummy;
+  float value;
 }} wavm_ret_float;
 
 typedef struct {{
-void* dummy;
-double value;
+  void* dummy;
+  double value;
 }} wavm_ret_double;
 
 const uint64_t functionDefMutableData = 0;
