@@ -212,15 +212,14 @@ const uint64_t biasedInstanceId = 0;
             }
             wasmparser::ParserState::SectionRawData(data) => {
                 if section_name.clone().unwrap_or("".to_string()) == "wavm.precompiled_object" {
+                    rog::debugln!("glue find wavm.precompiled_object");
                     object_file.write_all(data)?;
                 }
             }
             wasmparser::ParserState::TypeSectionEntry(ref t) => {
-                glue_file
-                    .write_all(
-                        format!("const uint64_t typeId{} = 0;\n", type_entries.len()).as_bytes(),
-                    )
-                    .expect("write glue file");
+                glue_file.write_all(
+                    format!("const uint64_t typeId{} = 0;\n", type_entries.len()).as_bytes(),
+                )?;
                 type_entries.push(t.clone());
             }
             wasmparser::ParserState::ImportSectionEntry {
