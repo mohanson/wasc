@@ -115,6 +115,19 @@ const uint64_t biasedInstanceId = 0;
                     .as_bytes(),
                 )?;
             }
+            wasmparser::ParserState::ImportSectionEntry {
+                module,
+                field,
+                ty:
+                    wasmparser::ImportSectionEntryType::Memory(wasmparser::MemoryType {
+                        limits: wasmparser::ResizableLimits { initial: pages, .. },
+                        ..
+                    }),
+            } => {
+                let mut mem = vec![];
+                mem.resize(pages as usize * 64 * 1024, 0);
+                memories.push(mem);
+            }
             wasmparser::ParserState::FunctionSectionEntry(type_entry_index) => {
                 let func_type = &type_entries[type_entry_index as usize];
                 let name = format!("functionDef{}", next_function_index);
