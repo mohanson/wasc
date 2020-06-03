@@ -1,0 +1,4 @@
+/target
+/third_party/WAVM
+/res/spectest_wasc
+/res/testsuite
