@@ -33,6 +33,7 @@ pub fn gcc_build(middle: &context::Middle) -> Result<(), Box<dyn std::error::Err
         .to_string();
     let mut cmd = std::process::Command::new(&middle.config.cc_binary);
     cmd.arg("-g")
+        .arg("-w") // Disable all gcc warnings.
         .arg("-o")
         .arg(output_bin)
         .arg(middle.aot_object.to_str().unwrap())
@@ -44,7 +45,13 @@ pub fn gcc_build(middle: &context::Middle) -> Result<(), Box<dyn std::error::Err
 pub fn run(
     middle: &context::Middle,
 ) -> Result<std::process::ExitStatus, Box<dyn std::error::Error>> {
-    let mut cmd = std::process::Command::new(middle.prog_dir.join(middle.file_stem.clone()).to_str().unwrap());
+    let mut cmd = std::process::Command::new(
+        middle
+            .prog_dir
+            .join(middle.file_stem.clone())
+            .to_str()
+            .unwrap(),
+    );
     rog::debugln!("{:?}", cmd);
     Ok(cmd.spawn()?.wait()?)
 }

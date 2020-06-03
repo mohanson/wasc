@@ -5,6 +5,7 @@
 #define WAVM_POSIX_WASI_ABI_H
 
 #ifndef MEMORY0_DEFINED
+#define MEMORY0_DEFINED
 extern uint8_t* memoryOffset0;
 #endif
 
