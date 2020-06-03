@@ -140,7 +140,8 @@ const uint64_t functionDefMutableDatas{} = 0;\n",
                 glue_file.write_all(
                     format!(
                         "#define wavm_exported_function_{} functionDef{}\n",
-                        field, function_index,
+                        convert_func_name_to_c_function(field),
+                        function_index,
                     )
                     .as_bytes(),
                 )?;
@@ -349,6 +350,10 @@ fn wasm_type_to_c_type(t: wasmparser::Type) -> String {
         wasmparser::Type::F64 => "double".to_string(),
         _ => panic!("Unsupported type: {:?}", t),
     }
+}
+
+pub fn convert_func_name_to_c_function(name: &str) -> String {
+    name.replace("-", "_").replace(".", "_")
 }
 
 fn convert_func_type_to_c_function(func_type: &wasmparser::FuncType, name: String) -> String {
