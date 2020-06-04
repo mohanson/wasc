@@ -35,6 +35,7 @@ fn test_spec_single_test<P: AsRef<std::path::Path>>(
     dummy::gcc_build(&middle)?;
 
     let exit_status = dummy::run(&middle)?;
+    rog::debugln!("{:?} {}", wasm_path, exit_status);
     Ok(exit_status.code().unwrap())
 }
 

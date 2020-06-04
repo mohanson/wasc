@@ -22,5 +22,6 @@ pub fn open_log() {
     // rog::reg("wasc::aot_generator");
     // rog::reg("wasc::dummy");
     // rog::reg("wasc::wavm");
+    rog::reg("test_bugs");
     rog::reg("test_spec");
 }
