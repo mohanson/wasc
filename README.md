@@ -1,6 +1,6 @@
 # WASC
 
-**WASC is a WebAssembly AOT compilter**
+**WASC is a WebAssembly AOT compiler**
 
 Inspired by xuejie's [article](https://xuejie.space/2020_03_03_introduction_to_ckb_script_programming_performant_wasm/), and completed the subsequent work.
 

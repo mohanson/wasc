@@ -9,6 +9,29 @@ enum CurrentSection {
     Element,
 }
 
+enum Value {
+    I32(i32),
+    I64(i64),
+    // F32(f32),
+    // F64(f64),
+}
+
+impl Value {
+    fn as_i32(&self) -> i32 {
+        if let Value::I32(x) = self {
+            return *x;
+        }
+        panic!("unreachable")
+    }
+
+    // fn as_i64(&self) -> i64 {
+    //     if let Value::I64(x) = self {
+    //         return *x;
+    //     }
+    //     panic!("unreachable")
+    // }
+}
+
 pub fn glue(middle: &mut context::Middle) -> Result<(), Box<dyn std::error::Error>> {
     let wasm_data: Vec<u8> = std::fs::read(middle.wavm_precompiled_wasm.to_str().unwrap())?;
     rog::debugln!("glue wasm_data.length={:?}", wasm_data.len());
@@ -61,6 +84,7 @@ const uint64_t biasedInstanceId = 0;
     let mut section_name: Option<String> = None;
     let mut type_entries: Vec<wasmparser::FuncType> = vec![];
     let mut next_import_index = 0;
+    let mut next_import_global_index = 0;
     let mut next_function_index = 0;
     let mut function_entries: Vec<Option<usize>> = vec![];
     let mut has_main = false;
@@ -71,6 +95,7 @@ const uint64_t biasedInstanceId = 0;
     let mut next_global_index = 0;
     let mut global_content_type = wasmparser::Type::EmptyBlockType;
     let mut global_mutable = false;
+    let mut global_values: Vec<Value> = vec![];
     let mut tables: Vec<Vec<String>> = vec![];
     let mut table_index: Option<usize> = None;
     let mut table_offset: Option<usize> = None;
@@ -96,6 +121,7 @@ const uint64_t biasedInstanceId = 0;
                 )?;
                 type_entries.push(t.clone());
             }
+            // Import function
             wasmparser::ParserState::ImportSectionEntry {
                 module,
                 field,
@@ -115,9 +141,10 @@ const uint64_t biasedInstanceId = 0;
                     .as_bytes(),
                 )?;
             }
+            // Import memory
             wasmparser::ParserState::ImportSectionEntry {
-                module,
-                field,
+                module: _,
+                field: _,
                 ty:
                     wasmparser::ImportSectionEntryType::Memory(wasmparser::MemoryType {
                         limits: wasmparser::ResizableLimits { initial: pages, .. },
@@ -127,6 +154,26 @@ const uint64_t biasedInstanceId = 0;
                 let mut mem = vec![];
                 mem.resize(pages as usize * 64 * 1024, 0);
                 memories.push(mem);
+            }
+            // Import Global
+            wasmparser::ParserState::ImportSectionEntry {
+                module,
+                field,
+                ty:
+                    wasmparser::ImportSectionEntryType::Global(wasmparser::GlobalType {
+                        content_type,
+                        ..
+                    }),
+            } => {
+                // #define wavm_spectest_global_i32 global0
+                // extern int32_t global0;
+                let name = format!("wavm_{}_{}", module, field);
+                let import_symbol = format!("global{}", next_import_global_index);
+                let global_type = wasm_type_to_c_type(content_type);
+                glue_file.write_all(format!("#define {} {}\n", name, import_symbol).as_bytes())?;
+                glue_file
+                    .write_all(format!("extern {} {};\n", global_type, import_symbol).as_bytes())?;
+                next_import_global_index += 1;
             }
             wasmparser::ParserState::FunctionSectionEntry(type_entry_index) => {
                 let func_type = &type_entries[type_entry_index as usize];
@@ -193,10 +240,16 @@ const uint64_t functionDefMutableDatas{} = 0;\n",
                     if let wasmparser::Operator::I32Const { value } = value {
                         data_offset = Some(*value as usize);
                     }
+                    if let wasmparser::Operator::GlobalGet { global_index } = value {
+                        data_offset = Some(global_values[*global_index as usize].as_i32() as usize)
+                    }
                 }
                 CurrentSection::Element => {
                     if let wasmparser::Operator::I32Const { value } = value {
                         table_offset = Some(*value as usize);
+                    }
+                    if let wasmparser::Operator::GlobalGet { global_index } = value {
+                        table_offset = Some(global_values[*global_index as usize].as_i32() as usize)
                     }
                 }
                 CurrentSection::Global => {
@@ -207,6 +260,7 @@ const uint64_t functionDefMutableDatas{} = 0;\n",
                                 &global_content_type,
                                 global_mutable,
                                 &value,
+                                &mut global_values,
                             )
                             .as_bytes(),
                         )
@@ -392,6 +446,7 @@ fn generate_global_entry(
     content_type: &wasmparser::Type,
     mutable: bool,
     value: &wasmparser::Operator,
+    global_values: &mut Vec<Value>,
 ) -> String {
     let mutable_string = if mutable { "" } else { "const " };
     let type_string = wasm_type_to_c_type(content_type.clone());
@@ -399,6 +454,7 @@ fn generate_global_entry(
     let value_string = match content_type {
         wasmparser::Type::I32 => {
             if let wasmparser::Operator::I32Const { value } = value {
+                global_values.push(Value::I32(*value));
                 value.to_string()
             } else {
                 panic!("Invalid global value {:?} for type {:?}",)
@@ -406,11 +462,28 @@ fn generate_global_entry(
         }
         wasmparser::Type::I64 => {
             if let wasmparser::Operator::I64Const { value } = value {
+                global_values.push(Value::I64(*value));
                 value.to_string()
             } else {
                 panic!("Invalid global value {:?} for type {:?}",)
             }
         }
+        // wasmparser::Type::F32 => {
+        //     if let wasmparser::Operator::F32Const { value } = value {
+        //         global_values.push(Value::F32(*value));
+        //         value.into()
+        //     } else {
+        //         panic!("Invalid global value {:?} for type {:?}",)
+        //     }
+        // }
+        // wasmparser::Type::F64 => {
+        //     if let wasmparser::Operator::F64Const { value } = value {
+        //         global_values.push(Value::F64(*value));
+        //         value.to_string()
+        //     } else {
+        //         panic!("Invalid global value {:?} for type {:?}",)
+        //     }
+        // }
         _ => panic!("Invalid content type: {:?} for global entry", content_type),
     };
 

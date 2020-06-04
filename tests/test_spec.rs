@@ -1,3 +1,4 @@
+use wasc::abi;
 use wasc::aot_generator;
 use wasc::context;
 use wasc::dummy;
@@ -10,6 +11,7 @@ fn test_spec_single_test<P: AsRef<std::path::Path>>(
     commands: Vec<serde_json::Value>,
 ) -> Result<(), Box<dyn std::error::Error>> {
     let mut config = wasc::context::Config::default();
+    config.abi = context::Abi::Spectest;
     config.wavm_binary = "./third_party/WAVM/build/bin/wavm".to_string();
     let mut middle = context::Middle::default();
     middle.config = config;
@@ -19,13 +21,14 @@ fn test_spec_single_test<P: AsRef<std::path::Path>>(
     middle.init_file(&wasm_path);
     wavm::compile(&mut middle).unwrap();
     aot_generator::glue(&mut middle)?;
-    // abi::init(&mut middle)?;
+    abi::init(&mut middle)?;
 
     dummy::init(&mut middle)?;
     let mut dummy_file = dummy::CodeBuilder::open(&middle.dummy)?;
     dummy_file.write_line(format!("#include \"{}_glue.h\"", middle.file_stem).as_str())?;
-    // dummy_file
-    //     .write_line(format!("#include \"{}\"", middle.abi_file.to_str().unwrap()).as_str())?;
+    dummy_file.write_line(
+        format!("#include \"./{}_abi/spectest.h\"", middle.file_stem.clone()).as_str(),
+    )?;
     dummy_file.write_line("int main() {")?;
 
     let mut wavm_ret_index = 1;
@@ -256,7 +259,9 @@ fn test_spec() {
     // test_spec_single_suit("./res/spectest_wasc/comments").unwrap();
     // test_spec_single_suit("./res/spectest_wasc/const").unwrap();
     // test_spec_single_suit("./res/spectest_wasc/custom").unwrap();
+
     test_spec_single_suit("./res/spectest_wasc/data").unwrap();
+
     // test_spec_single_suit("./res/spectest_wasc/elem").unwrap();
     // test_spec_single_suit("./res/spectest_wasc/endianness").unwrap();
     // # [TODO] test_spec_single_suit("./res/spectest_wasc/exports").unwrap();
