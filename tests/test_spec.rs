@@ -30,7 +30,9 @@ fn test_spec_single_test<P: AsRef<std::path::Path>>(
         format!("#include \"./{}_abi/spectest.h\"", middle.file_stem.clone()).as_str(),
     )?;
     dummy_file.write_line("int main() {")?;
-
+    if middle.misc_has_init {
+        dummy_file.write_line("init();")?;
+    }
     let mut wavm_ret_index = 1;
     let mut int32_t_index = 1;
     let mut int64_t_index = 1;
@@ -249,18 +251,18 @@ fn test_spec() {
     //     test_spec_single_suit(pbuf).unwrap();
     // }
 
-    test_spec_single_suit("./res/spectest_wasc/address").unwrap();
-    test_spec_single_suit("./res/spectest_wasc/align").unwrap();
-    test_spec_single_suit("./res/spectest_wasc/binary").unwrap();
-    test_spec_single_suit("./res/spectest_wasc/binary-leb128").unwrap();
-    test_spec_single_suit("./res/spectest_wasc/br_if").unwrap();
-    test_spec_single_suit("./res/spectest_wasc/br_table").unwrap();
-    test_spec_single_suit("./res/spectest_wasc/break-drop").unwrap();
-    test_spec_single_suit("./res/spectest_wasc/comments").unwrap();
-    test_spec_single_suit("./res/spectest_wasc/const").unwrap();
-    test_spec_single_suit("./res/spectest_wasc/custom").unwrap();
+    // test_spec_single_suit("./res/spectest_wasc/address").unwrap();
+    // test_spec_single_suit("./res/spectest_wasc/align").unwrap();
+    // test_spec_single_suit("./res/spectest_wasc/binary").unwrap();
+    // test_spec_single_suit("./res/spectest_wasc/binary-leb128").unwrap();
+    // test_spec_single_suit("./res/spectest_wasc/br_if").unwrap();
+    // test_spec_single_suit("./res/spectest_wasc/br_table").unwrap();
+    // test_spec_single_suit("./res/spectest_wasc/break-drop").unwrap();
+    // test_spec_single_suit("./res/spectest_wasc/comments").unwrap();
+    // test_spec_single_suit("./res/spectest_wasc/const").unwrap();
+    // test_spec_single_suit("./res/spectest_wasc/custom").unwrap();
 
-    // test_spec_single_suit("./res/spectest_wasc/data").unwrap();
+    test_spec_single_suit("./res/spectest_wasc/data").unwrap();
 
     // test_spec_single_suit("./res/spectest_wasc/elem").unwrap();
     // test_spec_single_suit("./res/spectest_wasc/endianness").unwrap();

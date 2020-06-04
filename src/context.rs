@@ -77,6 +77,8 @@ pub struct Middle {
     // temp_dir: std::path::PathBuf,
     // Precompiled wasm file built by wavm.
     pub wavm_precompiled_wasm: std::path::PathBuf,
+
+    pub misc_has_init: bool,
 }
 
 impl Middle {

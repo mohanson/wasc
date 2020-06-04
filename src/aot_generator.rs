@@ -24,13 +24,13 @@ impl GlobalValue {
         }
         panic!("unreachable")
     }
+}
 
-    // fn as_i64(&self) -> i64 {
-    //     if let Value::I64(x) = self {
-    //         return *x;
-    //     }
-    //     panic!("unreachable")
-    // }
+#[derive(Debug)]
+struct DynamicMemory {
+    index: usize,
+    offset: String,
+    data: Vec<u8>,
 }
 
 pub fn glue(middle: &mut context::Middle) -> Result<(), Box<dyn std::error::Error>> {
@@ -88,10 +88,13 @@ const uint64_t biasedInstanceId = 0;
     let mut next_import_global_index = 0;
     let mut next_function_index = 0;
     let mut function_entries: Vec<Option<usize>> = vec![];
+    let mut has_init = false;
     let mut has_main = false;
     let mut memories: Vec<Vec<u8>> = vec![];
+    let mut dynamic_memories: Vec<DynamicMemory> = vec![];
     let mut data_index: Option<usize> = None;
     let mut data_offset: Option<usize> = None;
+    let mut dynamic_data_offset: Option<String> = None;
     let mut current_section = CurrentSection::Empty;
     let mut next_global_index = 0;
     let mut global_content_type = wasmparser::Type::EmptyBlockType;
@@ -174,6 +177,7 @@ const uint64_t biasedInstanceId = 0;
                 glue_file.write_all(format!("#define {} {}\n", name, import_symbol).as_bytes())?;
                 glue_file
                     .write_all(format!("extern {} {};\n", global_type, import_symbol).as_bytes())?;
+                global_values.push(GlobalValue::Imported(name.clone()));
                 next_import_global_index += 1;
             }
             wasmparser::ParserState::FunctionSectionEntry(type_entry_index) => {
@@ -234,6 +238,7 @@ const uint64_t functionDefMutableDatas{} = 0;\n",
             wasmparser::ParserState::EndDataSectionEntry => {
                 data_index = None;
                 data_offset = None;
+                dynamic_data_offset = None;
                 current_section = CurrentSection::Empty;
             }
             wasmparser::ParserState::InitExpressionOperator(ref value) => match current_section {
@@ -242,7 +247,12 @@ const uint64_t functionDefMutableDatas{} = 0;\n",
                         data_offset = Some(*value as usize);
                     }
                     if let wasmparser::Operator::GlobalGet { global_index } = value {
-                        data_offset = Some(global_values[*global_index as usize].as_i32() as usize)
+                        let global_value = &global_values[*global_index as usize];
+                        if let GlobalValue::Imported(x) = global_value {
+                            dynamic_data_offset = Some(x.to_string())
+                        } else {
+                            data_offset = Some(global_value.as_i32() as usize)
+                        }
                     }
                 }
                 CurrentSection::Element => {
@@ -274,9 +284,18 @@ const uint64_t functionDefMutableDatas{} = 0;\n",
             },
             wasmparser::ParserState::DataSectionEntryBodyChunk(data) => {
                 let index = data_index.unwrap();
-                let offset = data_offset.unwrap();
-                memories[index][offset..offset + data.len()].copy_from_slice(&data);
-                data_offset = Some(offset + data.len());
+                if let Some(x) = dynamic_data_offset.clone() {
+                    let dmemory = DynamicMemory {
+                        index,
+                        offset: x.clone(),
+                        data: data.to_vec(),
+                    };
+                    dynamic_memories.push(dmemory);
+                } else {
+                    let offset = data_offset.unwrap();
+                    memories[index][offset..offset + data.len()].copy_from_slice(&data);
+                    data_offset = Some(offset + data.len());
+                }
             }
             wasmparser::ParserState::ElementSectionEntryBody(ref items) => {
                 let index = table_index.unwrap();
@@ -317,6 +336,8 @@ const uint64_t functionDefMutableDatas{} = 0;\n",
             _ => rog::debugln!("Unprocessed states: {:?}", state),
         }
     }
+
+    // println!("{:?}", dynamic_memories);
 
     for (i, table) in tables.iter().enumerate() {
         glue_file
@@ -392,6 +413,39 @@ const uint64_t functionDefMutableDatas{} = 0;\n",
             .as_bytes(),
         )?;
     }
+
+    for (i, mem) in dynamic_memories.iter().enumerate() {
+        has_init = true;
+        glue_file.write_all(format!("uint32_t data{}_length = {};\n", i, mem.data.len()).as_bytes())?;
+        glue_file.write_all(
+            format!(
+                "uint8_t data{}[{}] = {{",
+                i,
+                mem.data.len()
+            )
+            .as_bytes(),
+        )?;
+        for (j, c) in mem.data.iter().enumerate() {
+            if j % 32 == 0 {
+                glue_file.write_all(b"\n  ")?;
+            }
+            glue_file.write_all(format!("0x{:x}", c).as_bytes())?;
+            if j < mem.data.len() - 1 {
+                glue_file.write_all(b", ")?;
+            }
+        }
+        glue_file.write_all(b"\n};\n")?;
+    }
+    // Write init function
+    if has_init {
+        middle.misc_has_init = true;
+        glue_file.write_all("void init() {".as_bytes())?;
+        for (i, mem) in dynamic_memories.iter().enumerate() {
+            glue_file.write_all(format!("memcpy(memory{} + {}, data{}, {});\n", mem.index, mem.offset,  i, mem.data.len()).as_bytes())?;
+        }
+        glue_file.write_all("}".as_bytes())?;
+    }
+
 
     if has_main {
         glue_file.write_all(
