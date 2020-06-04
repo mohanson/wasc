@@ -9,16 +9,17 @@ enum CurrentSection {
     Element,
 }
 
-enum Value {
+enum GlobalValue {
     I32(i32),
     I64(i64),
+    Imported(String),
     // F32(f32),
     // F64(f64),
 }
 
-impl Value {
+impl GlobalValue {
     fn as_i32(&self) -> i32 {
-        if let Value::I32(x) = self {
+        if let GlobalValue::I32(x) = self {
             return *x;
         }
         panic!("unreachable")
@@ -95,7 +96,7 @@ const uint64_t biasedInstanceId = 0;
     let mut next_global_index = 0;
     let mut global_content_type = wasmparser::Type::EmptyBlockType;
     let mut global_mutable = false;
-    let mut global_values: Vec<Value> = vec![];
+    let mut global_values: Vec<GlobalValue> = vec![];
     let mut tables: Vec<Vec<String>> = vec![];
     let mut table_index: Option<usize> = None;
     let mut table_offset: Option<usize> = None;
@@ -446,7 +447,7 @@ fn generate_global_entry(
     content_type: &wasmparser::Type,
     mutable: bool,
     value: &wasmparser::Operator,
-    global_values: &mut Vec<Value>,
+    global_values: &mut Vec<GlobalValue>,
 ) -> String {
     let mutable_string = if mutable { "" } else { "const " };
     let type_string = wasm_type_to_c_type(content_type.clone());
@@ -454,7 +455,7 @@ fn generate_global_entry(
     let value_string = match content_type {
         wasmparser::Type::I32 => {
             if let wasmparser::Operator::I32Const { value } = value {
-                global_values.push(Value::I32(*value));
+                global_values.push(GlobalValue::I32(*value));
                 value.to_string()
             } else {
                 panic!("Invalid global value {:?} for type {:?}",)
@@ -462,7 +463,7 @@ fn generate_global_entry(
         }
         wasmparser::Type::I64 => {
             if let wasmparser::Operator::I64Const { value } = value {
-                global_values.push(Value::I64(*value));
+                global_values.push(GlobalValue::I64(*value));
                 value.to_string()
             } else {
                 panic!("Invalid global value {:?} for type {:?}",)

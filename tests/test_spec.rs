@@ -249,18 +249,18 @@ fn test_spec() {
     //     test_spec_single_suit(pbuf).unwrap();
     // }
 
-    // test_spec_single_suit("./res/spectest_wasc/address").unwrap();
-    // test_spec_single_suit("./res/spectest_wasc/align").unwrap();
-    // test_spec_single_suit("./res/spectest_wasc/binary").unwrap();
-    // test_spec_single_suit("./res/spectest_wasc/binary-leb128").unwrap();
-    // test_spec_single_suit("./res/spectest_wasc/br_if").unwrap();
-    // test_spec_single_suit("./res/spectest_wasc/br_table").unwrap();
-    // test_spec_single_suit("./res/spectest_wasc/break-drop").unwrap();
-    // test_spec_single_suit("./res/spectest_wasc/comments").unwrap();
-    // test_spec_single_suit("./res/spectest_wasc/const").unwrap();
-    // test_spec_single_suit("./res/spectest_wasc/custom").unwrap();
+    test_spec_single_suit("./res/spectest_wasc/address").unwrap();
+    test_spec_single_suit("./res/spectest_wasc/align").unwrap();
+    test_spec_single_suit("./res/spectest_wasc/binary").unwrap();
+    test_spec_single_suit("./res/spectest_wasc/binary-leb128").unwrap();
+    test_spec_single_suit("./res/spectest_wasc/br_if").unwrap();
+    test_spec_single_suit("./res/spectest_wasc/br_table").unwrap();
+    test_spec_single_suit("./res/spectest_wasc/break-drop").unwrap();
+    test_spec_single_suit("./res/spectest_wasc/comments").unwrap();
+    test_spec_single_suit("./res/spectest_wasc/const").unwrap();
+    test_spec_single_suit("./res/spectest_wasc/custom").unwrap();
 
-    test_spec_single_suit("./res/spectest_wasc/data").unwrap();
+    // test_spec_single_suit("./res/spectest_wasc/data").unwrap();
 
     // test_spec_single_suit("./res/spectest_wasc/elem").unwrap();
     // test_spec_single_suit("./res/spectest_wasc/endianness").unwrap();
