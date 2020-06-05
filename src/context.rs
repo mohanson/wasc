@@ -1,20 +1,47 @@
+#[derive(Clone, Debug)]
+pub enum TargetTriple {
+    Host,
+    String(String),
+}
+
+#[derive(Clone, Debug)]
+pub enum TargetCpu {
+    Host,
+    String(String),
+}
+
+#[derive(Clone, Debug)]
+pub enum Abi {
+    Bare,
+    Spectest,
+}
+
 // A Config specifies the global config for a build.
 #[derive(Clone, Debug)]
 pub struct Config {
     // ABI file(s)
+    pub abi: Abi,
     pub abi_posix_wasi: &'static str,
-    // Path of wavm binary, usually the result of "$ which wavm".
-    pub wavm_binary: String,
+    pub abi_spectest: &'static str,
     // Path of cc, usually the result of "$ which gcc".
     pub cc_binary: String,
+    // Target. Example: target_triple="x86_64-pc-linux-gnu", target_cpu="broadwell"
+    pub target_triple: TargetTriple,
+    pub target_cpu: TargetCpu,
+    // Path of wavm binary, usually the result of "$ which wavm".
+    pub wavm_binary: String,
 }
 
 impl Default for Config {
     fn default() -> Self {
         Config {
+            abi: Abi::Bare,
             abi_posix_wasi: include_str!("../abi/posix_wasi_abi.h"),
-            wavm_binary: String::from("wavm"),
+            abi_spectest: include_str!("../abi/spectest.h"),
+            target_triple: TargetTriple::Host,
+            target_cpu: TargetCpu::Host,
             cc_binary: String::from("gcc"),
+            wavm_binary: String::from("wavm"),
         }
     }
 }
@@ -50,6 +77,8 @@ pub struct Middle {
     // temp_dir: std::path::PathBuf,
     // Precompiled wasm file built by wavm.
     pub wavm_precompiled_wasm: std::path::PathBuf,
+
+    pub misc_has_init: bool,
 }
 
 impl Middle {
