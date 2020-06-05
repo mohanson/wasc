@@ -11,6 +11,7 @@ fn test_spec_single_test<P: AsRef<std::path::Path>>(
     commands: Vec<serde_json::Value>,
 ) -> Result<(), Box<dyn std::error::Error>> {
     let mut config = wasc::context::Config::default();
+    config.abi = context::Abi::Spectest;
     config.wavm_binary = "./third_party/WAVM/build/bin/wavm".to_string();
     let mut middle = context::Middle::default();
     middle.config = config;
@@ -25,10 +26,13 @@ fn test_spec_single_test<P: AsRef<std::path::Path>>(
     dummy::init(&mut middle)?;
     let mut dummy_file = dummy::CodeBuilder::open(&middle.dummy)?;
     dummy_file.write_line(format!("#include \"{}_glue.h\"", middle.file_stem).as_str())?;
-    dummy_file
-        .write_line(format!("#include \"{}\"", middle.abi_file.to_str().unwrap()).as_str())?;
+    dummy_file.write_line(
+        format!("#include \"./{}_abi/spectest.h\"", middle.file_stem.clone()).as_str(),
+    )?;
     dummy_file.write_line("int main() {")?;
-
+    if middle.misc_has_init {
+        dummy_file.write_line("init();")?;
+    }
     let mut wavm_ret_index = 1;
     let mut int32_t_index = 1;
     let mut int64_t_index = 1;
@@ -94,7 +98,7 @@ fn test_spec_single_test<P: AsRef<std::path::Path>>(
                                     "{} wavm_ret{} = wavm_exported_function_{}({});",
                                     rttype,
                                     wavm_ret_index,
-                                    field,
+                                    aot_generator::convert_func_name_to_c_function(field),
                                     args_with_null.join(",")
                                 )
                                 .as_str(),
@@ -104,7 +108,7 @@ fn test_spec_single_test<P: AsRef<std::path::Path>>(
                                 "i32" => {
                                     dummy_file.write_line(
                                         format!(
-                                            "if (wavm_ret{}.value != {}) {{",
+                                            "if (*(uint32_t *)&wavm_ret{}.value != {}) {{",
                                             wavm_ret_index,
                                             expected[0]["value"].as_str().unwrap()
                                         )
@@ -114,7 +118,7 @@ fn test_spec_single_test<P: AsRef<std::path::Path>>(
                                 "i64" => {
                                     dummy_file.write_line(
                                         format!(
-                                            "if (wavm_ret{}.value != {}) {{",
+                                            "if (*(uint64_t *)&wavm_ret{}.value != {}) {{",
                                             wavm_ret_index,
                                             expected[0]["value"].as_str().unwrap()
                                         )
@@ -124,7 +128,7 @@ fn test_spec_single_test<P: AsRef<std::path::Path>>(
                                 "f32" => {
                                     dummy_file.write_line(
                                         format!(
-                                            "if (*(int32_t *)&wavm_ret{}.value != {}) {{",
+                                            "if (*(uint32_t *)&wavm_ret{}.value != {}) {{",
                                             wavm_ret_index,
                                             expected[0]["value"].as_str().unwrap()
                                         )
@@ -134,7 +138,7 @@ fn test_spec_single_test<P: AsRef<std::path::Path>>(
                                 "f64" => {
                                     dummy_file.write_line(
                                         format!(
-                                            "if (*(int64_t *)&wavm_ret{}.value != {}) {{",
+                                            "if (*(uint64_t *)&wavm_ret{}.value != {}) {{",
                                             wavm_ret_index,
                                             expected[0]["value"].as_str().unwrap(),
                                         )
@@ -152,7 +156,7 @@ fn test_spec_single_test<P: AsRef<std::path::Path>>(
                             dummy_file.write_line(
                                 format!(
                                     "wavm_exported_function_{}({});",
-                                    field,
+                                    aot_generator::convert_func_name_to_c_function(field),
                                     args_with_null.join(",")
                                 )
                                 .as_str(),
@@ -166,7 +170,13 @@ fn test_spec_single_test<P: AsRef<std::path::Path>>(
                 // TODO
             }
             "assert_malformed" => {
-                // SKIP
+                // TODO
+            }
+            "assert_invalid" => {
+                // TODO
+            }
+            "assert_unlinkable" => {
+                // TODO
             }
             _ => unimplemented!(),
         }
@@ -241,8 +251,73 @@ fn test_spec() {
 
     // for path in wasc_path.read_dir().unwrap() {
     //     let pbuf = path.unwrap().path().to_path_buf();
-    //     // TODO
+    //     test_spec_single_suit(pbuf).unwrap();
     // }
 
-    test_spec_single_suit("/src/wasc/res/spectest_wasc/address").unwrap();
+    test_spec_single_suit("./res/spectest_wasc/address").unwrap();
+    test_spec_single_suit("./res/spectest_wasc/align").unwrap();
+    test_spec_single_suit("./res/spectest_wasc/binary").unwrap();
+    test_spec_single_suit("./res/spectest_wasc/binary-leb128").unwrap();
+    test_spec_single_suit("./res/spectest_wasc/br_if").unwrap();
+    test_spec_single_suit("./res/spectest_wasc/br_table").unwrap();
+    test_spec_single_suit("./res/spectest_wasc/break-drop").unwrap();
+    test_spec_single_suit("./res/spectest_wasc/comments").unwrap();
+    test_spec_single_suit("./res/spectest_wasc/const").unwrap();
+    test_spec_single_suit("./res/spectest_wasc/custom").unwrap();
+    test_spec_single_suit("./res/spectest_wasc/data").unwrap();
+
+    // test_spec_single_suit("./res/spectest_wasc/elem").unwrap();
+    // test_spec_single_suit("./res/spectest_wasc/endianness").unwrap();
+    // # [TODO] test_spec_single_suit("./res/spectest_wasc/exports").unwrap();
+    // test_spec_single_suit("./res/spectest_wasc/f32").unwrap();
+    // test_spec_single_suit("./res/spectest_wasc/f32_bitwise").unwrap();
+    // test_spec_single_suit("./res/spectest_wasc/f32_cmp").unwrap();
+    // test_spec_single_suit("./res/spectest_wasc/f64").unwrap();
+    // test_spec_single_suit("./res/spectest_wasc/f64_bitwise").unwrap();
+    // test_spec_single_suit("./res/spectest_wasc/f64_cmp").unwrap();
+    // test_spec_single_suit("./res/spectest_wasc/float_exprs").unwrap();
+    // test_spec_single_suit("./res/spectest_wasc/float_literals").unwrap();
+    // test_spec_single_suit("./res/spectest_wasc/float_memory").unwrap();
+    // test_spec_single_suit("./res/spectest_wasc/float_misc").unwrap();
+    // test_spec_single_suit("./res/spectest_wasc/forward").unwrap();
+    // test_spec_single_suit("./res/spectest_wasc/func_ptrs").unwrap();
+    // test_spec_single_suit("./res/spectest_wasc/global").unwrap();
+    // test_spec_single_suit("./res/spectest_wasc/globals").unwrap();
+    // test_spec_single_suit("./res/spectest_wasc/imports").unwrap();
+    // test_spec_single_suit("./res/spectest_wasc/inline-module").unwrap();
+    // test_spec_single_suit("./res/spectest_wasc/int_exprs").unwrap();
+    // test_spec_single_suit("./res/spectest_wasc/int_literals").unwrap();
+    // test_spec_single_suit("./res/spectest_wasc/labels").unwrap();
+    // test_spec_single_suit("./res/spectest_wasc/left-to-right").unwrap();
+    // test_spec_single_suit("./res/spectest_wasc/linking").unwrap();
+    // test_spec_single_suit("./res/spectest_wasc/load").unwrap();
+    // test_spec_single_suit("./res/spectest_wasc/local_get").unwrap();
+    // test_spec_single_suit("./res/spectest_wasc/local_set").unwrap();
+    // test_spec_single_suit("./res/spectest_wasc/local_tee").unwrap();
+    // test_spec_single_suit("./res/spectest_wasc/memory").unwrap();
+    // test_spec_single_suit("./res/spectest_wasc/memory_grow").unwrap();
+    // test_spec_single_suit("./res/spectest_wasc/memory_redundancy").unwrap();
+    // test_spec_single_suit("./res/spectest_wasc/memory_size").unwrap();
+    // test_spec_single_suit("./res/spectest_wasc/memory_trap").unwrap();
+    // test_spec_single_suit("./res/spectest_wasc/names").unwrap();
+    // test_spec_single_suit("./res/spectest_wasc/nop").unwrap();
+    // test_spec_single_suit("./res/spectest_wasc/return").unwrap();
+    // test_spec_single_suit("./res/spectest_wasc/select").unwrap();
+    // test_spec_single_suit("./res/spectest_wasc/skip-stack-guard-page").unwrap();
+    // test_spec_single_suit("./res/spectest_wasc/stack").unwrap();
+    // test_spec_single_suit("./res/spectest_wasc/start").unwrap();
+    // test_spec_single_suit("./res/spectest_wasc/store").unwrap();
+    // test_spec_single_suit("./res/spectest_wasc/switch").unwrap();
+    // test_spec_single_suit("./res/spectest_wasc/table").unwrap();
+    // test_spec_single_suit("./res/spectest_wasc/token").unwrap();
+    // test_spec_single_suit("./res/spectest_wasc/traps").unwrap();
+    // test_spec_single_suit("./res/spectest_wasc/type").unwrap();
+    // test_spec_single_suit("./res/spectest_wasc/typecheck").unwrap();
+    // test_spec_single_suit("./res/spectest_wasc/unreachable").unwrap();
+    // test_spec_single_suit("./res/spectest_wasc/unreached-invalid").unwrap();
+    // test_spec_single_suit("./res/spectest_wasc/unwind").unwrap();
+    // test_spec_single_suit("./res/spectest_wasc/utf8-custom-section-id").unwrap();
+    // test_spec_single_suit("./res/spectest_wasc/utf8-import-field").unwrap();
+    // test_spec_single_suit("./res/spectest_wasc/utf8-import-module").unwrap();
+    // test_spec_single_suit("./res/spectest_wasc/utf8-invalid-encoding").unwrap();
 }
