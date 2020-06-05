@@ -156,7 +156,7 @@ const uint64_t biasedInstanceId = 0;
                     }),
             } => {
                 let mut mem = vec![];
-                mem.resize(pages as usize * 64 * 1024, 0);
+                mem.resize(std::cmp::max(1, pages as usize) * 64 * 1024, 0);
                 memories.push(mem);
             }
             // Import Global
@@ -416,15 +416,9 @@ const uint64_t functionDefMutableDatas{} = 0;\n",
 
     for (i, mem) in dynamic_memories.iter().enumerate() {
         has_init = true;
-        glue_file.write_all(format!("uint32_t data{}_length = {};\n", i, mem.data.len()).as_bytes())?;
-        glue_file.write_all(
-            format!(
-                "uint8_t data{}[{}] = {{",
-                i,
-                mem.data.len()
-            )
-            .as_bytes(),
-        )?;
+        glue_file
+            .write_all(format!("uint32_t data{}_length = {};\n", i, mem.data.len()).as_bytes())?;
+        glue_file.write_all(format!("uint8_t data{}[{}] = {{", i, mem.data.len()).as_bytes())?;
         for (j, c) in mem.data.iter().enumerate() {
             if j % 32 == 0 {
                 glue_file.write_all(b"\n  ")?;
@@ -441,11 +435,19 @@ const uint64_t functionDefMutableDatas{} = 0;\n",
         middle.misc_has_init = true;
         glue_file.write_all("void init() {".as_bytes())?;
         for (i, mem) in dynamic_memories.iter().enumerate() {
-            glue_file.write_all(format!("memcpy(memory{} + {}, data{}, {});\n", mem.index, mem.offset,  i, mem.data.len()).as_bytes())?;
+            glue_file.write_all(
+                format!(
+                    "memcpy(memory{} + {}, data{}, {});\n",
+                    mem.index,
+                    mem.offset,
+                    i,
+                    mem.data.len()
+                )
+                .as_bytes(),
+            )?;
         }
         glue_file.write_all("}".as_bytes())?;
     }
-
 
     if has_main {
         glue_file.write_all(
