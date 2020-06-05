@@ -33,6 +33,14 @@ struct DynamicMemory {
     data: Vec<u8>,
 }
 
+#[derive(Debug)]
+struct DynamicTableEntry {
+    index: usize,
+    offset: String,
+    shift: usize,
+    func_index: usize,
+}
+
 pub fn glue(middle: &mut context::Middle) -> Result<(), Box<dyn std::error::Error>> {
     let wasm_data: Vec<u8> = std::fs::read(middle.wavm_precompiled_wasm.to_str().unwrap())?;
     rog::debugln!("glue wasm_data.length={:?}", wasm_data.len());
@@ -103,6 +111,8 @@ const uint64_t biasedInstanceId = 0;
     let mut tables: Vec<Vec<String>> = vec![];
     let mut table_index: Option<usize> = None;
     let mut table_offset: Option<usize> = None;
+    let mut dynamic_table_offset: Option<String> = None;
+    let mut dynamic_tables: Vec<DynamicTableEntry> = vec![];
     loop {
         let state = parser.read();
         match *state {
@@ -179,6 +189,20 @@ const uint64_t biasedInstanceId = 0;
                     .write_all(format!("extern {} {};\n", global_type, import_symbol).as_bytes())?;
                 global_values.push(GlobalValue::Imported(name.clone()));
                 next_import_global_index += 1;
+            }
+            // Import Table
+            wasmparser::ParserState::ImportSectionEntry {
+                module,
+                field,
+                ty:
+                    wasmparser::ImportSectionEntryType::Table(wasmparser::TableType {
+                        element_type: wasmparser::Type::AnyFunc,
+                        limits: wasmparser::ResizableLimits { initial: count, .. },
+                    }),
+            } => {
+                let mut table = vec![];
+                table.resize(count as usize, "0".to_string());
+                tables.push(table);
             }
             wasmparser::ParserState::FunctionSectionEntry(type_entry_index) => {
                 let func_type = &type_entries[type_entry_index as usize];
@@ -260,7 +284,12 @@ const uint64_t functionDefMutableDatas{} = 0;\n",
                         table_offset = Some(*value as usize);
                     }
                     if let wasmparser::Operator::GlobalGet { global_index } = value {
-                        table_offset = Some(global_values[*global_index as usize].as_i32() as usize)
+                        let global_value = &global_values[*global_index as usize];
+                        if let GlobalValue::Imported(x) = global_value {
+                            dynamic_table_offset = Some(x.to_string())
+                        } else {
+                            table_offset = Some(global_value.as_i32() as usize)
+                        }
                     }
                 }
                 CurrentSection::Global => {
@@ -299,12 +328,25 @@ const uint64_t functionDefMutableDatas{} = 0;\n",
             }
             wasmparser::ParserState::ElementSectionEntryBody(ref items) => {
                 let index = table_index.unwrap();
-                let offset = table_offset.unwrap();
 
-                for (i, item) in items.iter().enumerate() {
-                    if let wasmparser::ElementItem::Func(func_index) = item {
-                        tables[index][offset + i] =
-                            format!("((uintptr_t) (functionDef{}))", func_index);
+                if let Some(x) = dynamic_table_offset.clone() {
+                    for (i, item) in items.iter().enumerate() {
+                        if let wasmparser::ElementItem::Func(func_index) = item {
+                            dynamic_tables.push(DynamicTableEntry {
+                                index: index,
+                                offset: x.clone(),
+                                shift: i,
+                                func_index: *func_index as usize,
+                            });
+                        }
+                    }
+                } else {
+                    let offset = table_offset.unwrap();
+                    for (i, item) in items.iter().enumerate() {
+                        if let wasmparser::ElementItem::Func(func_index) = item {
+                            tables[index][offset + i] =
+                                format!("((uintptr_t) (functionDef{}))", func_index);
+                        }
                     }
                 }
             }
@@ -329,6 +371,7 @@ const uint64_t functionDefMutableDatas{} = 0;\n",
             wasmparser::ParserState::EndElementSectionEntry => {
                 table_index = None;
                 table_offset = None;
+                dynamic_table_offset = None;
                 current_section = CurrentSection::Empty;
             }
             wasmparser::ParserState::EndWasm => break,
@@ -336,8 +379,6 @@ const uint64_t functionDefMutableDatas{} = 0;\n",
             _ => rog::debugln!("Unprocessed states: {:?}", state),
         }
     }
-
-    // println!("{:?}", dynamic_memories);
 
     for (i, table) in tables.iter().enumerate() {
         glue_file
@@ -414,6 +455,10 @@ const uint64_t functionDefMutableDatas{} = 0;\n",
         )?;
     }
 
+    for (i, table) in dynamic_tables.iter().enumerate() {
+        has_init = true;
+    }
+
     for (i, mem) in dynamic_memories.iter().enumerate() {
         has_init = true;
         glue_file
@@ -433,7 +478,7 @@ const uint64_t functionDefMutableDatas{} = 0;\n",
     // Write init function
     if has_init {
         middle.misc_has_init = true;
-        glue_file.write_all("void init() {".as_bytes())?;
+        glue_file.write_all("void init() {\n".as_bytes())?;
         for (i, mem) in dynamic_memories.iter().enumerate() {
             glue_file.write_all(
                 format!(
@@ -442,6 +487,15 @@ const uint64_t functionDefMutableDatas{} = 0;\n",
                     mem.offset,
                     i,
                     mem.data.len()
+                )
+                .as_bytes(),
+            )?;
+        }
+        for (i, table) in dynamic_tables.iter().enumerate() {
+            glue_file.write_all(
+                format!(
+                    "table{}[{} + {}] = ((uintptr_t) (functionDef{}));\n",
+                    table.index, table.offset, table.shift, table.func_index
                 )
                 .as_bytes(),
             )?;
