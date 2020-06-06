@@ -82,7 +82,7 @@ fn test_spec_single_test<P: AsRef<std::path::Path>>(
                                         )
                                         .as_str(),
                                     )?;
-                                    args_with_null.push(format!("*(float *)&u64_{}", uint64_t_index));
+                                    args_with_null.push(format!("*(double *)&u64_{}", uint64_t_index));
                                     uint64_t_index += 1;
                                 }
                                 _ => unimplemented!(),
@@ -307,7 +307,7 @@ fn test_spec() {
     test_spec_single_suit("./res/spectest_wasc/f32").unwrap();
     // test_spec_single_suit("./res/spectest_wasc/f32_bitwise").unwrap();
     // test_spec_single_suit("./res/spectest_wasc/f32_cmp").unwrap();
-    // test_spec_single_suit("./res/spectest_wasc/f64").unwrap();
+    test_spec_single_suit("./res/spectest_wasc/f64").unwrap();
     // test_spec_single_suit("./res/spectest_wasc/f64_bitwise").unwrap();
     // test_spec_single_suit("./res/spectest_wasc/f64_cmp").unwrap();
     // test_spec_single_suit("./res/spectest_wasc/float_exprs").unwrap();
@@ -378,6 +378,4 @@ fn test_once() {
             std::fs::copy(f_pbuf, wasc_path.join(&d_file_name).join(&f_file_name)).unwrap();
         }
     }
-
-    test_spec_single_suit("./res/spectest_wasc/f64").unwrap();
 }
