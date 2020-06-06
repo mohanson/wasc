@@ -64,25 +64,25 @@ fn test_spec_single_test<P: AsRef<std::path::Path>>(
                                 "f32" => {
                                     dummy_file.write_line(
                                         format!(
-                                            "int32_t i32{} = {};",
+                                            "int32_t i32_{} = {};",
                                             int32_t_index,
                                             e["value"].as_str().unwrap()
                                         )
                                         .as_str(),
                                     )?;
-                                    args_with_null.push(format!("*(float *)&i32{}", int32_t_index));
+                                    args_with_null.push(format!("*(float *)&i32_{}", int32_t_index));
                                     int32_t_index += 1;
                                 }
                                 "f64" => {
                                     dummy_file.write_line(
                                         format!(
-                                            "int64_t i64{} = {};",
+                                            "int64_t i64_{} = {};",
                                             int64_t_index,
                                             e["value"].as_str().unwrap()
                                         )
                                         .as_str(),
                                     )?;
-                                    args_with_null.push(format!("*(float *)&i64{}", int64_t_index));
+                                    args_with_null.push(format!("*(float *)&i64_{}", int64_t_index));
                                     int64_t_index += 1;
                                 }
                                 _ => unimplemented!(),
@@ -130,25 +130,49 @@ fn test_spec_single_test<P: AsRef<std::path::Path>>(
                                     )?;
                                 }
                                 "f32" => {
-                                    dummy_file.write_line(
-                                        format!(
-                                            "if (*(uint32_t *)&wavm_ret{}.value != {}) {{",
-                                            wavm_ret_index,
-                                            expected[0]["value"].as_str().unwrap()
-                                        )
-                                        .as_str(),
-                                    )?;
+                                    let r_str: &str = expected[0]["value"].as_str().unwrap();
+                                    if r_str.starts_with("nan") {
+                                        dummy_file.write_line(
+                                            format!(
+                                                "if (wavm_ret{}.value == wavm_ret{}.value) {{",
+                                                wavm_ret_index,
+                                                wavm_ret_index,
+                                            )
+                                            .as_str(),
+                                        )?;
+                                    } else {
+                                        dummy_file.write_line(
+                                            format!(
+                                                "if (*(uint32_t *)&wavm_ret{}.value != {}) {{",
+                                                wavm_ret_index,
+                                                expected[0]["value"].as_str().unwrap()
+                                            )
+                                            .as_str(),
+                                        )?;
+                                    }
+
                                 }
                                 "f64" => {
-                                    dummy_file.write_line(
-                                        format!(
-                                            "if (*(uint64_t *)&wavm_ret{}.value != {}) {{",
-                                            wavm_ret_index,
-                                            expected[0]["value"].as_str().unwrap(),
-                                        )
-                                        .as_str(),
-                                    )?;
-                                    int64_t_index += 1;
+                                    let r_str: &str = expected[0]["value"].as_str().unwrap();
+                                    if r_str.starts_with("nan") {
+                                        dummy_file.write_line(
+                                            format!(
+                                                "if (wavm_ret{}.value == wavm_ret{}.value) {{",
+                                                wavm_ret_index,
+                                                wavm_ret_index,
+                                            )
+                                            .as_str(),
+                                        )?;
+                                    } else {
+                                        dummy_file.write_line(
+                                            format!(
+                                                "if (*(uint64_t *)&wavm_ret{}.value != {}) {{",
+                                                wavm_ret_index,
+                                                expected[0]["value"].as_str().unwrap(),
+                                            )
+                                            .as_str(),
+                                        )?;
+                                    }
                                 }
                                 _ => unimplemented!(),
                             }
@@ -280,7 +304,7 @@ fn test_spec() {
     // test_spec_single_suit("./res/spectest_wasc/elem").unwrap();
     // test_spec_single_suit("./res/spectest_wasc/endianness").unwrap();
     // test_spec_single_suit("./res/spectest_wasc/exports").unwrap();
-    // test_spec_single_suit("./res/spectest_wasc/f32").unwrap();
+    test_spec_single_suit("./res/spectest_wasc/f32").unwrap();
     // test_spec_single_suit("./res/spectest_wasc/f32_bitwise").unwrap();
     // test_spec_single_suit("./res/spectest_wasc/f32_cmp").unwrap();
     // test_spec_single_suit("./res/spectest_wasc/f64").unwrap();
@@ -354,4 +378,6 @@ fn test_once() {
             std::fs::copy(f_pbuf, wasc_path.join(&d_file_name).join(&f_file_name)).unwrap();
         }
     }
+
+    test_spec_single_suit("./res/spectest_wasc/f64").unwrap();
 }
