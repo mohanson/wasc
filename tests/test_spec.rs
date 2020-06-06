@@ -38,8 +38,8 @@ fn test_spec_single_test<P: AsRef<std::path::Path>>(
         dummy_file.write_line("init();")?;
     }
     let mut wavm_ret_index = 1;
-    let mut int32_t_index = 1;
-    let mut int64_t_index = 1;
+    let mut uint32_t_index = 1;
+    let mut uint64_t_index = 1;
     for command in commands {
         match command["type"].as_str().unwrap() {
             "assert_return" => {
@@ -64,26 +64,26 @@ fn test_spec_single_test<P: AsRef<std::path::Path>>(
                                 "f32" => {
                                     dummy_file.write_line(
                                         format!(
-                                            "int32_t i32_{} = {};",
-                                            int32_t_index,
+                                            "uint32_t u32_{} = {};",
+                                            uint32_t_index,
                                             e["value"].as_str().unwrap()
                                         )
                                         .as_str(),
                                     )?;
-                                    args_with_null.push(format!("*(float *)&i32_{}", int32_t_index));
-                                    int32_t_index += 1;
+                                    args_with_null.push(format!("*(float *)&u32_{}", uint32_t_index));
+                                    uint32_t_index += 1;
                                 }
                                 "f64" => {
                                     dummy_file.write_line(
                                         format!(
-                                            "int64_t i64_{} = {};",
-                                            int64_t_index,
+                                            "uint64_t u64_{} = {};",
+                                            uint64_t_index,
                                             e["value"].as_str().unwrap()
                                         )
                                         .as_str(),
                                     )?;
-                                    args_with_null.push(format!("*(float *)&i64_{}", int64_t_index));
-                                    int64_t_index += 1;
+                                    args_with_null.push(format!("*(float *)&u64_{}", uint64_t_index));
+                                    uint64_t_index += 1;
                                 }
                                 _ => unimplemented!(),
                             }
