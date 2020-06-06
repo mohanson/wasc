@@ -1,5 +1,6 @@
 use wasc::abi;
 use wasc::aot_generator;
+use wasc::code_builder;
 use wasc::context;
 use wasc::dummy;
 use wasc::wavm;
@@ -24,12 +25,15 @@ fn test_spec_single_test<P: AsRef<std::path::Path>>(
     abi::init(&mut middle)?;
 
     dummy::init(&mut middle)?;
-    let mut dummy_file = dummy::CodeBuilder::open(&middle.dummy)?;
+    let mut dummy_file = code_builder::CodeBuilder::open(&middle.dummy)?;
     dummy_file.write_line(format!("#include \"{}_glue.h\"", middle.file_stem).as_str())?;
     dummy_file.write_line(
         format!("#include \"./{}_abi/spectest.h\"", middle.file_stem.clone()).as_str(),
     )?;
+    dummy_file.write_line("")?;
     dummy_file.write_line("int main() {")?;
+    dummy_file.intend();
+
     if middle.misc_has_init {
         dummy_file.write_line("init();")?;
     }
@@ -148,8 +152,10 @@ fn test_spec_single_test<P: AsRef<std::path::Path>>(
                                 }
                                 _ => unimplemented!(),
                             }
+                            dummy_file.intend();
                             dummy_file
                                 .write_line(format!("return {};", wavm_ret_index).as_str())?;
+                            dummy_file.extend();
                             dummy_file.write_line("}")?;
                             wavm_ret_index += 1;
                         } else {
@@ -157,11 +163,12 @@ fn test_spec_single_test<P: AsRef<std::path::Path>>(
                                 format!(
                                     "wavm_exported_function_{}({});",
                                     aot_generator::convert_func_name_to_c_function(field),
-                                    args_with_null.join(",")
+                                    args_with_null.join(", ")
                                 )
                                 .as_str(),
                             )?;
                         }
+                        dummy_file.write_line("")?;
                     }
                     _ => unimplemented!(),
                 }
@@ -190,6 +197,7 @@ fn test_spec_single_test<P: AsRef<std::path::Path>>(
             _ => unimplemented!(),
         }
     }
+    dummy_file.extend();
     dummy_file.write_line("}")?;
 
     dummy::gcc_build(&middle)?;

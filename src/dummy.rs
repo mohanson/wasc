@@ -1,24 +1,6 @@
 use super::context;
 use std::io::Write;
 
-// A C code builder.
-pub struct CodeBuilder {
-    pub fd: std::fs::File,
-}
-
-impl CodeBuilder {
-    pub fn open<P: AsRef<std::path::Path>>(path: P) -> Result<Self, Box<dyn std::error::Error>> {
-        let fd = std::fs::File::create(path)?;
-        Ok(CodeBuilder { fd })
-    }
-
-    pub fn write_line(&mut self, line: &str) -> Result<(), Box<dyn std::error::Error>> {
-        self.fd.write_all(line.as_bytes())?;
-        self.fd.write_all(&['\n' as u8])?;
-        Ok(())
-    }
-}
-
 pub fn init(middle: &mut context::Middle) -> Result<(), Box<dyn std::error::Error>> {
     middle.dummy = middle.prog_dir.join(middle.file_stem.clone() + ".c");
     Ok(())
