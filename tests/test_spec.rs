@@ -178,6 +178,15 @@ fn test_spec_single_test<P: AsRef<std::path::Path>>(
             "assert_unlinkable" => {
                 // TODO
             }
+            "assert_exhaustion" => {
+                // TODO
+            }
+            "assert_uninstantiable" => {
+                // TODO
+            }
+            "action" => {
+                // TODO
+            }
             _ => unimplemented!(),
         }
     }
@@ -249,26 +258,20 @@ fn test_spec() {
         }
     }
 
-    // for path in wasc_path.read_dir().unwrap() {
-    //     let pbuf = path.unwrap().path().to_path_buf();
-    //     test_spec_single_suit(pbuf).unwrap();
-    // }
-
-    // test_spec_single_suit("./res/spectest_wasc/address").unwrap();
-    // test_spec_single_suit("./res/spectest_wasc/align").unwrap();
-    // test_spec_single_suit("./res/spectest_wasc/binary").unwrap();
-    // test_spec_single_suit("./res/spectest_wasc/binary-leb128").unwrap();
-    // test_spec_single_suit("./res/spectest_wasc/br_if").unwrap();
-    // test_spec_single_suit("./res/spectest_wasc/br_table").unwrap();
-    // test_spec_single_suit("./res/spectest_wasc/break-drop").unwrap();
-    // test_spec_single_suit("./res/spectest_wasc/comments").unwrap();
-    // test_spec_single_suit("./res/spectest_wasc/const").unwrap();
-    // test_spec_single_suit("./res/spectest_wasc/custom").unwrap();
-    // test_spec_single_suit("./res/spectest_wasc/data").unwrap();
-
-    test_spec_single_suit("./res/spectest_wasc/elem").unwrap();
+    test_spec_single_suit("./res/spectest_wasc/address").unwrap();
+    test_spec_single_suit("./res/spectest_wasc/align").unwrap();
+    test_spec_single_suit("./res/spectest_wasc/binary").unwrap();
+    test_spec_single_suit("./res/spectest_wasc/binary-leb128").unwrap();
+    test_spec_single_suit("./res/spectest_wasc/br_if").unwrap();
+    test_spec_single_suit("./res/spectest_wasc/br_table").unwrap();
+    test_spec_single_suit("./res/spectest_wasc/break-drop").unwrap();
+    test_spec_single_suit("./res/spectest_wasc/comments").unwrap();
+    test_spec_single_suit("./res/spectest_wasc/const").unwrap();
+    test_spec_single_suit("./res/spectest_wasc/custom").unwrap();
+    test_spec_single_suit("./res/spectest_wasc/data").unwrap();
+    // test_spec_single_suit("./res/spectest_wasc/elem").unwrap();
     // test_spec_single_suit("./res/spectest_wasc/endianness").unwrap();
-    // # [TODO] test_spec_single_suit("./res/spectest_wasc/exports").unwrap();
+    // test_spec_single_suit("./res/spectest_wasc/exports").unwrap();
     // test_spec_single_suit("./res/spectest_wasc/f32").unwrap();
     // test_spec_single_suit("./res/spectest_wasc/f32_bitwise").unwrap();
     // test_spec_single_suit("./res/spectest_wasc/f32_cmp").unwrap();
@@ -285,9 +288,9 @@ fn test_spec() {
     // test_spec_single_suit("./res/spectest_wasc/globals").unwrap();
     // test_spec_single_suit("./res/spectest_wasc/imports").unwrap();
     // test_spec_single_suit("./res/spectest_wasc/inline-module").unwrap();
-    // test_spec_single_suit("./res/spectest_wasc/int_exprs").unwrap();
-    // test_spec_single_suit("./res/spectest_wasc/int_literals").unwrap();
-    // test_spec_single_suit("./res/spectest_wasc/labels").unwrap();
+    test_spec_single_suit("./res/spectest_wasc/int_exprs").unwrap();
+    test_spec_single_suit("./res/spectest_wasc/int_literals").unwrap();
+    test_spec_single_suit("./res/spectest_wasc/labels").unwrap();
     // test_spec_single_suit("./res/spectest_wasc/left-to-right").unwrap();
     // test_spec_single_suit("./res/spectest_wasc/linking").unwrap();
     // test_spec_single_suit("./res/spectest_wasc/load").unwrap();
@@ -306,18 +309,41 @@ fn test_spec() {
     // test_spec_single_suit("./res/spectest_wasc/skip-stack-guard-page").unwrap();
     // test_spec_single_suit("./res/spectest_wasc/stack").unwrap();
     // test_spec_single_suit("./res/spectest_wasc/start").unwrap();
-    // test_spec_single_suit("./res/spectest_wasc/store").unwrap();
-    // test_spec_single_suit("./res/spectest_wasc/switch").unwrap();
-    // test_spec_single_suit("./res/spectest_wasc/table").unwrap();
-    // test_spec_single_suit("./res/spectest_wasc/token").unwrap();
-    // test_spec_single_suit("./res/spectest_wasc/traps").unwrap();
-    // test_spec_single_suit("./res/spectest_wasc/type").unwrap();
-    // test_spec_single_suit("./res/spectest_wasc/typecheck").unwrap();
+    test_spec_single_suit("./res/spectest_wasc/store").unwrap();
+    test_spec_single_suit("./res/spectest_wasc/switch").unwrap();
+    test_spec_single_suit("./res/spectest_wasc/table").unwrap();
+    test_spec_single_suit("./res/spectest_wasc/token").unwrap();
+    test_spec_single_suit("./res/spectest_wasc/traps").unwrap();
+    test_spec_single_suit("./res/spectest_wasc/type").unwrap();
+    test_spec_single_suit("./res/spectest_wasc/typecheck").unwrap();
     // test_spec_single_suit("./res/spectest_wasc/unreachable").unwrap();
-    // test_spec_single_suit("./res/spectest_wasc/unreached-invalid").unwrap();
-    // test_spec_single_suit("./res/spectest_wasc/unwind").unwrap();
-    // test_spec_single_suit("./res/spectest_wasc/utf8-custom-section-id").unwrap();
-    // test_spec_single_suit("./res/spectest_wasc/utf8-import-field").unwrap();
-    // test_spec_single_suit("./res/spectest_wasc/utf8-import-module").unwrap();
-    // test_spec_single_suit("./res/spectest_wasc/utf8-invalid-encoding").unwrap();
+    test_spec_single_suit("./res/spectest_wasc/unreached-invalid").unwrap();
+    test_spec_single_suit("./res/spectest_wasc/unwind").unwrap();
+    test_spec_single_suit("./res/spectest_wasc/utf8-custom-section-id").unwrap();
+    test_spec_single_suit("./res/spectest_wasc/utf8-import-field").unwrap();
+    test_spec_single_suit("./res/spectest_wasc/utf8-import-module").unwrap();
+    test_spec_single_suit("./res/spectest_wasc/utf8-invalid-encoding").unwrap();
+}
+
+#[test]
+fn test_once() {
+    misc::open_log();
+    let wasc_path = std::path::PathBuf::from("./res/spectest_wasc");
+    if wasc_path.exists() {
+        std::fs::remove_dir_all(&wasc_path).unwrap();
+    }
+    std::fs::create_dir(&wasc_path).unwrap();
+    let spec_path = std::path::PathBuf::from("./res/spectest");
+    for d_path in spec_path.read_dir().unwrap() {
+        let d_pbuf = d_path.unwrap().path();
+        let d_file_name = d_pbuf.file_name().unwrap().to_str().unwrap();
+        std::fs::create_dir(wasc_path.join(&d_file_name)).unwrap();
+        for f_path in d_pbuf.read_dir().unwrap() {
+            let f_pbuf = f_path.unwrap().path();
+            let f_file_stem = f_pbuf.file_stem().unwrap().to_str().unwrap();
+            let f_nice_stem = f_file_stem.replace(".", "_");
+            let f_file_name = f_nice_stem + "." + f_pbuf.extension().unwrap().to_str().unwrap();
+            std::fs::copy(f_pbuf, wasc_path.join(&d_file_name).join(&f_file_name)).unwrap();
+        }
+    }
 }
