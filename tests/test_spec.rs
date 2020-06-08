@@ -322,18 +322,18 @@ fn test_spec() {
     // test_spec_single_suit("./res/spectest_wasc/left-to-right").unwrap(); // tableReferenceBias
     // test_spec_single_suit("./res/spectest_wasc/linking").unwrap(); // skip
     // test_spec_single_suit("./res/spectest_wasc/load").unwrap();
-    // test_spec_single_suit("./res/spectest_wasc/local_get").unwrap();
-    // test_spec_single_suit("./res/spectest_wasc/local_set").unwrap();
-    // test_spec_single_suit("./res/spectest_wasc/local_tee").unwrap();
-    // test_spec_single_suit("./res/spectest_wasc/memory").unwrap();
+    test_spec_single_suit("./res/spectest_wasc/local_get").unwrap();
+    test_spec_single_suit("./res/spectest_wasc/local_set").unwrap();
+    // test_spec_single_suit("./res/spectest_wasc/local_tee").unwrap(); // tableReferenceBias
+    test_spec_single_suit("./res/spectest_wasc/memory").unwrap();
     // test_spec_single_suit("./res/spectest_wasc/memory_grow").unwrap();
     // test_spec_single_suit("./res/spectest_wasc/memory_redundancy").unwrap();
     // test_spec_single_suit("./res/spectest_wasc/memory_size").unwrap();
     // test_spec_single_suit("./res/spectest_wasc/memory_trap").unwrap();
     // test_spec_single_suit("./res/spectest_wasc/names").unwrap();
-    // test_spec_single_suit("./res/spectest_wasc/nop").unwrap();
-    // test_spec_single_suit("./res/spectest_wasc/return").unwrap();
-    // test_spec_single_suit("./res/spectest_wasc/select").unwrap();
+    // test_spec_single_suit("./res/spectest_wasc/nop").unwrap(); // tableReferenceBias
+    // test_spec_single_suit("./res/spectest_wasc/return").unwrap(); // tableReferenceBias
+    // test_spec_single_suit("./res/spectest_wasc/select").unwrap(); // tableReferenceBias
     // test_spec_single_suit("./res/spectest_wasc/skip-stack-guard-page").unwrap();
     // test_spec_single_suit("./res/spectest_wasc/stack").unwrap();
     // test_spec_single_suit("./res/spectest_wasc/start").unwrap();
@@ -374,5 +374,28 @@ fn test_once() {
             std::fs::copy(f_pbuf, wasc_path.join(&d_file_name).join(&f_file_name)).unwrap();
         }
     }
-    test_spec_single_suit("./res/spectest_wasc/unreachable").unwrap();
+    // test_spec_single_suit("./res/spectest_wasc/elem").unwrap();
+    // test_spec_single_suit("./res/spectest_wasc/endianness").unwrap();
+    // test_spec_single_suit("./res/spectest_wasc/exports").unwrap();
+    // test_spec_single_suit("./res/spectest_wasc/forward").unwrap();
+    // test_spec_single_suit("./res/spectest_wasc/func_ptrs").unwrap();
+    // test_spec_single_suit("./res/spectest_wasc/global").unwrap();
+    // test_spec_single_suit("./res/spectest_wasc/globals").unwrap();
+    // test_spec_single_suit("./res/spectest_wasc/imports").unwrap();
+    // test_spec_single_suit("./res/spectest_wasc/inline-module").unwrap();
+    // test_spec_single_suit("./res/spectest_wasc/left-to-right").unwrap(); // tableReferenceBias
+    // test_spec_single_suit("./res/spectest_wasc/linking").unwrap(); // skip
+    // test_spec_single_suit("./res/spectest_wasc/load").unwrap();
+    // test_spec_single_suit("./res/spectest_wasc/local_tee").unwrap(); // tableReferenceBias
+    // test_spec_single_suit("./res/spectest_wasc/memory_grow").unwrap();
+    // test_spec_single_suit("./res/spectest_wasc/memory_redundancy").unwrap();
+    // test_spec_single_suit("./res/spectest_wasc/memory_size").unwrap();
+    // test_spec_single_suit("./res/spectest_wasc/memory_trap").unwrap();
+    // test_spec_single_suit("./res/spectest_wasc/names").unwrap();
+    // test_spec_single_suit("./res/spectest_wasc/nop").unwrap(); // tableReferenceBias
+    // test_spec_single_suit("./res/spectest_wasc/return").unwrap(); // tableReferenceBias
+    // test_spec_single_suit("./res/spectest_wasc/select").unwrap(); // tableReferenceBias
+    // test_spec_single_suit("./res/spectest_wasc/skip-stack-guard-page").unwrap();
+    // test_spec_single_suit("./res/spectest_wasc/stack").unwrap();
+    // test_spec_single_suit("./res/spectest_wasc/start").unwrap();
 }

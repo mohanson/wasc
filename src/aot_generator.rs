@@ -81,6 +81,11 @@ typedef struct {{
   double value;
 }} wavm_ret_double;
 
+typedef struct memory_runtime_data {{
+    uint8_t* base;
+    uint64_t num_pages;
+}} memory_runtime_data;
+
 const uint64_t functionDefMutableData = 0;
 const uint64_t biasedInstanceId = 0;
 \n",
@@ -445,9 +450,12 @@ const uint64_t functionDefMutableDatas{} = 0;\n",
         glue_file.write_all(b"\n};\n")?;
         glue_file.write_all(
             format!(
-                "uint8_t* memoryOffset{} = memory{};
+                "struct memory_runtime_data memoryOffset{} = {{memory{}, {}}};
 #define MEMORY{}_DEFINED 1\n",
-                i, i, i
+                i,
+                i,
+                mem.len() / 65536,
+                i
             )
             .as_bytes(),
         )?;
