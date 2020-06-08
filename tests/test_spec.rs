@@ -42,7 +42,7 @@ fn test_spec_single_test<P: AsRef<std::path::Path>>(
     let mut uint64_t_index = 1;
     for command in commands {
         match command["type"].as_str().unwrap() {
-            "assert_return" => {
+            "assert_return" | "action" => {
                 let action = command["action"].as_object().unwrap();
                 let ty = action["type"].as_str().unwrap();
 
@@ -70,7 +70,8 @@ fn test_spec_single_test<P: AsRef<std::path::Path>>(
                                         )
                                         .as_str(),
                                     )?;
-                                    args_with_null.push(format!("*(float *)&u32_{}", uint32_t_index));
+                                    args_with_null
+                                        .push(format!("*(float *)&u32_{}", uint32_t_index));
                                     uint32_t_index += 1;
                                 }
                                 "f64" => {
@@ -82,7 +83,8 @@ fn test_spec_single_test<P: AsRef<std::path::Path>>(
                                         )
                                         .as_str(),
                                     )?;
-                                    args_with_null.push(format!("*(double *)&u64_{}", uint64_t_index));
+                                    args_with_null
+                                        .push(format!("*(double *)&u64_{}", uint64_t_index));
                                     uint64_t_index += 1;
                                 }
                                 _ => unimplemented!(),
@@ -135,8 +137,7 @@ fn test_spec_single_test<P: AsRef<std::path::Path>>(
                                         dummy_file.write_line(
                                             format!(
                                                 "if (wavm_ret{}.value == wavm_ret{}.value) {{",
-                                                wavm_ret_index,
-                                                wavm_ret_index,
+                                                wavm_ret_index, wavm_ret_index,
                                             )
                                             .as_str(),
                                         )?;
@@ -150,7 +151,6 @@ fn test_spec_single_test<P: AsRef<std::path::Path>>(
                                             .as_str(),
                                         )?;
                                     }
-
                                 }
                                 "f64" => {
                                     let r_str: &str = expected[0]["value"].as_str().unwrap();
@@ -158,8 +158,7 @@ fn test_spec_single_test<P: AsRef<std::path::Path>>(
                                         dummy_file.write_line(
                                             format!(
                                                 "if (wavm_ret{}.value == wavm_ret{}.value) {{",
-                                                wavm_ret_index,
-                                                wavm_ret_index,
+                                                wavm_ret_index, wavm_ret_index,
                                             )
                                             .as_str(),
                                         )?;
@@ -213,9 +212,6 @@ fn test_spec_single_test<P: AsRef<std::path::Path>>(
                 // TODO
             }
             "assert_uninstantiable" => {
-                // TODO
-            }
-            "action" => {
                 // TODO
             }
             _ => unimplemented!(),
@@ -305,15 +301,15 @@ fn test_spec() {
     // test_spec_single_suit("./res/spectest_wasc/endianness").unwrap();
     // test_spec_single_suit("./res/spectest_wasc/exports").unwrap();
     test_spec_single_suit("./res/spectest_wasc/f32").unwrap();
-    // test_spec_single_suit("./res/spectest_wasc/f32_bitwise").unwrap();
-    // test_spec_single_suit("./res/spectest_wasc/f32_cmp").unwrap();
+    test_spec_single_suit("./res/spectest_wasc/f32_bitwise").unwrap();
+    test_spec_single_suit("./res/spectest_wasc/f32_cmp").unwrap();
     test_spec_single_suit("./res/spectest_wasc/f64").unwrap();
-    // test_spec_single_suit("./res/spectest_wasc/f64_bitwise").unwrap();
-    // test_spec_single_suit("./res/spectest_wasc/f64_cmp").unwrap();
-    // test_spec_single_suit("./res/spectest_wasc/float_exprs").unwrap();
-    // test_spec_single_suit("./res/spectest_wasc/float_literals").unwrap();
-    // test_spec_single_suit("./res/spectest_wasc/float_memory").unwrap();
-    // test_spec_single_suit("./res/spectest_wasc/float_misc").unwrap();
+    test_spec_single_suit("./res/spectest_wasc/f64_bitwise").unwrap();
+    test_spec_single_suit("./res/spectest_wasc/f64_cmp").unwrap();
+    test_spec_single_suit("./res/spectest_wasc/float_exprs").unwrap();
+    test_spec_single_suit("./res/spectest_wasc/float_literals").unwrap();
+    test_spec_single_suit("./res/spectest_wasc/float_memory").unwrap();
+    test_spec_single_suit("./res/spectest_wasc/float_misc").unwrap();
     // test_spec_single_suit("./res/spectest_wasc/forward").unwrap();
     // test_spec_single_suit("./res/spectest_wasc/func_ptrs").unwrap();
     // test_spec_single_suit("./res/spectest_wasc/global").unwrap();
@@ -323,8 +319,8 @@ fn test_spec() {
     test_spec_single_suit("./res/spectest_wasc/int_exprs").unwrap();
     test_spec_single_suit("./res/spectest_wasc/int_literals").unwrap();
     test_spec_single_suit("./res/spectest_wasc/labels").unwrap();
-    // test_spec_single_suit("./res/spectest_wasc/left-to-right").unwrap();
-    // test_spec_single_suit("./res/spectest_wasc/linking").unwrap();
+    // test_spec_single_suit("./res/spectest_wasc/left-to-right").unwrap(); // tableReferenceBias
+    // test_spec_single_suit("./res/spectest_wasc/linking").unwrap(); // skip
     // test_spec_single_suit("./res/spectest_wasc/load").unwrap();
     // test_spec_single_suit("./res/spectest_wasc/local_get").unwrap();
     // test_spec_single_suit("./res/spectest_wasc/local_set").unwrap();
@@ -348,7 +344,7 @@ fn test_spec() {
     test_spec_single_suit("./res/spectest_wasc/traps").unwrap();
     test_spec_single_suit("./res/spectest_wasc/type").unwrap();
     test_spec_single_suit("./res/spectest_wasc/typecheck").unwrap();
-    // test_spec_single_suit("./res/spectest_wasc/unreachable").unwrap();
+    test_spec_single_suit("./res/spectest_wasc/unreachable").unwrap();
     test_spec_single_suit("./res/spectest_wasc/unreached-invalid").unwrap();
     test_spec_single_suit("./res/spectest_wasc/unwind").unwrap();
     test_spec_single_suit("./res/spectest_wasc/utf8-custom-section-id").unwrap();
@@ -378,4 +374,5 @@ fn test_once() {
             std::fs::copy(f_pbuf, wasc_path.join(&d_file_name).join(&f_file_name)).unwrap();
         }
     }
+    test_spec_single_suit("./res/spectest_wasc/unreachable").unwrap();
 }

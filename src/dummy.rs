@@ -1,5 +1,4 @@
 use super::context;
-use std::io::Write;
 
 pub fn init(middle: &mut context::Middle) -> Result<(), Box<dyn std::error::Error>> {
     middle.dummy = middle.prog_dir.join(middle.file_stem.clone() + ".c");

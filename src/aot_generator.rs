@@ -13,8 +13,8 @@ enum GlobalValue {
     I32(i32),
     I64(i64),
     Imported(String),
-    // F32(f32),
-    // F64(f64),
+    F32(u32),
+    F64(u64),
 }
 
 impl GlobalValue {
@@ -192,8 +192,8 @@ const uint64_t biasedInstanceId = 0;
             }
             // Import Table
             wasmparser::ParserState::ImportSectionEntry {
-                module,
-                field,
+                module: _,
+                field: _,
                 ty:
                     wasmparser::ImportSectionEntryType::Table(wasmparser::TableType {
                         element_type: wasmparser::Type::AnyFunc,
@@ -293,18 +293,16 @@ const uint64_t functionDefMutableDatas{} = 0;\n",
                     }
                 }
                 CurrentSection::Global => {
-                    glue_file
-                        .write_all(
-                            generate_global_entry(
-                                next_global_index,
-                                &global_content_type,
-                                global_mutable,
-                                &value,
-                                &mut global_values,
-                            )
-                            .as_bytes(),
+                    glue_file.write_all(
+                        generate_global_entry(
+                            next_global_index,
+                            &global_content_type,
+                            global_mutable,
+                            &value,
+                            &mut global_values,
                         )
-                        .expect("write glue file!");
+                        .as_bytes(),
+                    )?;
                     next_global_index += 1;
                 }
                 CurrentSection::Empty => {
@@ -455,7 +453,7 @@ const uint64_t functionDefMutableDatas{} = 0;\n",
         )?;
     }
 
-    for (i, table) in dynamic_tables.iter().enumerate() {
+    for (_, _) in dynamic_tables.iter().enumerate() {
         has_init = true;
     }
 
@@ -491,7 +489,7 @@ const uint64_t functionDefMutableDatas{} = 0;\n",
                 .as_bytes(),
             )?;
         }
-        for (i, table) in dynamic_tables.iter().enumerate() {
+        for (_, table) in dynamic_tables.iter().enumerate() {
             glue_file.write_all(
                 format!(
                     "table{}[{} + {}] = ((uintptr_t) (functionDef{}));\n",
@@ -562,44 +560,73 @@ fn generate_global_entry(
     let mutable_string = if mutable { "" } else { "const " };
     let type_string = wasm_type_to_c_type(content_type.clone());
 
-    let value_string = match content_type {
+    match content_type {
         wasmparser::Type::I32 => {
             if let wasmparser::Operator::I32Const { value } = value {
                 global_values.push(GlobalValue::I32(*value));
-                value.to_string()
+                format!(
+                    "{}{} global{} = {};\n",
+                    mutable_string,
+                    type_string,
+                    index,
+                    value.to_string()
+                )
             } else {
-                panic!("Invalid global value {:?} for type {:?}",)
+                unimplemented!()
             }
         }
         wasmparser::Type::I64 => {
             if let wasmparser::Operator::I64Const { value } = value {
                 global_values.push(GlobalValue::I64(*value));
-                value.to_string()
+                format!(
+                    "{}{} global{} = {};\n",
+                    mutable_string,
+                    type_string,
+                    index,
+                    value.to_string()
+                )
             } else {
-                panic!("Invalid global value {:?} for type {:?}",)
+                unimplemented!()
             }
         }
-        // wasmparser::Type::F32 => {
-        //     if let wasmparser::Operator::F32Const { value } = value {
-        //         global_values.push(Value::F32(*value));
-        //         value.into()
-        //     } else {
-        //         panic!("Invalid global value {:?} for type {:?}",)
-        //     }
-        // }
-        // wasmparser::Type::F64 => {
-        //     if let wasmparser::Operator::F64Const { value } = value {
-        //         global_values.push(Value::F64(*value));
-        //         value.to_string()
-        //     } else {
-        //         panic!("Invalid global value {:?} for type {:?}",)
-        //     }
-        // }
+        wasmparser::Type::F32 => {
+            if let wasmparser::Operator::F32Const { value } = value {
+                global_values.push(GlobalValue::F32(value.bits()));
+                let f = value.bits() as f32;
+                format!(
+                    "{}{} global{} = {};\n",
+                    mutable_string,
+                    type_string,
+                    index,
+                    f.to_string()
+                )
+            // format!(
+            //     "const uint32_t global{}_bits ={};\n{}{} global{} = *(float *)&global{}_bits;\n",
+            //     index, value.bits().to_string(), mutable_string, type_string, index, index,
+            // )
+            } else {
+                unimplemented!()
+            }
+        }
+        wasmparser::Type::F64 => {
+            if let wasmparser::Operator::F64Const { value } = value {
+                global_values.push(GlobalValue::F64(value.bits()));
+                let f = value.bits() as f64;
+                format!(
+                    "{}{} global{} = {};\n",
+                    mutable_string,
+                    type_string,
+                    index,
+                    f.to_string()
+                )
+            // format!(
+            //     "const uint64_t global{}_bits ={};\n{}{} global{} = *(double *)&global{}_bits;\n",
+            //     index, value.bits().to_string(), mutable_string, type_string, index, index,
+            // )
+            } else {
+                unimplemented!()
+            }
+        }
         _ => panic!("Invalid content type: {:?} for global entry", content_type),
-    };
-
-    format!(
-        "{}{} global{} = {};\n",
-        mutable_string, type_string, index, value_string
-    )
+    }
 }
