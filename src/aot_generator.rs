@@ -88,6 +88,7 @@ typedef struct memory_runtime_data {{
 
 const uint64_t functionDefMutableData = 0;
 const uint64_t biasedInstanceId = 0;
+const uint64_t tableReferenceBias = 0;
 \n",
             header_id, header_id
         )
@@ -331,7 +332,6 @@ const uint64_t functionDefMutableDatas{} = 0;\n",
             }
             wasmparser::ParserState::ElementSectionEntryBody(ref items) => {
                 let index = table_index.unwrap();
-
                 if let Some(x) = dynamic_table_offset.clone() {
                     for (i, item) in items.iter().enumerate() {
                         if let wasmparser::ElementItem::Func(func_index) = item {
@@ -461,6 +461,9 @@ const uint64_t functionDefMutableDatas{} = 0;\n",
         )?;
     }
 
+    if tables.len() != 0 {
+        has_init = true;
+    }
     for (_, _) in dynamic_tables.iter().enumerate() {
         has_init = true;
     }
@@ -506,7 +509,18 @@ const uint64_t functionDefMutableDatas{} = 0;\n",
                 .as_bytes(),
             )?;
         }
-        glue_file.write_all("}".as_bytes())?;
+        for (i, _) in tables.iter().enumerate() {
+            glue_file.write_all(
+                format!(
+                    "for (int i = 0; i < table{}_length; i++) {{
+table{}[i] = table{}[i] - ((uintptr_t) &tableReferenceBias) - 0x20;
+}}\n",
+                    i, i, i
+                )
+                .as_bytes(),
+            )?;
+        }
+        glue_file.write_all("}\n".as_bytes())?;
     }
 
     if has_main {
