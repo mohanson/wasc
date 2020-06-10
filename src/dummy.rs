@@ -18,7 +18,8 @@ pub fn gcc_build(middle: &context::Middle) -> Result<(), Box<dyn std::error::Err
         .arg("-o")
         .arg(output_bin)
         .arg(middle.aot_object.to_str().unwrap())
-        .arg(middle.dummy.to_str().unwrap());
+        .arg(middle.dummy.to_str().unwrap())
+        .arg(middle.abi_path_s.to_str().unwrap());
     cmd.spawn()?.wait()?;
     Ok(())
 }

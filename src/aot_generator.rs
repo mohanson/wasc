@@ -105,6 +105,7 @@ const uint64_t tableReferenceBias = 0;
     let mut has_init = false;
     let mut has_main = false;
     let mut memories: Vec<Vec<u8>> = vec![];
+    let mut max_page_num: Option<u32> = None;
     let mut dynamic_memories: Vec<DynamicMemory> = vec![];
     let mut data_index: Option<usize> = None;
     let mut data_offset: Option<usize> = None;
@@ -256,12 +257,17 @@ const uint64_t functionDefMutableDatas{} = 0;\n",
                 tables.push(table);
             }
             wasmparser::ParserState::MemorySectionEntry(wasmparser::MemoryType {
-                limits: wasmparser::ResizableLimits { initial: pages, .. },
+                limits:
+                    wasmparser::ResizableLimits {
+                        initial: pages,
+                        maximum,
+                    },
                 ..
             }) => {
                 let mut mem = vec![];
                 mem.resize(pages as usize * 64 * 1024, 0);
                 memories.push(mem);
+                max_page_num = maximum;
             }
             wasmparser::ParserState::BeginActiveDataSectionEntry(i) => {
                 data_index = Some(i as usize);
@@ -461,6 +467,9 @@ const uint64_t functionDefMutableDatas{} = 0;\n",
             )
             .as_bytes(),
         )?;
+        if let Some(x) = max_page_num {
+            glue_file.write_all(format!("#define WAVM_MAX_PAGE {}\n", x.to_string()).as_bytes())?;
+        }
     }
 
     if tables.len() != 0 {
@@ -514,9 +523,9 @@ const uint64_t functionDefMutableDatas{} = 0;\n",
         for (i, _) in tables.iter().enumerate() {
             glue_file.write_all(
                 format!(
-                    "for (int i = 0; i < table{}_length; i++) {{
-table{}[i] = table{}[i] - ((uintptr_t) &tableReferenceBias) - 0x20;
-}}\n",
+                    "  for (int i = 0; i < table{}_length; i++) {{
+    table{}[i] = table{}[i] - ((uintptr_t) &tableReferenceBias) - 0x20;
+  }}\n",
                     i, i, i
                 )
                 .as_bytes(),

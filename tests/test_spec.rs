@@ -337,9 +337,9 @@ fn test_spec() {
     // test_spec_single_suit("./res/spectest_wasc/load").unwrap();
     test_spec_single_suit("./res/spectest_wasc/local_get", vec![]).unwrap();
     test_spec_single_suit("./res/spectest_wasc/local_set", vec![]).unwrap();
-    // test_spec_single_suit("./res/spectest_wasc/local_tee").unwrap(); // tableReferenceBias
+    test_spec_single_suit("./res/spectest_wasc/local_tee", vec![]).unwrap(); // tableReferenceBias
     test_spec_single_suit("./res/spectest_wasc/memory", vec![]).unwrap();
-    // test_spec_single_suit("./res/spectest_wasc/memory_grow").unwrap();
+    test_spec_single_suit("./res/spectest_wasc/memory_grow", vec![]).unwrap();
     test_spec_single_suit("./res/spectest_wasc/memory_redundancy", vec![]).unwrap();
     // test_spec_single_suit("./res/spectest_wasc/memory_size").unwrap();
     // test_spec_single_suit("./res/spectest_wasc/memory_trap").unwrap();
@@ -394,8 +394,6 @@ fn test_once() {
     // test_spec_single_suit("./res/spectest_wasc/imports").unwrap();
     // test_spec_single_suit("./res/spectest_wasc/linking").unwrap(); // skip
     // test_spec_single_suit("./res/spectest_wasc/load").unwrap(); // memory.grow
-    // test_spec_single_suit("./res/spectest_wasc/local_tee", vec![]).unwrap(); // tableReferenceBias
-    // test_spec_single_suit("./res/spectest_wasc/memory_grow").unwrap(); // memory.grow
     // test_spec_single_suit("./res/spectest_wasc/memory_size").unwrap(); // memory.grow
     // test_spec_single_suit("./res/spectest_wasc/memory_trap").unwrap(); // memory.grow
     // test_spec_single_suit("./res/spectest_wasc/names").unwrap();
