@@ -325,8 +325,8 @@ fn test_spec() {
     test_spec_single_suit("./res/spectest_wasc/float_misc", vec![]).unwrap();
     test_spec_single_suit("./res/spectest_wasc/forward", vec![]).unwrap();
     // test_spec_single_suit("./res/spectest_wasc/func_ptrs").unwrap();
-    // test_spec_single_suit("./res/spectest_wasc/global").unwrap();
-    // test_spec_single_suit("./res/spectest_wasc/globals").unwrap();
+    test_spec_single_suit("./res/spectest_wasc/global", vec![]).unwrap();
+    test_spec_single_suit("./res/spectest_wasc/globals", vec![]).unwrap();
     // test_spec_single_suit("./res/spectest_wasc/imports").unwrap();
     test_spec_single_suit("./res/spectest_wasc/inline-module", vec![]).unwrap();
     test_spec_single_suit("./res/spectest_wasc/int_exprs", vec![]).unwrap();
@@ -389,8 +389,6 @@ fn test_once() {
     }
     // test_spec_single_suit("./res/spectest_wasc/exports").unwrap();
     // test_spec_single_suit("./res/spectest_wasc/func_ptrs").unwrap();
-    test_spec_single_suit("./res/spectest_wasc/global", vec![]).unwrap();
-    // test_spec_single_suit("./res/spectest_wasc/globals").unwrap(); // memory.grow
     // test_spec_single_suit("./res/spectest_wasc/imports").unwrap();
     // test_spec_single_suit("./res/spectest_wasc/linking").unwrap(); // skip
     // test_spec_single_suit("./res/spectest_wasc/load").unwrap(); // memory.grow

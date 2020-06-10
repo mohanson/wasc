@@ -625,18 +625,13 @@ fn generate_global_entry(
         wasmparser::Type::F32 => {
             if let wasmparser::Operator::F32Const { value } = value {
                 global_values.push(GlobalValue::F32(value.bits()));
-                let f = value.bits() as f32;
                 format!(
                     "{}{} global{} = {};\n",
                     mutable_string,
                     type_string,
                     index,
-                    f.to_string()
+                    unsafe { std::mem::transmute::<u32, f32>(value.bits()).to_string() }
                 )
-            // format!(
-            //     "const uint32_t global{}_bits ={};\n{}{} global{} = *(float *)&global{}_bits;\n",
-            //     index, value.bits().to_string(), mutable_string, type_string, index, index,
-            // )
             } else {
                 unimplemented!()
             }
@@ -644,18 +639,13 @@ fn generate_global_entry(
         wasmparser::Type::F64 => {
             if let wasmparser::Operator::F64Const { value } = value {
                 global_values.push(GlobalValue::F64(value.bits()));
-                let f = value.bits() as f64;
                 format!(
                     "{}{} global{} = {};\n",
                     mutable_string,
                     type_string,
                     index,
-                    f.to_string()
+                    unsafe { std::mem::transmute::<u64, f64>(value.bits()).to_string() }
                 )
-            // format!(
-            //     "const uint64_t global{}_bits ={};\n{}{} global{} = *(double *)&global{}_bits;\n",
-            //     index, value.bits().to_string(), mutable_string, type_string, index, index,
-            // )
             } else {
                 unimplemented!()
             }
