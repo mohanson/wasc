@@ -55,4 +55,9 @@ void invalidFloatOperationTrap()
 
 int32_t wavm_spectest_global_i32 = 42;
 
+void *wavm_spectest_print_i32(void *dummy, int32_t i)
+{
+  printf("%d\n", i);
+}
+
 #endif /* WAVM_SPECTEST_ABI_H */
