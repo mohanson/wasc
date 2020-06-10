@@ -341,12 +341,12 @@ fn test_spec() {
     test_spec_single_suit("./res/spectest_wasc/memory", vec![]).unwrap();
     test_spec_single_suit("./res/spectest_wasc/memory_grow", vec![]).unwrap();
     test_spec_single_suit("./res/spectest_wasc/memory_redundancy", vec![]).unwrap();
-    // test_spec_single_suit("./res/spectest_wasc/memory_size").unwrap();
-    // test_spec_single_suit("./res/spectest_wasc/memory_trap").unwrap();
+    test_spec_single_suit("./res/spectest_wasc/memory_size", vec![]).unwrap();
+    test_spec_single_suit("./res/spectest_wasc/memory_trap", vec![]).unwrap();
     // test_spec_single_suit("./res/spectest_wasc/names").unwrap();
-    // test_spec_single_suit("./res/spectest_wasc/nop").unwrap(); // tableReferenceBias
+    test_spec_single_suit("./res/spectest_wasc/nop", vec![]).unwrap(); // tableReferenceBias
     test_spec_single_suit("./res/spectest_wasc/return", vec![]).unwrap();
-    // test_spec_single_suit("./res/spectest_wasc/select").unwrap(); // tableReferenceBias
+    test_spec_single_suit("./res/spectest_wasc/select", vec![]).unwrap(); // tableReferenceBias
     // test_spec_single_suit("./res/spectest_wasc/skip-stack-guard-page").unwrap();
     test_spec_single_suit("./res/spectest_wasc/stack", vec![]).unwrap();
     // test_spec_single_suit("./res/spectest_wasc/start").unwrap();
@@ -389,16 +389,12 @@ fn test_once() {
     }
     // test_spec_single_suit("./res/spectest_wasc/exports").unwrap();
     // test_spec_single_suit("./res/spectest_wasc/func_ptrs").unwrap();
-    // test_spec_single_suit("./res/spectest_wasc/global").unwrap(); // memory.grow
+    test_spec_single_suit("./res/spectest_wasc/global", vec![]).unwrap();
     // test_spec_single_suit("./res/spectest_wasc/globals").unwrap(); // memory.grow
     // test_spec_single_suit("./res/spectest_wasc/imports").unwrap();
     // test_spec_single_suit("./res/spectest_wasc/linking").unwrap(); // skip
     // test_spec_single_suit("./res/spectest_wasc/load").unwrap(); // memory.grow
-    // test_spec_single_suit("./res/spectest_wasc/memory_size").unwrap(); // memory.grow
-    // test_spec_single_suit("./res/spectest_wasc/memory_trap").unwrap(); // memory.grow
     // test_spec_single_suit("./res/spectest_wasc/names").unwrap();
-    // test_spec_single_suit("./res/spectest_wasc/nop", vec![]).unwrap(); // tableReferenceBias
-    // test_spec_single_suit("./res/spectest_wasc/select", vec![]).unwrap(); // tableReferenceBias
     // test_spec_single_suit("./res/spectest_wasc/skip-stack-guard-page").unwrap(); // wavm_probe_stack
     // test_spec_single_suit("./res/spectest_wasc/start").unwrap();
 }
