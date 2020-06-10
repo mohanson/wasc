@@ -306,7 +306,11 @@ fn test_spec() {
     test_spec_single_suit("./res/spectest_wasc/const", vec![]).unwrap();
     test_spec_single_suit("./res/spectest_wasc/custom", vec![]).unwrap();
     test_spec_single_suit("./res/spectest_wasc/data", vec![]).unwrap();
-    test_spec_single_suit("./res/spectest_wasc/elem", vec!["elem_39.wasm", "elem_40.wasm"]).unwrap();
+    test_spec_single_suit(
+        "./res/spectest_wasc/elem",
+        vec!["elem_39.wasm", "elem_40.wasm"],
+    )
+    .unwrap();
     test_spec_single_suit("./res/spectest_wasc/endianness", vec![]).unwrap();
     // test_spec_single_suit("./res/spectest_wasc/exports").unwrap();
     test_spec_single_suit("./res/spectest_wasc/f32", vec![]).unwrap();
@@ -328,7 +332,7 @@ fn test_spec() {
     test_spec_single_suit("./res/spectest_wasc/int_exprs", vec![]).unwrap();
     test_spec_single_suit("./res/spectest_wasc/int_literals", vec![]).unwrap();
     test_spec_single_suit("./res/spectest_wasc/labels", vec![]).unwrap();
-    // test_spec_single_suit("./res/spectest_wasc/left-to-right").unwrap(); // tableReferenceBias
+    test_spec_single_suit("./res/spectest_wasc/left-to-right", vec![]).unwrap();
     // test_spec_single_suit("./res/spectest_wasc/linking").unwrap(); // skip
     // test_spec_single_suit("./res/spectest_wasc/load").unwrap();
     test_spec_single_suit("./res/spectest_wasc/local_get", vec![]).unwrap();
@@ -341,10 +345,10 @@ fn test_spec() {
     // test_spec_single_suit("./res/spectest_wasc/memory_trap").unwrap();
     // test_spec_single_suit("./res/spectest_wasc/names").unwrap();
     // test_spec_single_suit("./res/spectest_wasc/nop").unwrap(); // tableReferenceBias
-    // test_spec_single_suit("./res/spectest_wasc/return").unwrap(); // tableReferenceBias
+    test_spec_single_suit("./res/spectest_wasc/return", vec![]).unwrap();
     // test_spec_single_suit("./res/spectest_wasc/select").unwrap(); // tableReferenceBias
     // test_spec_single_suit("./res/spectest_wasc/skip-stack-guard-page").unwrap();
-    // test_spec_single_suit("./res/spectest_wasc/stack").unwrap();
+    test_spec_single_suit("./res/spectest_wasc/stack", vec![]).unwrap();
     // test_spec_single_suit("./res/spectest_wasc/start").unwrap();
     test_spec_single_suit("./res/spectest_wasc/store", vec![]).unwrap();
     test_spec_single_suit("./res/spectest_wasc/switch", vec![]).unwrap();
@@ -383,25 +387,20 @@ fn test_once() {
             std::fs::copy(f_pbuf, wasc_path.join(&d_file_name).join(&f_file_name)).unwrap();
         }
     }
-    test_spec_single_suit("./res/spectest_wasc/elem", vec!["elem_39.wasm", "elem_40.wasm"]).unwrap();
-
     // test_spec_single_suit("./res/spectest_wasc/exports").unwrap();
     // test_spec_single_suit("./res/spectest_wasc/func_ptrs").unwrap();
     // test_spec_single_suit("./res/spectest_wasc/global").unwrap(); // memory.grow
     // test_spec_single_suit("./res/spectest_wasc/globals").unwrap(); // memory.grow
     // test_spec_single_suit("./res/spectest_wasc/imports").unwrap();
-    // test_spec_single_suit("./res/spectest_wasc/left-to-right").unwrap(); // tableReferenceBias
     // test_spec_single_suit("./res/spectest_wasc/linking").unwrap(); // skip
     // test_spec_single_suit("./res/spectest_wasc/load").unwrap(); // memory.grow
-    // test_spec_single_suit("./res/spectest_wasc/local_tee").unwrap(); // tableReferenceBias
+    // test_spec_single_suit("./res/spectest_wasc/local_tee", vec![]).unwrap(); // tableReferenceBias
     // test_spec_single_suit("./res/spectest_wasc/memory_grow").unwrap(); // memory.grow
     // test_spec_single_suit("./res/spectest_wasc/memory_size").unwrap(); // memory.grow
     // test_spec_single_suit("./res/spectest_wasc/memory_trap").unwrap(); // memory.grow
     // test_spec_single_suit("./res/spectest_wasc/names").unwrap();
-    // test_spec_single_suit("./res/spectest_wasc/nop").unwrap(); // tableReferenceBias
-    // test_spec_single_suit("./res/spectest_wasc/return").unwrap(); // tableReferenceBias
-    // test_spec_single_suit("./res/spectest_wasc/select").unwrap(); // tableReferenceBias
+    // test_spec_single_suit("./res/spectest_wasc/nop", vec![]).unwrap(); // tableReferenceBias
+    // test_spec_single_suit("./res/spectest_wasc/select", vec![]).unwrap(); // tableReferenceBias
     // test_spec_single_suit("./res/spectest_wasc/skip-stack-guard-page").unwrap(); // wavm_probe_stack
-    // test_spec_single_suit("./res/spectest_wasc/stack").unwrap(); // tableReferenceBias
     // test_spec_single_suit("./res/spectest_wasc/start").unwrap();
 }
