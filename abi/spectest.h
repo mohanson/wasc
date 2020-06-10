@@ -8,6 +8,7 @@ extern uint8_t *memoryOffset0;
 #endif
 
 int32_t wavm_spectest_global_i32 = 42;
+uintptr_t wavm_spectest_table[16] = {};
 
 void callIndirectFail()
 {

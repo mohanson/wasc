@@ -206,8 +206,10 @@ const uint64_t tableReferenceBias = 0;
                         limits: wasmparser::ResizableLimits { initial: count, .. },
                     }),
             } => {
+                // #define wavm_spectest_table table0
+                // extern uintptr_t table0[16];
                 let mut table = vec![];
-                table.resize(count as usize, "0".to_string());
+                table.resize(std::cmp::max(256, count as usize), "0".to_string()); // TODO: implement import table.
                 tables.push(table);
             }
             wasmparser::ParserState::FunctionSectionEntry(type_entry_index) => {
