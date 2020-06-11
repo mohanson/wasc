@@ -21,7 +21,7 @@ $ ./build.sh
 Run tests:
 
 ```sh
-$ cargo test -- --nocapture
+$ cargo test -- --nocapture --test test_spec
 
 # "/src/wasc/res/spectest_wasc/address/address_0.c" exit code: 0
 # "/src/wasc/res/spectest_wasc/address/address_2.c" exit code: 0
