@@ -1,5 +1,6 @@
 use wasc::abi;
 use wasc::aot_generator;
+use wasc::code_builder;
 use wasc::context;
 use wasc::dummy;
 use wasc::wavm;
@@ -24,21 +25,24 @@ fn test_spec_single_test<P: AsRef<std::path::Path>>(
     abi::init(&mut middle)?;
 
     dummy::init(&mut middle)?;
-    let mut dummy_file = dummy::CodeBuilder::open(&middle.dummy)?;
+    let mut dummy_file = code_builder::CodeBuilder::open(&middle.dummy)?;
     dummy_file.write_line(format!("#include \"{}_glue.h\"", middle.file_stem).as_str())?;
     dummy_file.write_line(
         format!("#include \"./{}_abi/spectest.h\"", middle.file_stem.clone()).as_str(),
     )?;
+    dummy_file.write_line("")?;
     dummy_file.write_line("int main() {")?;
+    dummy_file.intend();
+
     if middle.misc_has_init {
         dummy_file.write_line("init();")?;
     }
     let mut wavm_ret_index = 1;
-    let mut int32_t_index = 1;
-    let mut int64_t_index = 1;
+    let mut uint32_t_index = 1;
+    let mut uint64_t_index = 1;
     for command in commands {
         match command["type"].as_str().unwrap() {
-            "assert_return" => {
+            "assert_return" | "action" => {
                 let action = command["action"].as_object().unwrap();
                 let ty = action["type"].as_str().unwrap();
 
@@ -60,26 +64,28 @@ fn test_spec_single_test<P: AsRef<std::path::Path>>(
                                 "f32" => {
                                     dummy_file.write_line(
                                         format!(
-                                            "int32_t i32{} = {};",
-                                            int32_t_index,
+                                            "uint32_t u32_{} = {};",
+                                            uint32_t_index,
                                             e["value"].as_str().unwrap()
                                         )
                                         .as_str(),
                                     )?;
-                                    args_with_null.push(format!("*(float *)&i32{}", int32_t_index));
-                                    int32_t_index += 1;
+                                    args_with_null
+                                        .push(format!("*(float *)&u32_{}", uint32_t_index));
+                                    uint32_t_index += 1;
                                 }
                                 "f64" => {
                                     dummy_file.write_line(
                                         format!(
-                                            "int64_t i64{} = {};",
-                                            int64_t_index,
+                                            "uint64_t u64_{} = {};",
+                                            uint64_t_index,
                                             e["value"].as_str().unwrap()
                                         )
                                         .as_str(),
                                     )?;
-                                    args_with_null.push(format!("*(float *)&i64{}", int64_t_index));
-                                    int64_t_index += 1;
+                                    args_with_null
+                                        .push(format!("*(double *)&u64_{}", uint64_t_index));
+                                    uint64_t_index += 1;
                                 }
                                 _ => unimplemented!(),
                             }
@@ -126,30 +132,53 @@ fn test_spec_single_test<P: AsRef<std::path::Path>>(
                                     )?;
                                 }
                                 "f32" => {
-                                    dummy_file.write_line(
-                                        format!(
-                                            "if (*(uint32_t *)&wavm_ret{}.value != {}) {{",
-                                            wavm_ret_index,
-                                            expected[0]["value"].as_str().unwrap()
-                                        )
-                                        .as_str(),
-                                    )?;
+                                    let r_str: &str = expected[0]["value"].as_str().unwrap();
+                                    if r_str.starts_with("nan") {
+                                        dummy_file.write_line(
+                                            format!(
+                                                "if (wavm_ret{}.value == wavm_ret{}.value) {{",
+                                                wavm_ret_index, wavm_ret_index,
+                                            )
+                                            .as_str(),
+                                        )?;
+                                    } else {
+                                        dummy_file.write_line(
+                                            format!(
+                                                "if (*(uint32_t *)&wavm_ret{}.value != {}) {{",
+                                                wavm_ret_index,
+                                                expected[0]["value"].as_str().unwrap()
+                                            )
+                                            .as_str(),
+                                        )?;
+                                    }
                                 }
                                 "f64" => {
-                                    dummy_file.write_line(
-                                        format!(
-                                            "if (*(uint64_t *)&wavm_ret{}.value != {}) {{",
-                                            wavm_ret_index,
-                                            expected[0]["value"].as_str().unwrap(),
-                                        )
-                                        .as_str(),
-                                    )?;
-                                    int64_t_index += 1;
+                                    let r_str: &str = expected[0]["value"].as_str().unwrap();
+                                    if r_str.starts_with("nan") {
+                                        dummy_file.write_line(
+                                            format!(
+                                                "if (wavm_ret{}.value == wavm_ret{}.value) {{",
+                                                wavm_ret_index, wavm_ret_index,
+                                            )
+                                            .as_str(),
+                                        )?;
+                                    } else {
+                                        dummy_file.write_line(
+                                            format!(
+                                                "if (*(uint64_t *)&wavm_ret{}.value != {}) {{",
+                                                wavm_ret_index,
+                                                expected[0]["value"].as_str().unwrap(),
+                                            )
+                                            .as_str(),
+                                        )?;
+                                    }
                                 }
                                 _ => unimplemented!(),
                             }
+                            dummy_file.intend();
                             dummy_file
                                 .write_line(format!("return {};", wavm_ret_index).as_str())?;
+                            dummy_file.extend();
                             dummy_file.write_line("}")?;
                             wavm_ret_index += 1;
                         } else {
@@ -157,11 +186,12 @@ fn test_spec_single_test<P: AsRef<std::path::Path>>(
                                 format!(
                                     "wavm_exported_function_{}({});",
                                     aot_generator::convert_func_name_to_c_function(field),
-                                    args_with_null.join(",")
+                                    args_with_null.join(", ")
                                 )
                                 .as_str(),
                             )?;
                         }
+                        dummy_file.write_line("")?;
                     }
                     _ => unimplemented!(),
                 }
@@ -178,9 +208,19 @@ fn test_spec_single_test<P: AsRef<std::path::Path>>(
             "assert_unlinkable" => {
                 // TODO
             }
+            "assert_exhaustion" => {
+                // TODO
+            }
+            "assert_uninstantiable" => {
+                // TODO
+            }
+            "register" => {
+                // TODO
+            }
             _ => unimplemented!(),
         }
     }
+    dummy_file.extend();
     dummy_file.write_line("}")?;
 
     dummy::gcc_build(&middle)?;
@@ -193,6 +233,7 @@ fn test_spec_single_test<P: AsRef<std::path::Path>>(
 
 fn test_spec_single_suit<P: AsRef<std::path::Path>>(
     spec_path: P,
+    skip: Vec<&str>,
 ) -> Result<(), Box<dyn std::error::Error>> {
     let spec_path = spec_path.as_ref();
     let file_stem = spec_path.file_stem().unwrap().to_str().unwrap();
@@ -213,7 +254,12 @@ fn test_spec_single_suit<P: AsRef<std::path::Path>>(
                 }
                 let file_name: &str = command["filename"].as_str().unwrap();
                 let nice_name: &str = &file_name.replacen(".", "_", 1);
-                wasm_file = spec_path.join(&nice_name);
+                if skip.contains(&nice_name) {
+                    rog::debugln!("skip {:?}", nice_name);
+                    wasm_file = std::path::PathBuf::new();
+                } else {
+                    wasm_file = spec_path.join(&nice_name);
+                }
             }
             _ => {
                 commands.push(command.clone());
@@ -249,75 +295,100 @@ fn test_spec() {
         }
     }
 
-    // for path in wasc_path.read_dir().unwrap() {
-    //     let pbuf = path.unwrap().path().to_path_buf();
-    //     test_spec_single_suit(pbuf).unwrap();
-    // }
-
-    test_spec_single_suit("./res/spectest_wasc/address").unwrap();
-    test_spec_single_suit("./res/spectest_wasc/align").unwrap();
-    test_spec_single_suit("./res/spectest_wasc/binary").unwrap();
-    test_spec_single_suit("./res/spectest_wasc/binary-leb128").unwrap();
-    test_spec_single_suit("./res/spectest_wasc/br_if").unwrap();
-    test_spec_single_suit("./res/spectest_wasc/br_table").unwrap();
-    test_spec_single_suit("./res/spectest_wasc/break-drop").unwrap();
-    test_spec_single_suit("./res/spectest_wasc/comments").unwrap();
-    test_spec_single_suit("./res/spectest_wasc/const").unwrap();
-    test_spec_single_suit("./res/spectest_wasc/custom").unwrap();
-    test_spec_single_suit("./res/spectest_wasc/data").unwrap();
-
-    // test_spec_single_suit("./res/spectest_wasc/elem").unwrap();
-    // test_spec_single_suit("./res/spectest_wasc/endianness").unwrap();
-    // # [TODO] test_spec_single_suit("./res/spectest_wasc/exports").unwrap();
-    // test_spec_single_suit("./res/spectest_wasc/f32").unwrap();
-    // test_spec_single_suit("./res/spectest_wasc/f32_bitwise").unwrap();
-    // test_spec_single_suit("./res/spectest_wasc/f32_cmp").unwrap();
-    // test_spec_single_suit("./res/spectest_wasc/f64").unwrap();
-    // test_spec_single_suit("./res/spectest_wasc/f64_bitwise").unwrap();
-    // test_spec_single_suit("./res/spectest_wasc/f64_cmp").unwrap();
-    // test_spec_single_suit("./res/spectest_wasc/float_exprs").unwrap();
-    // test_spec_single_suit("./res/spectest_wasc/float_literals").unwrap();
-    // test_spec_single_suit("./res/spectest_wasc/float_memory").unwrap();
-    // test_spec_single_suit("./res/spectest_wasc/float_misc").unwrap();
-    // test_spec_single_suit("./res/spectest_wasc/forward").unwrap();
-    // test_spec_single_suit("./res/spectest_wasc/func_ptrs").unwrap();
-    // test_spec_single_suit("./res/spectest_wasc/global").unwrap();
-    // test_spec_single_suit("./res/spectest_wasc/globals").unwrap();
-    // test_spec_single_suit("./res/spectest_wasc/imports").unwrap();
-    // test_spec_single_suit("./res/spectest_wasc/inline-module").unwrap();
-    // test_spec_single_suit("./res/spectest_wasc/int_exprs").unwrap();
-    // test_spec_single_suit("./res/spectest_wasc/int_literals").unwrap();
-    // test_spec_single_suit("./res/spectest_wasc/labels").unwrap();
-    // test_spec_single_suit("./res/spectest_wasc/left-to-right").unwrap();
-    // test_spec_single_suit("./res/spectest_wasc/linking").unwrap();
-    // test_spec_single_suit("./res/spectest_wasc/load").unwrap();
-    // test_spec_single_suit("./res/spectest_wasc/local_get").unwrap();
-    // test_spec_single_suit("./res/spectest_wasc/local_set").unwrap();
-    // test_spec_single_suit("./res/spectest_wasc/local_tee").unwrap();
-    // test_spec_single_suit("./res/spectest_wasc/memory").unwrap();
-    // test_spec_single_suit("./res/spectest_wasc/memory_grow").unwrap();
-    // test_spec_single_suit("./res/spectest_wasc/memory_redundancy").unwrap();
-    // test_spec_single_suit("./res/spectest_wasc/memory_size").unwrap();
-    // test_spec_single_suit("./res/spectest_wasc/memory_trap").unwrap();
-    // test_spec_single_suit("./res/spectest_wasc/names").unwrap();
-    // test_spec_single_suit("./res/spectest_wasc/nop").unwrap();
-    // test_spec_single_suit("./res/spectest_wasc/return").unwrap();
-    // test_spec_single_suit("./res/spectest_wasc/select").unwrap();
-    // test_spec_single_suit("./res/spectest_wasc/skip-stack-guard-page").unwrap();
-    // test_spec_single_suit("./res/spectest_wasc/stack").unwrap();
-    // test_spec_single_suit("./res/spectest_wasc/start").unwrap();
-    // test_spec_single_suit("./res/spectest_wasc/store").unwrap();
-    // test_spec_single_suit("./res/spectest_wasc/switch").unwrap();
-    // test_spec_single_suit("./res/spectest_wasc/table").unwrap();
-    // test_spec_single_suit("./res/spectest_wasc/token").unwrap();
-    // test_spec_single_suit("./res/spectest_wasc/traps").unwrap();
-    // test_spec_single_suit("./res/spectest_wasc/type").unwrap();
-    // test_spec_single_suit("./res/spectest_wasc/typecheck").unwrap();
-    // test_spec_single_suit("./res/spectest_wasc/unreachable").unwrap();
-    // test_spec_single_suit("./res/spectest_wasc/unreached-invalid").unwrap();
-    // test_spec_single_suit("./res/spectest_wasc/unwind").unwrap();
-    // test_spec_single_suit("./res/spectest_wasc/utf8-custom-section-id").unwrap();
-    // test_spec_single_suit("./res/spectest_wasc/utf8-import-field").unwrap();
-    // test_spec_single_suit("./res/spectest_wasc/utf8-import-module").unwrap();
-    // test_spec_single_suit("./res/spectest_wasc/utf8-invalid-encoding").unwrap();
+    test_spec_single_suit("./res/spectest_wasc/address", vec![]).unwrap();
+    test_spec_single_suit("./res/spectest_wasc/align", vec![]).unwrap();
+    test_spec_single_suit("./res/spectest_wasc/binary", vec![]).unwrap();
+    test_spec_single_suit("./res/spectest_wasc/binary-leb128", vec![]).unwrap();
+    test_spec_single_suit("./res/spectest_wasc/br_if", vec![]).unwrap();
+    test_spec_single_suit("./res/spectest_wasc/br_table", vec![]).unwrap();
+    test_spec_single_suit("./res/spectest_wasc/break-drop", vec![]).unwrap();
+    test_spec_single_suit("./res/spectest_wasc/comments", vec![]).unwrap();
+    test_spec_single_suit("./res/spectest_wasc/const", vec![]).unwrap();
+    test_spec_single_suit("./res/spectest_wasc/custom", vec![]).unwrap();
+    test_spec_single_suit("./res/spectest_wasc/data", vec![]).unwrap();
+    test_spec_single_suit(
+        "./res/spectest_wasc/elem",
+        vec!["elem_39.wasm", "elem_40.wasm"],
+    )
+    .unwrap();
+    test_spec_single_suit("./res/spectest_wasc/endianness", vec![]).unwrap();
+    // test_spec_single_suit("./res/spectest_wasc/exports").unwrap(); // skip.
+    test_spec_single_suit("./res/spectest_wasc/f32", vec![]).unwrap();
+    test_spec_single_suit("./res/spectest_wasc/f32_bitwise", vec![]).unwrap();
+    test_spec_single_suit("./res/spectest_wasc/f32_cmp", vec![]).unwrap();
+    test_spec_single_suit("./res/spectest_wasc/f64", vec![]).unwrap();
+    test_spec_single_suit("./res/spectest_wasc/f64_bitwise", vec![]).unwrap();
+    test_spec_single_suit("./res/spectest_wasc/f64_cmp", vec![]).unwrap();
+    test_spec_single_suit("./res/spectest_wasc/float_exprs", vec![]).unwrap();
+    test_spec_single_suit("./res/spectest_wasc/float_literals", vec![]).unwrap();
+    test_spec_single_suit("./res/spectest_wasc/float_memory", vec![]).unwrap();
+    test_spec_single_suit("./res/spectest_wasc/float_misc", vec![]).unwrap();
+    test_spec_single_suit("./res/spectest_wasc/forward", vec![]).unwrap();
+    test_spec_single_suit(
+        "./res/spectest_wasc/func_ptrs",
+        vec!["func_ptrs_8.wasm", "func_ptrs_9.wasm"],
+    )
+    .unwrap();
+    test_spec_single_suit("./res/spectest_wasc/global", vec![]).unwrap();
+    test_spec_single_suit("./res/spectest_wasc/globals", vec![]).unwrap();
+    // test_spec_single_suit("./res/spectest_wasc/imports").unwrap(); // skip
+    test_spec_single_suit("./res/spectest_wasc/inline-module", vec![]).unwrap();
+    test_spec_single_suit("./res/spectest_wasc/int_exprs", vec![]).unwrap();
+    test_spec_single_suit("./res/spectest_wasc/int_literals", vec![]).unwrap();
+    test_spec_single_suit("./res/spectest_wasc/labels", vec![]).unwrap();
+    test_spec_single_suit("./res/spectest_wasc/left-to-right", vec![]).unwrap();
+    // test_spec_single_suit("./res/spectest_wasc/linking", vec![]).unwrap(); // skip
+    test_spec_single_suit("./res/spectest_wasc/load", vec![]).unwrap();
+    test_spec_single_suit("./res/spectest_wasc/local_get", vec![]).unwrap();
+    test_spec_single_suit("./res/spectest_wasc/local_set", vec![]).unwrap();
+    test_spec_single_suit("./res/spectest_wasc/local_tee", vec![]).unwrap();
+    test_spec_single_suit("./res/spectest_wasc/memory", vec![]).unwrap();
+    test_spec_single_suit("./res/spectest_wasc/memory_grow", vec![]).unwrap();
+    test_spec_single_suit("./res/spectest_wasc/memory_redundancy", vec![]).unwrap();
+    test_spec_single_suit("./res/spectest_wasc/memory_size", vec![]).unwrap();
+    test_spec_single_suit("./res/spectest_wasc/memory_trap", vec![]).unwrap();
+    test_spec_single_suit("./res/spectest_wasc/names", vec!["names_3.wasm"]).unwrap();
+    test_spec_single_suit("./res/spectest_wasc/nop", vec![]).unwrap();
+    test_spec_single_suit("./res/spectest_wasc/return", vec![]).unwrap();
+    test_spec_single_suit("./res/spectest_wasc/select", vec![]).unwrap();
+    test_spec_single_suit("./res/spectest_wasc/skip-stack-guard-page", vec![]).unwrap();
+    test_spec_single_suit("./res/spectest_wasc/stack", vec![]).unwrap();
+    test_spec_single_suit("./res/spectest_wasc/start", vec![]).unwrap();
+    test_spec_single_suit("./res/spectest_wasc/store", vec![]).unwrap();
+    test_spec_single_suit("./res/spectest_wasc/switch", vec![]).unwrap();
+    test_spec_single_suit("./res/spectest_wasc/table", vec![]).unwrap();
+    test_spec_single_suit("./res/spectest_wasc/token", vec![]).unwrap();
+    test_spec_single_suit("./res/spectest_wasc/traps", vec![]).unwrap();
+    test_spec_single_suit("./res/spectest_wasc/type", vec![]).unwrap();
+    test_spec_single_suit("./res/spectest_wasc/typecheck", vec![]).unwrap();
+    test_spec_single_suit("./res/spectest_wasc/unreachable", vec![]).unwrap();
+    test_spec_single_suit("./res/spectest_wasc/unreached-invalid", vec![]).unwrap();
+    test_spec_single_suit("./res/spectest_wasc/unwind", vec![]).unwrap();
+    test_spec_single_suit("./res/spectest_wasc/utf8-custom-section-id", vec![]).unwrap();
+    test_spec_single_suit("./res/spectest_wasc/utf8-import-field", vec![]).unwrap();
+    test_spec_single_suit("./res/spectest_wasc/utf8-import-module", vec![]).unwrap();
+    test_spec_single_suit("./res/spectest_wasc/utf8-invalid-encoding", vec![]).unwrap();
 }
+
+// #[test]
+// fn test_once() {
+//     misc::open_log();
+//     let wasc_path = std::path::PathBuf::from("./res/spectest_wasc");
+//     if wasc_path.exists() {
+//         std::fs::remove_dir_all(&wasc_path).unwrap();
+//     }
+//     std::fs::create_dir(&wasc_path).unwrap();
+//     let spec_path = std::path::PathBuf::from("./res/spectest");
+//     for d_path in spec_path.read_dir().unwrap() {
+//         let d_pbuf = d_path.unwrap().path();
+//         let d_file_name = d_pbuf.file_name().unwrap().to_str().unwrap();
+//         std::fs::create_dir(wasc_path.join(&d_file_name)).unwrap();
+//         for f_path in d_pbuf.read_dir().unwrap() {
+//             let f_pbuf = f_path.unwrap().path();
+//             let f_file_stem = f_pbuf.file_stem().unwrap().to_str().unwrap();
+//             let f_nice_stem = f_file_stem.replace(".", "_");
+//             let f_file_name = f_nice_stem + "." + f_pbuf.extension().unwrap().to_str().unwrap();
+//             std::fs::copy(f_pbuf, wasc_path.join(&d_file_name).join(&f_file_name)).unwrap();
+//         }
+//     }
+// }
