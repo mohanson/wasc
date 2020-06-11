@@ -55,10 +55,27 @@ void invalidFloatOperationTrap()
 }
 
 int32_t wavm_spectest_global_i32 = 42;
+float wavm_spectest_global_f32 = 42.0;
+double wavm_spectest_global_f64 = 420;
 
 void *wavm_spectest_print_i32(void *dummy, int32_t i)
 {
   printf("wavm_spectest_print_i32 %d\n", i);
+}
+
+void *wavm_exported_function_print32(void *dummy, int32_t i)
+{
+  printf("wavm_exported_function_print32 %d\n", i);
+}
+
+void *wavm_exported_function_print64(void *dummy, int64_t i)
+{
+  printf("wavm_exported_function_print64 %ld\n", i);
+}
+
+void *wavm_spectest_print(void *dummy)
+{
+  printf("wavm_spectest_print");
 }
 
 #endif /* WAVM_SPECTEST_ABI_H */

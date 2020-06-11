@@ -102,6 +102,7 @@ const uint64_t tableReferenceBias = 0;
     let mut next_import_global_index = 0;
     let mut next_function_index = 0;
     let mut function_entries: Vec<Option<usize>> = vec![];
+    let mut function_names: Vec<String> = vec![];
     let mut has_init = false;
     let mut has_main = false;
     let mut memories: Vec<Vec<u8>> = vec![];
@@ -120,9 +121,14 @@ const uint64_t tableReferenceBias = 0;
     let mut table_offset: Option<usize> = None;
     let mut dynamic_table_offset: Option<String> = None;
     let mut dynamic_tables: Vec<DynamicTableEntry> = vec![];
+    let mut start: Option<u32> = None;
     loop {
         let state = parser.read();
         match *state {
+            wasmparser::ParserState::StartSectionEntry(function_index) => {
+                start = Some(function_index);
+                has_init = true;
+            }
             wasmparser::ParserState::BeginSection { code, .. } => {
                 if let wasmparser::SectionCode::Custom { name, .. } = code {
                     section_name = Some(name.to_string());
@@ -157,10 +163,11 @@ const uint64_t tableReferenceBias = 0;
                 glue_file.write_all(
                     format!(
                         "extern {};\n",
-                        convert_func_type_to_c_function(&func_type, import_symbol)
+                        convert_func_type_to_c_function(&func_type, import_symbol.clone())
                     )
                     .as_bytes(),
                 )?;
+                function_names.push(name);
             }
             // Import memory
             wasmparser::ParserState::ImportSectionEntry {
@@ -220,13 +227,14 @@ const uint64_t tableReferenceBias = 0;
                     format!(
                         "extern {};
 const uint64_t functionDefMutableDatas{} = 0;\n",
-                        convert_func_type_to_c_function(&func_type, name),
+                        convert_func_type_to_c_function(&func_type, name.clone()),
                         next_function_index,
                     )
                     .as_bytes(),
                 )?;
                 function_entries.push(Some(next_function_index));
                 next_function_index += 1;
+                function_names.push(name.clone());
             }
             wasmparser::ParserState::ExportSectionEntry {
                 field,
@@ -531,6 +539,12 @@ const uint64_t functionDefMutableDatas{} = 0;\n",
                 .as_bytes(),
             )?;
         }
+
+        if let Some(function_index) = start {
+            glue_file.write_all(
+                format!("  {}(NULL);\n", function_names[function_index as usize]).as_bytes(),
+            )?;
+        }
         glue_file.write_all("}\n".as_bytes())?;
     }
 
@@ -562,7 +576,17 @@ fn wasm_type_to_c_type(t: wasmparser::Type) -> String {
 }
 
 pub fn convert_func_name_to_c_function(name: &str) -> String {
-    name.replace("-", "_").replace(".", "_")
+    let mut new_name = String::new();
+    for e in name.chars() {
+        if e == '-' {
+            new_name += "_";
+        } else if !e.is_ascii_alphanumeric() {
+            new_name += &hex::encode(&e.to_string());
+        } else {
+            new_name += &e.to_string();
+        }
+    }
+    new_name
 }
 
 fn convert_func_type_to_c_function(func_type: &wasmparser::FuncType, name: String) -> String {
