@@ -370,25 +370,25 @@ fn test_spec() {
     test_spec_single_suit("./res/spectest_wasc/utf8-invalid-encoding", vec![]).unwrap();
 }
 
-#[test]
-fn test_once() {
-    misc::open_log();
-    let wasc_path = std::path::PathBuf::from("./res/spectest_wasc");
-    if wasc_path.exists() {
-        std::fs::remove_dir_all(&wasc_path).unwrap();
-    }
-    std::fs::create_dir(&wasc_path).unwrap();
-    let spec_path = std::path::PathBuf::from("./res/spectest");
-    for d_path in spec_path.read_dir().unwrap() {
-        let d_pbuf = d_path.unwrap().path();
-        let d_file_name = d_pbuf.file_name().unwrap().to_str().unwrap();
-        std::fs::create_dir(wasc_path.join(&d_file_name)).unwrap();
-        for f_path in d_pbuf.read_dir().unwrap() {
-            let f_pbuf = f_path.unwrap().path();
-            let f_file_stem = f_pbuf.file_stem().unwrap().to_str().unwrap();
-            let f_nice_stem = f_file_stem.replace(".", "_");
-            let f_file_name = f_nice_stem + "." + f_pbuf.extension().unwrap().to_str().unwrap();
-            std::fs::copy(f_pbuf, wasc_path.join(&d_file_name).join(&f_file_name)).unwrap();
-        }
-    }
-}
+// #[test]
+// fn test_once() {
+//     misc::open_log();
+//     let wasc_path = std::path::PathBuf::from("./res/spectest_wasc");
+//     if wasc_path.exists() {
+//         std::fs::remove_dir_all(&wasc_path).unwrap();
+//     }
+//     std::fs::create_dir(&wasc_path).unwrap();
+//     let spec_path = std::path::PathBuf::from("./res/spectest");
+//     for d_path in spec_path.read_dir().unwrap() {
+//         let d_pbuf = d_path.unwrap().path();
+//         let d_file_name = d_pbuf.file_name().unwrap().to_str().unwrap();
+//         std::fs::create_dir(wasc_path.join(&d_file_name)).unwrap();
+//         for f_path in d_pbuf.read_dir().unwrap() {
+//             let f_pbuf = f_path.unwrap().path();
+//             let f_file_stem = f_pbuf.file_stem().unwrap().to_str().unwrap();
+//             let f_nice_stem = f_file_stem.replace(".", "_");
+//             let f_file_name = f_nice_stem + "." + f_pbuf.extension().unwrap().to_str().unwrap();
+//             std::fs::copy(f_pbuf, wasc_path.join(&d_file_name).join(&f_file_name)).unwrap();
+//         }
+//     }
+// }
