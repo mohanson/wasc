@@ -27,7 +27,7 @@ fn test_spec_single_test<P: AsRef<std::path::Path>>(
     dummy::init(&mut middle)?;
     let mut dummy_file = code_builder::CodeBuilder::open(&middle.dummy)?;
     dummy_file.write_line(format!("#include \"{}_glue.h\"", middle.file_stem).as_str())?;
-    dummy_file.write_line(format!("#include \"./{}_platform/spectest.h\"", middle.file_stem.clone()).as_str())?;
+    dummy_file.write_line(format!("#include \"./{}_platform/posix_x86_64_spectest.h\"", middle.file_stem.clone()).as_str())?;
     dummy_file.write_line("")?;
     dummy_file.write_line("int main() {")?;
     dummy_file.intend();
