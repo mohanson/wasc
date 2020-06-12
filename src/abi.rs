@@ -5,14 +5,16 @@ pub fn init(middle: &mut context::Middle) -> Result<(), Box<dyn std::error::Erro
     std::fs::create_dir(&abi_path)?;
     rog::debugln!("abi path={:?}", abi_path);
     middle.abi_path = abi_path.clone();
-    match middle.config.abi {
-        context::Abi::Bare => {}
-        context::Abi::Spectest => {
+    match middle.config.platform {
+        context::Platform::Unknown => {
+            panic!("unknown");
+        }
+        context::Platform::PosixX8664Spectest => {
             let abi_path_header = abi_path.join("spectest.h");
-            std::fs::write(&abi_path_header, &middle.config.abi_spectest)?;
+            std::fs::write(&abi_path_header, &middle.config.platform_posix_x86_64_spectest)?;
             middle.abi_path_header = abi_path_header;
             let abi_path_s = abi_path.join("spectest_runtime.S");
-            std::fs::write(&abi_path_s, &middle.config.abi_spectest_runtime)?;
+            std::fs::write(&abi_path_s, &middle.config.platform_posix_x86_64_spectest_runtime)?;
             middle.abi_path_s = abi_path_s;
         }
     }

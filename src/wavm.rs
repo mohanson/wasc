@@ -4,7 +4,7 @@ pub fn compile(middle: &mut context::Middle) -> Result<(), Box<dyn std::error::E
     let outwasm = middle
         .prog_dir
         .join(middle.file_stem.clone() + "_precompiled.wasm");
-    let mut cmd = std::process::Command::new(middle.config.wavm_binary.clone());
+    let mut cmd = std::process::Command::new(middle.config.binary_wavm.clone());
     cmd.arg("compile")
         .arg("--enable")
         .arg("all")

@@ -1,49 +1,31 @@
 #[derive(Clone, Debug)]
-pub enum TargetTriple {
-    Host,
-    String(String),
-}
-
-#[derive(Clone, Debug)]
-pub enum TargetCpu {
-    Host,
-    String(String),
-}
-
-#[derive(Clone, Debug)]
-pub enum Abi {
-    Bare,
-    Spectest,
+pub enum Platform {
+    PosixX8664Spectest,
+    Unknown,
 }
 
 // A Config specifies the global config for a build.
 #[derive(Clone, Debug)]
 pub struct Config {
-    // ABI file(s)
-    pub abi: Abi,
-    pub abi_posix_wasi: &'static str,
-    pub abi_spectest: &'static str,
-    pub abi_spectest_runtime: &'static str,
     // Path of cc, usually the result of "$ which gcc".
-    pub cc_binary: String,
-    // Target. Example: target_triple="x86_64-pc-linux-gnu", target_cpu="broadwell"
-    pub target_triple: TargetTriple,
-    pub target_cpu: TargetCpu,
-    // Path of wavm binary, usually the result of "$ which wavm".
-    pub wavm_binary: String,
+    pub binary_cc: String,
+    pub binary_wavm: String,
+    // Platfrom flag and their files.
+    pub platform: Platform,
+    pub platform_posix_x86_64_spectest: &'static str,
+    pub platform_posix_x86_64_spectest_runtime: &'static str,
 }
 
 impl Default for Config {
     fn default() -> Self {
         Config {
-            abi: Abi::Bare,
-            abi_posix_wasi: include_str!("../abi/posix_wasi_abi.h"),
-            abi_spectest: include_str!("../abi/spectest.h"),
-            abi_spectest_runtime: include_str!("../abi/spectest_runtime.S"),
-            target_triple: TargetTriple::Host,
-            target_cpu: TargetCpu::Host,
-            cc_binary: String::from("gcc"),
-            wavm_binary: String::from("wavm"),
+            binary_cc: String::from("gcc"),
+            binary_wavm: String::from("wavm"),
+            platform: Platform::Unknown,
+            platform_posix_x86_64_spectest: include_str!("./platform/posix_x86_64_spectest.h"),
+            platform_posix_x86_64_spectest_runtime: include_str!(
+                "./platform/posix_x86_64_spectest_runtime.S"
+            ),
         }
     }
 }

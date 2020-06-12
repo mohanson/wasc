@@ -12,7 +12,7 @@ pub fn gcc_build(middle: &context::Middle) -> Result<(), Box<dyn std::error::Err
         .to_str()
         .unwrap()
         .to_string();
-    let mut cmd = std::process::Command::new(&middle.config.cc_binary);
+    let mut cmd = std::process::Command::new(&middle.config.binary_cc);
     cmd.arg("-g")
         .arg("-w") // Disable all gcc warnings.
         .arg("-o")
