@@ -1,4 +1,5 @@
-// A C code builder.
+// A C code builder. It will automatically control the indentation by "{" and "}",
+// so as to relieve the burden of memory prefix spaces.
 pub struct CodeBuilder {
     path: std::path::PathBuf,
     data: String,
@@ -19,6 +20,7 @@ impl CodeBuilder {
         Ok(())
     }
 
+    // Function write will add indent and "\n" automatically.
     pub fn write(&mut self, line: &str) {
         self.data += &" ".repeat(self.head_whitespace);
         self.data += line;
