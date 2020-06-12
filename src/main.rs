@@ -23,7 +23,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let mut middle = context::Middle::default();
     middle.config = config;
-    middle.dir = std::env::current_dir()?;
     middle.init_file(source);
 
     rog::debugln!("The wasc cli is work in progress.");

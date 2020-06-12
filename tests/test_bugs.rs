@@ -12,8 +12,7 @@ fn test_spec_single_test<P: AsRef<std::path::Path>>(wasm_path: P) -> Result<i32,
     config.platform = context::Platform::PosixX8664;
     config.binary_wavm = String::from("./third_party/WAVM/build/bin/wavm");
     let mut middle = context::Middle::default();
-    middle.config = config;
-    middle.dir = std::env::current_dir()?;
+    middle.init_config(config);
     let wasm_path = wasm_path.as_ref();
     middle.init_file(&wasm_path);
 

@@ -15,11 +15,10 @@ fn test_spec_single_test<P: AsRef<std::path::Path>>(
     config.platform = context::Platform::PosixX8664Spectest;
     config.binary_wavm = "./third_party/WAVM/build/bin/wavm".to_string();
     let mut middle = context::Middle::default();
-    middle.config = config;
-    middle.dir = std::env::current_dir()?;
-
+    middle.init_config(config);
     let wasm_path = wasm_path.as_ref();
     middle.init_file(&wasm_path);
+
     wavm::compile(&mut middle).unwrap();
     aot_generator::glue(&mut middle)?;
     platform::init(&mut middle)?;
