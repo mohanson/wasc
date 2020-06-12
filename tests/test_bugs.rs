@@ -1,18 +1,16 @@
-use wasc::abi;
 use wasc::aot_generator;
 use wasc::code_builder;
 use wasc::context;
 use wasc::dummy;
+use wasc::platform;
 use wasc::wavm;
 
 mod misc;
 
-fn test_spec_single_test<P: AsRef<std::path::Path>>(
-    wasm_path: P,
-) -> Result<i32, Box<dyn std::error::Error>> {
+fn test_spec_single_test<P: AsRef<std::path::Path>>(wasm_path: P) -> Result<i32, Box<dyn std::error::Error>> {
     let mut config = wasc::context::Config::default();
     config.platform = context::Platform::PosixX8664Spectest;
-    config.binary_wavm = "./third_party/WAVM/build/bin/wavm".to_string();
+    config.binary_wavm = String::from("./third_party/WAVM/build/bin/wavm");
     let mut middle = context::Middle::default();
     middle.config = config;
     middle.dir = std::env::current_dir()?;
@@ -21,14 +19,12 @@ fn test_spec_single_test<P: AsRef<std::path::Path>>(
 
     wavm::compile(&mut middle).unwrap();
     aot_generator::glue(&mut middle)?;
-    abi::init(&mut middle)?;
+    platform::init(&mut middle)?;
 
     dummy::init(&mut middle)?;
     let mut dummy_file = code_builder::CodeBuilder::open(&middle.dummy)?;
     dummy_file.write_line(format!("#include \"{}_glue.h\"", middle.file_stem).as_str())?;
-    dummy_file.write_line(
-        format!("#include \"./{}_abi/spectest.h\"", middle.file_stem.clone()).as_str(),
-    )?;
+    dummy_file.write_line(format!("#include \"./{}_platform/spectest.h\"", middle.file_stem.clone()).as_str())?;
     dummy_file.write_line("")?;
     dummy_file.write_line("int main() {")?;
     dummy_file.intend();
@@ -44,16 +40,18 @@ fn test_spec_single_test<P: AsRef<std::path::Path>>(
 }
 
 #[test]
-fn test_bugs() {
+fn test_bugs() -> Result<(), Box<dyn std::error::Error>> {
     misc::open_log();
     let dest = std::path::Path::new("./res/spectest_bugs_wasc");
     if dest.exists() {
-        std::fs::remove_dir_all(dest).unwrap();
+        std::fs::remove_dir_all(dest)?;
     }
-    misc::copy_dir("./res/spectest_bugs", dest).unwrap();
+    misc::copy_dir("./res/spectest_bugs", dest)?;
 
-    assert_eq!(
-        test_spec_single_test("./res/spectest_bugs_wasc/import_global.wasm").unwrap(),
-        42
-    );
+    let mut exit_code = 0;
+    let _ = exit_code;
+    exit_code = test_spec_single_test("./res/spectest_bugs_wasc/import_global.wasm")?;
+    assert_eq!(exit_code, 42);
+
+    Ok(())
 }

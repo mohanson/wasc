@@ -1,8 +1,8 @@
-use wasc::abi;
 use wasc::aot_generator;
 use wasc::code_builder;
 use wasc::context;
 use wasc::dummy;
+use wasc::platform;
 use wasc::wavm;
 
 mod misc;
@@ -22,14 +22,12 @@ fn test_spec_single_test<P: AsRef<std::path::Path>>(
     middle.init_file(&wasm_path);
     wavm::compile(&mut middle).unwrap();
     aot_generator::glue(&mut middle)?;
-    abi::init(&mut middle)?;
+    platform::init(&mut middle)?;
 
     dummy::init(&mut middle)?;
     let mut dummy_file = code_builder::CodeBuilder::open(&middle.dummy)?;
     dummy_file.write_line(format!("#include \"{}_glue.h\"", middle.file_stem).as_str())?;
-    dummy_file.write_line(
-        format!("#include \"./{}_abi/spectest.h\"", middle.file_stem.clone()).as_str(),
-    )?;
+    dummy_file.write_line(format!("#include \"./{}_platform/spectest.h\"", middle.file_stem.clone()).as_str())?;
     dummy_file.write_line("")?;
     dummy_file.write_line("int main() {")?;
     dummy_file.intend();
@@ -63,28 +61,18 @@ fn test_spec_single_test<P: AsRef<std::path::Path>>(
                                 }
                                 "f32" => {
                                     dummy_file.write_line(
-                                        format!(
-                                            "uint32_t u32_{} = {};",
-                                            uint32_t_index,
-                                            e["value"].as_str().unwrap()
-                                        )
-                                        .as_str(),
+                                        format!("uint32_t u32_{} = {};", uint32_t_index, e["value"].as_str().unwrap())
+                                            .as_str(),
                                     )?;
-                                    args_with_null
-                                        .push(format!("*(float *)&u32_{}", uint32_t_index));
+                                    args_with_null.push(format!("*(float *)&u32_{}", uint32_t_index));
                                     uint32_t_index += 1;
                                 }
                                 "f64" => {
                                     dummy_file.write_line(
-                                        format!(
-                                            "uint64_t u64_{} = {};",
-                                            uint64_t_index,
-                                            e["value"].as_str().unwrap()
-                                        )
-                                        .as_str(),
+                                        format!("uint64_t u64_{} = {};", uint64_t_index, e["value"].as_str().unwrap())
+                                            .as_str(),
                                     )?;
-                                    args_with_null
-                                        .push(format!("*(double *)&u64_{}", uint64_t_index));
+                                    args_with_null.push(format!("*(double *)&u64_{}", uint64_t_index));
                                     uint64_t_index += 1;
                                 }
                                 _ => unimplemented!(),
@@ -176,8 +164,7 @@ fn test_spec_single_test<P: AsRef<std::path::Path>>(
                                 _ => unimplemented!(),
                             }
                             dummy_file.intend();
-                            dummy_file
-                                .write_line(format!("return {};", wavm_ret_index).as_str())?;
+                            dummy_file.write_line(format!("return {};", wavm_ret_index).as_str())?;
                             dummy_file.extend();
                             dummy_file.write_line("}")?;
                             wavm_ret_index += 1;
@@ -239,8 +226,7 @@ fn test_spec_single_suit<P: AsRef<std::path::Path>>(
     let file_stem = spec_path.file_stem().unwrap().to_str().unwrap();
     let path_json = spec_path.join(format!("{}.json", file_stem));
     let file_json = std::fs::File::open(&path_json).unwrap();
-    let json: serde_json::Value =
-        serde_json::from_reader(std::io::BufReader::new(&file_json)).unwrap();
+    let json: serde_json::Value = serde_json::from_reader(std::io::BufReader::new(&file_json)).unwrap();
 
     let mut wasm_file = std::path::PathBuf::new();
     let mut commands: Vec<serde_json::Value> = vec![];
@@ -306,11 +292,7 @@ fn test_spec() {
     test_spec_single_suit("./res/spectest_wasc/const", vec![]).unwrap();
     test_spec_single_suit("./res/spectest_wasc/custom", vec![]).unwrap();
     test_spec_single_suit("./res/spectest_wasc/data", vec![]).unwrap();
-    test_spec_single_suit(
-        "./res/spectest_wasc/elem",
-        vec!["elem_39.wasm", "elem_40.wasm"],
-    )
-    .unwrap();
+    test_spec_single_suit("./res/spectest_wasc/elem", vec!["elem_39.wasm", "elem_40.wasm"]).unwrap();
     test_spec_single_suit("./res/spectest_wasc/endianness", vec![]).unwrap();
     // test_spec_single_suit("./res/spectest_wasc/exports").unwrap(); // skip.
     test_spec_single_suit("./res/spectest_wasc/f32", vec![]).unwrap();

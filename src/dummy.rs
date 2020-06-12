@@ -24,16 +24,8 @@ pub fn gcc_build(middle: &context::Middle) -> Result<(), Box<dyn std::error::Err
     Ok(())
 }
 
-pub fn run(
-    middle: &context::Middle,
-) -> Result<std::process::ExitStatus, Box<dyn std::error::Error>> {
-    let mut cmd = std::process::Command::new(
-        middle
-            .prog_dir
-            .join(middle.file_stem.clone())
-            .to_str()
-            .unwrap(),
-    );
+pub fn run(middle: &context::Middle) -> Result<std::process::ExitStatus, Box<dyn std::error::Error>> {
+    let mut cmd = std::process::Command::new(middle.prog_dir.join(middle.file_stem.clone()).to_str().unwrap());
     rog::debugln!("{:?}", cmd);
     Ok(cmd.spawn()?.wait()?)
 }

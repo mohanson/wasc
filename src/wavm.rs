@@ -1,9 +1,7 @@
 use super::context;
 
 pub fn compile(middle: &mut context::Middle) -> Result<(), Box<dyn std::error::Error>> {
-    let outwasm = middle
-        .prog_dir
-        .join(middle.file_stem.clone() + "_precompiled.wasm");
+    let outwasm = middle.prog_dir.join(middle.file_stem.clone() + "_precompiled.wasm");
     let mut cmd = std::process::Command::new(middle.config.binary_wavm.clone());
     cmd.arg("compile")
         .arg("--enable")

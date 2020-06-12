@@ -23,9 +23,7 @@ impl Default for Config {
             binary_wavm: String::from("wavm"),
             platform: Platform::Unknown,
             platform_posix_x86_64_spectest: include_str!("./platform/posix_x86_64_spectest.h"),
-            platform_posix_x86_64_spectest_runtime: include_str!(
-                "./platform/posix_x86_64_spectest_runtime.S"
-            ),
+            platform_posix_x86_64_spectest_runtime: include_str!("./platform/posix_x86_64_spectest_runtime.S"),
         }
     }
 }

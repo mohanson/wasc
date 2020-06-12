@@ -9,10 +9,7 @@ pub struct CodeBuilder {
 impl CodeBuilder {
     pub fn open<P: AsRef<std::path::Path>>(path: P) -> Result<Self, Box<dyn std::error::Error>> {
         let fd = std::fs::File::create(path)?;
-        Ok(CodeBuilder {
-            fd,
-            head_whitespace: 0,
-        })
+        Ok(CodeBuilder { fd, head_whitespace: 0 })
     }
 
     pub fn write_line(&mut self, line: &str) -> Result<(), Box<dyn std::error::Error>> {

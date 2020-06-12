@@ -143,9 +143,7 @@ const uint64_t tableReferenceBias = 0;
                 }
             }
             wasmparser::ParserState::TypeSectionEntry(ref t) => {
-                glue_file.write_all(
-                    format!("const uint64_t typeId{} = 0;\n", type_entries.len()).as_bytes(),
-                )?;
+                glue_file.write_all(format!("const uint64_t typeId{} = 0;\n", type_entries.len()).as_bytes())?;
                 type_entries.push(t.clone());
             }
             // Import function
@@ -187,11 +185,7 @@ const uint64_t tableReferenceBias = 0;
             wasmparser::ParserState::ImportSectionEntry {
                 module,
                 field,
-                ty:
-                    wasmparser::ImportSectionEntryType::Global(wasmparser::GlobalType {
-                        content_type,
-                        ..
-                    }),
+                ty: wasmparser::ImportSectionEntryType::Global(wasmparser::GlobalType { content_type, .. }),
             } => {
                 // #define wavm_spectest_global_i32 global0
                 // extern int32_t global0;
@@ -199,8 +193,7 @@ const uint64_t tableReferenceBias = 0;
                 let import_symbol = format!("global{}", next_import_global_index);
                 let global_type = wasm_type_to_c_type(content_type);
                 glue_file.write_all(format!("#define {} {}\n", name, import_symbol).as_bytes())?;
-                glue_file
-                    .write_all(format!("extern {} {};\n", global_type, import_symbol).as_bytes())?;
+                glue_file.write_all(format!("extern {} {};\n", global_type, import_symbol).as_bytes())?;
                 global_values.push(GlobalValue::Imported(name.clone()));
                 next_import_global_index += 1;
             }
@@ -241,8 +234,7 @@ const uint64_t functionDefMutableDatas{} = 0;\n",
                 kind: wasmparser::ExternalKind::Function,
                 index,
             } => {
-                let function_index =
-                    function_entries[index as usize].expect("Exported function should exist!");
+                let function_index = function_entries[index as usize].expect("Exported function should exist!");
                 glue_file.write_all(
                     format!(
                         "#define wavm_exported_function_{} functionDef{}\n",
@@ -363,16 +355,12 @@ const uint64_t functionDefMutableDatas{} = 0;\n",
                     let offset = table_offset.unwrap();
                     for (i, item) in items.iter().enumerate() {
                         if let wasmparser::ElementItem::Func(func_index) = item {
-                            tables[index][offset + i] =
-                                format!("((uintptr_t) (functionDef{}))", func_index);
+                            tables[index][offset + i] = format!("((uintptr_t) (functionDef{}))", func_index);
                         }
                     }
                 }
             }
-            wasmparser::ParserState::BeginGlobalSectionEntry(wasmparser::GlobalType {
-                content_type,
-                mutable,
-            }) => {
+            wasmparser::ParserState::BeginGlobalSectionEntry(wasmparser::GlobalType { content_type, mutable }) => {
                 global_content_type = content_type;
                 global_mutable = mutable;
                 current_section = CurrentSection::Global;
@@ -400,8 +388,7 @@ const uint64_t functionDefMutableDatas{} = 0;\n",
     }
 
     for (i, table) in tables.iter().enumerate() {
-        glue_file
-            .write_all(format!("uint32_t table{}_length = {};\n", i, table.len()).as_bytes())?;
+        glue_file.write_all(format!("uint32_t table{}_length = {};\n", i, table.len()).as_bytes())?;
         glue_file.write_all(format!("uintptr_t table{}[{}] = {{", i, table.len()).as_bytes())?;
         let reversed_striped_table: Vec<String> = table
             .iter()
@@ -434,8 +421,7 @@ const uint64_t functionDefMutableDatas{} = 0;\n",
     }
 
     for (i, mem) in memories.iter().enumerate() {
-        glue_file
-            .write_all(format!("uint32_t memory{}_length = {};\n", i, mem.len()).as_bytes())?;
+        glue_file.write_all(format!("uint32_t memory{}_length = {};\n", i, mem.len()).as_bytes())?;
         glue_file.write_all(
             format!(
                 "uint8_t __attribute__((section (\".wasm_memory\"))) memory{}[{}] = {{",
@@ -444,12 +430,7 @@ const uint64_t functionDefMutableDatas{} = 0;\n",
             )
             .as_bytes(),
         )?;
-        let reversed_striped_mem: Vec<u8> = mem
-            .iter()
-            .rev()
-            .map(|x| *x)
-            .skip_while(|c| *c == 0)
-            .collect();
+        let reversed_striped_mem: Vec<u8> = mem.iter().rev().map(|x| *x).skip_while(|c| *c == 0).collect();
         let mut striped_mem: Vec<u8> = reversed_striped_mem.into_iter().rev().collect();
         if striped_mem.len() == 0 {
             striped_mem.push(0);
@@ -489,8 +470,7 @@ const uint64_t functionDefMutableDatas{} = 0;\n",
 
     for (i, mem) in dynamic_memories.iter().enumerate() {
         has_init = true;
-        glue_file
-            .write_all(format!("uint32_t data{}_length = {};\n", i, mem.data.len()).as_bytes())?;
+        glue_file.write_all(format!("uint32_t data{}_length = {};\n", i, mem.data.len()).as_bytes())?;
         glue_file.write_all(format!("uint8_t data{}[{}] = {{", i, mem.data.len()).as_bytes())?;
         for (j, c) in mem.data.iter().enumerate() {
             if j % 32 == 0 {
@@ -541,9 +521,7 @@ const uint64_t functionDefMutableDatas{} = 0;\n",
         }
 
         if let Some(function_index) = start {
-            glue_file.write_all(
-                format!("  {}(NULL);\n", function_names[function_index as usize]).as_bytes(),
-            )?;
+            glue_file.write_all(format!("  {}(NULL);\n", function_names[function_index as usize]).as_bytes())?;
         }
         glue_file.write_all("}\n".as_bytes())?;
     }
@@ -593,11 +571,7 @@ fn convert_func_type_to_c_function(func_type: &wasmparser::FuncType, name: Strin
     if func_type.form != wasmparser::Type::Func || func_type.returns.len() > 1 {
         panic!("Invalid func type: {:?}", func_type);
     }
-    let mut fields: Vec<String> = func_type
-        .params
-        .iter()
-        .map(|t| wasm_type_to_c_type(*t))
-        .collect();
+    let mut fields: Vec<String> = func_type.params.iter().map(|t| wasm_type_to_c_type(*t)).collect();
     fields.insert(0, "void*".to_string());
     let return_type = if func_type.returns.len() > 0 {
         format!("wavm_ret_{}", wasm_type_to_c_type(func_type.returns[0]))
@@ -649,13 +623,9 @@ fn generate_global_entry(
         wasmparser::Type::F32 => {
             if let wasmparser::Operator::F32Const { value } = value {
                 global_values.push(GlobalValue::F32(value.bits()));
-                format!(
-                    "{}{} global{} = {};\n",
-                    mutable_string,
-                    type_string,
-                    index,
-                    unsafe { std::mem::transmute::<u32, f32>(value.bits()).to_string() }
-                )
+                format!("{}{} global{} = {};\n", mutable_string, type_string, index, unsafe {
+                    std::mem::transmute::<u32, f32>(value.bits()).to_string()
+                })
             } else {
                 unimplemented!()
             }
@@ -663,13 +633,9 @@ fn generate_global_entry(
         wasmparser::Type::F64 => {
             if let wasmparser::Operator::F64Const { value } = value {
                 global_values.push(GlobalValue::F64(value.bits()));
-                format!(
-                    "{}{} global{} = {};\n",
-                    mutable_string,
-                    type_string,
-                    index,
-                    unsafe { std::mem::transmute::<u64, f64>(value.bits()).to_string() }
-                )
+                format!("{}{} global{} = {};\n", mutable_string, type_string, index, unsafe {
+                    std::mem::transmute::<u64, f64>(value.bits()).to_string()
+                })
             } else {
                 unimplemented!()
             }
