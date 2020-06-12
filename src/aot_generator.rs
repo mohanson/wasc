@@ -2,6 +2,11 @@ use super::context;
 use std::io::Write;
 use wasmparser::WasmDecoder;
 
+// Functions that map between the symbols used for externally visible functions and the function
+fn get_external_name(base_name: &str, index: u32) -> String {
+    format!("{}{}", base_name, index)
+}
+
 enum CurrentSection {
     Empty,
     Data,
@@ -12,9 +17,9 @@ enum CurrentSection {
 enum GlobalValue {
     I32(i32),
     I64(i64),
-    Imported(String),
     F32(u32),
     F64(u64),
+    Imported(String),
 }
 
 impl GlobalValue {
@@ -143,7 +148,13 @@ const uint64_t tableReferenceBias = 0;
                 }
             }
             wasmparser::ParserState::TypeSectionEntry(ref t) => {
-                glue_file.write_all(format!("const uint64_t typeId{} = 0;\n", type_entries.len()).as_bytes())?;
+                glue_file.write_all(
+                    format!(
+                        "const uint64_t {} = 0;\n",
+                        get_external_name("typeId", type_entries.len() as u32)
+                    )
+                    .as_bytes(),
+                )?;
                 type_entries.push(t.clone());
             }
             // Import function
@@ -155,7 +166,7 @@ const uint64_t tableReferenceBias = 0;
                 function_entries.push(None);
                 let func_type = &type_entries[index as usize];
                 let name = format!("wavm_{}_{}", module, field);
-                let import_symbol = format!("functionImport{}", next_import_index);
+                let import_symbol = get_external_name("functionImport", next_import_index);
                 glue_file.write_all(format!("#define {} {}\n", name, import_symbol).as_bytes())?;
                 next_import_index += 1;
                 glue_file.write_all(
@@ -190,7 +201,7 @@ const uint64_t tableReferenceBias = 0;
                 // #define wavm_spectest_global_i32 global0
                 // extern int32_t global0;
                 let name = format!("wavm_{}_{}", module, field);
-                let import_symbol = format!("global{}", next_import_global_index);
+                let import_symbol = get_external_name("global", next_import_global_index);
                 let global_type = wasm_type_to_c_type(content_type);
                 glue_file.write_all(format!("#define {} {}\n", name, import_symbol).as_bytes())?;
                 glue_file.write_all(format!("extern {} {};\n", global_type, import_symbol).as_bytes())?;
@@ -215,17 +226,17 @@ const uint64_t tableReferenceBias = 0;
             }
             wasmparser::ParserState::FunctionSectionEntry(type_entry_index) => {
                 let func_type = &type_entries[type_entry_index as usize];
-                let name = format!("functionDef{}", next_function_index);
+                let name = get_external_name("functionDef", next_function_index);
                 glue_file.write_all(
                     format!(
                         "extern {};
-const uint64_t functionDefMutableDatas{} = 0;\n",
+const uint64_t {} = 0;\n",
                         convert_func_type_to_c_function(&func_type, name.clone()),
-                        next_function_index,
+                        get_external_name("functionDefMutableDatas", next_function_index),
                     )
                     .as_bytes(),
                 )?;
-                function_entries.push(Some(next_function_index));
+                function_entries.push(Some(next_function_index as usize));
                 next_function_index += 1;
                 function_names.push(name.clone());
             }
@@ -237,9 +248,9 @@ const uint64_t functionDefMutableDatas{} = 0;\n",
                 let function_index = function_entries[index as usize].expect("Exported function should exist!");
                 glue_file.write_all(
                     format!(
-                        "#define wavm_exported_function_{} functionDef{}\n",
+                        "#define wavm_exported_function_{} {}\n",
                         convert_func_name_to_c_function(field),
-                        function_index,
+                        get_external_name("functionDef", function_index as u32),
                     )
                     .as_bytes(),
                 )?;
@@ -355,7 +366,8 @@ const uint64_t functionDefMutableDatas{} = 0;\n",
                     let offset = table_offset.unwrap();
                     for (i, item) in items.iter().enumerate() {
                         if let wasmparser::ElementItem::Func(func_index) = item {
-                            tables[index][offset + i] = format!("((uintptr_t) (functionDef{}))", func_index);
+                            tables[index][offset + i] =
+                                format!("((uintptr_t) ({}))", get_external_name("functionDef", *func_index));
                         }
                     }
                 }
@@ -412,9 +424,11 @@ const uint64_t functionDefMutableDatas{} = 0;\n",
         glue_file.write_all(b"\n};\n")?;
         glue_file.write_all(
             format!(
-                "uintptr_t* tableOffset{} = table{};
+                "uintptr_t* {} = table{};
 #define TABLE{}_DEFINED 1\n",
-                i, i, i
+                get_external_name("tableOffset", i as u32),
+                i,
+                i
             )
             .as_bytes(),
         )?;
@@ -447,9 +461,9 @@ const uint64_t functionDefMutableDatas{} = 0;\n",
         glue_file.write_all(b"\n};\n")?;
         glue_file.write_all(
             format!(
-                "struct memory_runtime_data memoryOffset{} = {{memory{}, {}}};
+                "struct memory_runtime_data {} = {{memory{}, {}}};
 #define MEMORY{}_DEFINED 1\n",
-                i,
+                get_external_name("memoryOffset", i as u32),
                 i,
                 mem.len() / 65536,
                 i
@@ -502,8 +516,11 @@ const uint64_t functionDefMutableDatas{} = 0;\n",
         for (_, table) in dynamic_tables.iter().enumerate() {
             glue_file.write_all(
                 format!(
-                    "table{}[{} + {}] = ((uintptr_t) (functionDef{}));\n",
-                    table.index, table.offset, table.shift, table.func_index
+                    "table{}[{} + {}] = ((uintptr_t) ({}));\n",
+                    table.index,
+                    table.offset,
+                    table.shift,
+                    get_external_name("functionDef", table.func_index as u32)
                 )
                 .as_bytes(),
             )?;
@@ -596,10 +613,10 @@ fn generate_global_entry(
             if let wasmparser::Operator::I32Const { value } = value {
                 global_values.push(GlobalValue::I32(*value));
                 format!(
-                    "{}{} global{} = {};\n",
+                    "{}{} {} = {};\n",
                     mutable_string,
                     type_string,
-                    index,
+                    get_external_name("global", index as u32),
                     value.to_string()
                 )
             } else {
@@ -610,10 +627,10 @@ fn generate_global_entry(
             if let wasmparser::Operator::I64Const { value } = value {
                 global_values.push(GlobalValue::I64(*value));
                 format!(
-                    "{}{} global{} = {};\n",
+                    "{}{} {} = {};\n",
                     mutable_string,
                     type_string,
-                    index,
+                    get_external_name("global", index as u32),
                     value.to_string()
                 )
             } else {
@@ -623,9 +640,13 @@ fn generate_global_entry(
         wasmparser::Type::F32 => {
             if let wasmparser::Operator::F32Const { value } = value {
                 global_values.push(GlobalValue::F32(value.bits()));
-                format!("{}{} global{} = {};\n", mutable_string, type_string, index, unsafe {
-                    std::mem::transmute::<u32, f32>(value.bits()).to_string()
-                })
+                format!(
+                    "{}{} {} = {};\n",
+                    mutable_string,
+                    type_string,
+                    get_external_name("global", index as u32),
+                    unsafe { std::mem::transmute::<u32, f32>(value.bits()).to_string() }
+                )
             } else {
                 unimplemented!()
             }
@@ -633,9 +654,13 @@ fn generate_global_entry(
         wasmparser::Type::F64 => {
             if let wasmparser::Operator::F64Const { value } = value {
                 global_values.push(GlobalValue::F64(value.bits()));
-                format!("{}{} global{} = {};\n", mutable_string, type_string, index, unsafe {
-                    std::mem::transmute::<u64, f64>(value.bits()).to_string()
-                })
+                format!(
+                    "{}{} {} = {};\n",
+                    mutable_string,
+                    type_string,
+                    get_external_name("global", index as u32),
+                    unsafe { std::mem::transmute::<u64, f64>(value.bits()).to_string() }
+                )
             } else {
                 unimplemented!()
             }
