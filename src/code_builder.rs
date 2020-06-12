@@ -1,30 +1,33 @@
-use std::io::Write;
-
 // A C code builder.
 pub struct CodeBuilder {
-    pub fd: std::fs::File,
+    path: std::path::PathBuf,
+    data: String,
     head_whitespace: usize,
 }
 
 impl CodeBuilder {
-    pub fn open<P: AsRef<std::path::Path>>(path: P) -> Result<Self, Box<dyn std::error::Error>> {
-        let fd = std::fs::File::create(path)?;
-        Ok(CodeBuilder { fd, head_whitespace: 0 })
+    pub fn place<P: AsRef<std::path::Path>>(path: P) -> Self {
+        CodeBuilder {
+            path: path.as_ref().to_path_buf(),
+            data: String::new(),
+            head_whitespace: 0,
+        }
     }
 
-    pub fn write_line(&mut self, line: &str) -> Result<(), Box<dyn std::error::Error>> {
-        let a = " ".repeat(self.head_whitespace);
-        let b = line;
-        let c = "\n";
-        self.fd.write_all((a + b + c).as_bytes())?;
+    pub fn close(&self) -> Result<(), Box<dyn std::error::Error>> {
+        std::fs::write(&self.path, &self.data)?;
         Ok(())
     }
 
-    pub fn intend(&mut self) {
-        self.head_whitespace += 2;
-    }
-
-    pub fn extend(&mut self) {
-        self.head_whitespace -= 2;
+    pub fn write(&mut self, line: &str) {
+        self.data += &" ".repeat(self.head_whitespace);
+        self.data += line;
+        self.data += "\n";
+        if line.ends_with("{") {
+            self.head_whitespace += 2;
+        }
+        if line.ends_with("}") {
+            self.head_whitespace -= 2;
+        }
     }
 }

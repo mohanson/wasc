@@ -22,16 +22,16 @@ fn test_spec_single_test<P: AsRef<std::path::Path>>(wasm_path: P) -> Result<i32,
     aot_generator::glue(&mut middle)?;
 
     dummy::init(&mut middle)?;
-    let mut dummy_file = code_builder::CodeBuilder::open(&middle.dummy)?;
-    dummy_file.write_line(format!("#include \"{}_glue.h\"", middle.file_stem).as_str())?;
-    dummy_file.write_line(format!("#include \"./{}_platform/posix_x86_64.h\"", middle.file_stem.clone()).as_str())?;
-    dummy_file.write_line("")?;
-    dummy_file.write_line("int main() {")?;
-    dummy_file.intend();
-    dummy_file.write_line("wavm_ret_int32_t wavm_ret = wavm_exported_function_main(NULL);")?;
-    dummy_file.write_line("return wavm_ret.value;")?;
-    dummy_file.extend();
-    dummy_file.write_line("}")?;
+    let mut dummy_file = code_builder::CodeBuilder::place(&middle.dummy);
+    dummy_file.write(format!("#include \"{}_glue.h\"", middle.file_stem).as_str());
+    dummy_file.write(format!("#include \"./{}_platform/posix_x86_64.h\"", middle.file_stem.clone()).as_str());
+    dummy_file.write("");
+    dummy_file.write("int main() {");
+    dummy_file.write("wavm_ret_int32_t wavm_ret = wavm_exported_function_main(NULL);");
+    dummy_file.write("return wavm_ret.value;");
+    dummy_file.write("}");
+    dummy_file.close()?;
+
     dummy::gcc_build(&middle)?;
 
     let exit_status = dummy::run(&middle)?;
