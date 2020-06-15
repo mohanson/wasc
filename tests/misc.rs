@@ -1,8 +1,5 @@
 #[allow(dead_code)]
-pub fn copy_dir<P: AsRef<std::path::Path>, Q: AsRef<std::path::Path>>(
-    from: P,
-    to: Q,
-) -> std::io::Result<()> {
+pub fn copy_dir<P: AsRef<std::path::Path>, Q: AsRef<std::path::Path>>(from: P, to: Q) -> std::io::Result<()> {
     let src = from.as_ref();
     let dst = to.as_ref();
     std::fs::create_dir(dst)?;
