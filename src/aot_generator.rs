@@ -6,10 +6,18 @@ use wasmparser::WasmDecoder;
 // information or third-party extensions, and are ignored by the WebAssembly
 // semantics. Their contents consist of a name further identifying the custom
 // section, followed by an uninterpreted sequence of bytes for custom use.
-#[derive(Debug, Default)]
+#[derive(Debug)]
 struct Custom {
     name: String,
     data: Vec<u8>,
+}
+
+// The imports component of a module defines a set of imports that are required for instantiation.
+#[derive(Debug)]
+struct Import {
+    module: String,
+    field: String,
+    ty: wasmparser::ImportSectionEntryType,
 }
 
 // WebAssembly module definition.
@@ -17,14 +25,14 @@ struct Custom {
 struct Module {
     custom_list: Vec<Custom>,
     type_list: Vec<wasmparser::FuncType>,
-    function_list: Vec<u8>,
+    function_list: Vec<u32>,
     table_list: Vec<u8>,
     memory_list: Vec<u8>,
     global_list: Vec<u8>,
     element_list: Vec<u8>,
     data_list: Vec<u8>,
     start: Option<u32>,
-    import_list: Vec<u8>,
+    import_list: Vec<Import>,
     export_list: Vec<u8>,
 }
 
@@ -36,12 +44,12 @@ impl Module {
         let mut section_code: Option<wasmparser::SectionCode> = None;
         while !parser.eof() {
             let state = parser.read();
-            match state {
+            match *state {
                 wasmparser::ParserState::StartSectionEntry(function_index) => {
-                    wasm_module.start = Some(*function_index);
+                    wasm_module.start = Some(function_index);
                 }
                 wasmparser::ParserState::BeginSection { code, .. } => {
-                    section_code = Some(*code);
+                    section_code = Some(code);
                 }
                 wasmparser::ParserState::EndSection => {
                     section_code = None;
@@ -55,8 +63,18 @@ impl Module {
                         wasm_module.custom_list.push(custom);
                     }
                 }
-                wasmparser::ParserState::TypeSectionEntry(func_type) => {
+                wasmparser::ParserState::TypeSectionEntry(ref func_type) => {
                     wasm_module.type_list.push(func_type.clone());
+                }
+                wasmparser::ParserState::FunctionSectionEntry(func_type_index) => {
+                    wasm_module.function_list.push(func_type_index);
+                }
+                wasmparser::ParserState::ImportSectionEntry { module, field, ty } => {
+                    wasm_module.import_list.push(Import {
+                        module: module.to_string(),
+                        field: field.to_string(),
+                        ty: ty,
+                    });
                 }
                 wasmparser::ParserState::Error(ref err) => panic!("Error: {:?}", err),
                 _ => {}
@@ -196,19 +214,12 @@ const uint64_t tableReferenceBias = 0;
     for (i, _) in wasm_module.type_list.iter().enumerate() {
         glue_file.write_all(format!("const uint64_t {} = 0;\n", get_external_name("typeId", i as u32)).as_bytes())?;
     }
-
-    loop {
-        let state = parser.read();
-        match *state {
-            // Import function
-            wasmparser::ParserState::ImportSectionEntry {
-                module,
-                field,
-                ty: wasmparser::ImportSectionEntryType::Function(index),
-            } => {
+    for e in wasm_module.import_list {
+        match e.ty {
+            wasmparser::ImportSectionEntryType::Function(func_type_index) => {
                 function_entries.push(None);
-                let func_type = &wasm_module.type_list[index as usize];
-                let name = format!("wavm_{}_{}", module, field);
+                let func_type = &wasm_module.type_list[func_type_index as usize];
+                let name = format!("wavm_{}_{}", e.module, e.field);
                 let import_symbol = get_external_name("functionImport", next_import_index);
                 glue_file.write_all(format!("#define {} {}\n", name, import_symbol).as_bytes())?;
                 next_import_index += 1;
@@ -221,6 +232,29 @@ const uint64_t tableReferenceBias = 0;
                 )?;
                 function_names.push(name);
             }
+            _ => {}
+        }
+    }
+    for e in wasm_module.function_list {
+        let func_type = &wasm_module.type_list[e as usize];
+        let name = get_external_name("functionDef", next_function_index);
+        glue_file.write_all(
+            format!(
+                "extern {};
+const uint64_t {} = 0;\n",
+                convert_func_type_to_c_function(&func_type, name.clone()),
+                get_external_name("functionDefMutableDatas", next_function_index),
+            )
+            .as_bytes(),
+        )?;
+        function_entries.push(Some(next_function_index as usize));
+        next_function_index += 1;
+        function_names.push(name.clone());
+    }
+
+    loop {
+        let state = parser.read();
+        match *state {
             // Import memory
             wasmparser::ParserState::ImportSectionEntry {
                 module: _,
@@ -266,22 +300,6 @@ const uint64_t tableReferenceBias = 0;
                 let mut table = vec![];
                 table.resize(std::cmp::max(256, count as usize), "0".to_string()); // TODO: implement import table.
                 tables.push(table);
-            }
-            wasmparser::ParserState::FunctionSectionEntry(type_entry_index) => {
-                let func_type = &wasm_module.type_list[type_entry_index as usize];
-                let name = get_external_name("functionDef", next_function_index);
-                glue_file.write_all(
-                    format!(
-                        "extern {};
-const uint64_t {} = 0;\n",
-                        convert_func_type_to_c_function(&func_type, name.clone()),
-                        get_external_name("functionDefMutableDatas", next_function_index),
-                    )
-                    .as_bytes(),
-                )?;
-                function_entries.push(Some(next_function_index as usize));
-                next_function_index += 1;
-                function_names.push(name.clone());
             }
             wasmparser::ParserState::ExportSectionEntry {
                 field,
