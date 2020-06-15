@@ -27,7 +27,7 @@ struct Module {
     type_list: Vec<wasmparser::FuncType>,
     function_list: Vec<u32>,
     table_list: Vec<wasmparser::TableType>,
-    memory_list: Vec<u8>,
+    memory_list: Vec<wasmparser::MemoryType>,
     global_list: Vec<u8>,
     element_list: Vec<u8>,
     data_list: Vec<u8>,
@@ -71,6 +71,9 @@ impl Module {
                 }
                 wasmparser::ParserState::TableSectionEntry(table_type) => {
                     wasm_module.table_list.push(table_type);
+                }
+                wasmparser::ParserState::MemorySectionEntry(memory_type) => {
+                    wasm_module.memory_list.push(memory_type);
                 }
                 wasmparser::ParserState::ImportSectionEntry { module, field, ty } => {
                     wasm_module.import_list.push(Import {
@@ -262,6 +265,12 @@ const uint64_t {} = 0;\n",
         next_function_index += 1;
         function_names.push(name.clone());
     }
+    for e in wasm_module.memory_list {
+        let mut mem = vec![];
+        mem.resize(e.limits.initial as usize * 64 * 1024, 0);
+        memories.push(mem);
+        max_page_num = e.limits.maximum;
+    }
     for e in wasm_module.table_list {
         let mut table = vec![];
         table.resize(e.limits.initial as usize, "0".to_string());
@@ -319,19 +328,6 @@ const uint64_t {} = 0;\n",
                 if field == "_start" {
                     has_main = true;
                 }
-            }
-            wasmparser::ParserState::MemorySectionEntry(wasmparser::MemoryType {
-                limits:
-                    wasmparser::ResizableLimits {
-                        initial: pages,
-                        maximum,
-                    },
-                ..
-            }) => {
-                let mut mem = vec![];
-                mem.resize(pages as usize * 64 * 1024, 0);
-                memories.push(mem);
-                max_page_num = maximum;
             }
             wasmparser::ParserState::BeginActiveDataSectionEntry(i) => {
                 data_index = Some(i as usize);
