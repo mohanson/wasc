@@ -16,7 +16,7 @@ struct Custom {
 #[derive(Debug, Default)]
 struct Module {
     custom_list: Vec<Custom>,
-    type_list: Vec<u8>,
+    type_list: Vec<wasmparser::FuncType>,
     function_list: Vec<u8>,
     table_list: Vec<u8>,
     memory_list: Vec<u8>,
@@ -31,17 +31,17 @@ struct Module {
 impl Module {
     // Build the module from raw bytes.
     fn from(wasm: Vec<u8>) -> Self {
-        let mut module: Module = Module::default();
+        let mut wasm_module: Module = Module::default();
         let mut parser = wasmparser::Parser::new(&wasm);
         let mut section_code: Option<wasmparser::SectionCode> = None;
         while !parser.eof() {
             let state = parser.read();
-            match *state {
+            match state {
                 wasmparser::ParserState::StartSectionEntry(function_index) => {
-                    module.start = Some(function_index);
+                    wasm_module.start = Some(*function_index);
                 }
                 wasmparser::ParserState::BeginSection { code, .. } => {
-                    section_code = Some(code);
+                    section_code = Some(*code);
                 }
                 wasmparser::ParserState::EndSection => {
                     section_code = None;
@@ -52,14 +52,17 @@ impl Module {
                             name: name.to_string(),
                             data: data.to_vec(),
                         };
-                        module.custom_list.push(custom);
+                        wasm_module.custom_list.push(custom);
                     }
+                }
+                wasmparser::ParserState::TypeSectionEntry(func_type) => {
+                    wasm_module.type_list.push(func_type.clone());
                 }
                 wasmparser::ParserState::Error(ref err) => panic!("Error: {:?}", err),
                 _ => {}
             }
         }
-        module
+        wasm_module
     }
 }
 
@@ -109,7 +112,7 @@ struct DynamicTableEntry {
 
 pub fn generate(middle: &mut context::Middle) -> Result<(), Box<dyn std::error::Error>> {
     let wasm_data: Vec<u8> = std::fs::read(middle.wavm_precompiled_wasm.to_str().unwrap())?;
-    let module = Module::from(wasm_data.clone());
+    let wasm_module = Module::from(wasm_data.clone());
 
     let file_stem = middle.file_stem.clone();
     let glue_path = middle.prog_dir.join(file_stem.clone() + "_glue.h");
@@ -117,7 +120,7 @@ pub fn generate(middle: &mut context::Middle) -> Result<(), Box<dyn std::error::
     let mut glue_file = std::fs::File::create(glue_path.clone())?;
     let mut object_file = std::fs::File::create(object_path.clone())?;
 
-    for e in module.custom_list {
+    for e in wasm_module.custom_list {
         if e.name == "wavm.precompiled_object" {
             object_file.write_all(&e.data)?;
         }
@@ -167,7 +170,6 @@ const uint64_t tableReferenceBias = 0;
     )?;
 
     let mut parser = wasmparser::Parser::new(&wasm_data);
-    let mut type_entries: Vec<wasmparser::FuncType> = vec![];
     let mut next_import_index = 0;
     let mut next_import_global_index = 0;
     let mut next_function_index = 0;
@@ -190,19 +192,14 @@ const uint64_t tableReferenceBias = 0;
     let mut table_offset: Option<usize> = None;
     let mut dynamic_table_offset: Option<String> = None;
     let mut dynamic_tables: Vec<DynamicTableEntry> = vec![];
+
+    for (i, _) in wasm_module.type_list.iter().enumerate() {
+        glue_file.write_all(format!("const uint64_t {} = 0;\n", get_external_name("typeId", i as u32)).as_bytes())?;
+    }
+
     loop {
         let state = parser.read();
         match *state {
-            wasmparser::ParserState::TypeSectionEntry(ref t) => {
-                glue_file.write_all(
-                    format!(
-                        "const uint64_t {} = 0;\n",
-                        get_external_name("typeId", type_entries.len() as u32)
-                    )
-                    .as_bytes(),
-                )?;
-                type_entries.push(t.clone());
-            }
             // Import function
             wasmparser::ParserState::ImportSectionEntry {
                 module,
@@ -210,7 +207,7 @@ const uint64_t tableReferenceBias = 0;
                 ty: wasmparser::ImportSectionEntryType::Function(index),
             } => {
                 function_entries.push(None);
-                let func_type = &type_entries[index as usize];
+                let func_type = &wasm_module.type_list[index as usize];
                 let name = format!("wavm_{}_{}", module, field);
                 let import_symbol = get_external_name("functionImport", next_import_index);
                 glue_file.write_all(format!("#define {} {}\n", name, import_symbol).as_bytes())?;
@@ -271,7 +268,7 @@ const uint64_t tableReferenceBias = 0;
                 tables.push(table);
             }
             wasmparser::ParserState::FunctionSectionEntry(type_entry_index) => {
-                let func_type = &type_entries[type_entry_index as usize];
+                let func_type = &wasm_module.type_list[type_entry_index as usize];
                 let name = get_external_name("functionDef", next_function_index);
                 glue_file.write_all(
                     format!(
@@ -574,7 +571,7 @@ const uint64_t {} = 0;\n",
         )?;
     }
 
-    if let Some(function_index) = module.start {
+    if let Some(function_index) = wasm_module.start {
         glue_file.write_all(format!("  {}(NULL);\n", function_names[function_index as usize]).as_bytes())?;
     }
     glue_file.write_all("}\n".as_bytes())?;
