@@ -45,6 +45,8 @@ pub struct Middle {
     // File stem is the source wasm/wast file's name without extension.
     // Example: file_stem(helloworld.wasm) => helloworld
     pub file_stem: String,
+    // Folder for collect platform based code.
+    pub platform_code_path: std::path::PathBuf,
     // Project address, usually equals to file.dirname
     pub prog_dir: std::path::PathBuf,
     // Precompiled wasm file built by wavm.
@@ -73,5 +75,7 @@ impl Middle {
         if self.prog_dir.parent() == None {
             self.prog_dir = std::path::PathBuf::from("./");
         }
+        self.platform_code_path = self.prog_dir.join(self.file_stem.clone() + "_platform");
+        self.wavm_precompiled_wasm = self.prog_dir.join(self.file_stem.clone() + "_precompiled.wasm");
     }
 }

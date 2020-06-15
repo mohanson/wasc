@@ -1,9 +1,8 @@
 use wasc::aot_generator;
 use wasc::code_builder;
+use wasc::compile;
 use wasc::context;
 use wasc::dummy;
-use wasc::platform;
-use wasc::wavm;
 
 mod misc;
 
@@ -11,13 +10,9 @@ fn test_spec_single_test<P: AsRef<std::path::Path>>(wasm_path: P) -> Result<i32,
     let mut config = wasc::context::Config::default();
     config.platform = context::Platform::PosixX8664;
     config.binary_wavm = String::from("./third_party/WAVM/build/bin/wavm");
-    let mut middle = context::Middle::default();
-    middle.init_config(config);
-    let wasm_path = wasm_path.as_ref();
-    middle.init_file(&wasm_path);
 
-    wavm::compile(&mut middle)?;
-    platform::init(&mut middle)?;
+    let mut middle = compile::compile(&wasm_path, config)?;
+
     aot_generator::glue(&mut middle)?;
 
     dummy::init(&mut middle)?;
@@ -34,7 +29,7 @@ fn test_spec_single_test<P: AsRef<std::path::Path>>(wasm_path: P) -> Result<i32,
     dummy::gcc_build(&middle)?;
 
     let exit_status = dummy::run(&middle)?;
-    rog::debugln!("{:?} {}", wasm_path, exit_status);
+    rog::debugln!("{:?} {}", wasm_path.as_ref(), exit_status);
     Ok(exit_status.code().unwrap())
 }
 
