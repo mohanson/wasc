@@ -26,7 +26,7 @@ struct Module {
     custom_list: Vec<Custom>,
     type_list: Vec<wasmparser::FuncType>,
     function_list: Vec<u32>,
-    table_list: Vec<u8>,
+    table_list: Vec<wasmparser::TableType>,
     memory_list: Vec<u8>,
     global_list: Vec<u8>,
     element_list: Vec<u8>,
@@ -68,6 +68,9 @@ impl Module {
                 }
                 wasmparser::ParserState::FunctionSectionEntry(func_type_index) => {
                     wasm_module.function_list.push(func_type_index);
+                }
+                wasmparser::ParserState::TableSectionEntry(table_type) => {
+                    wasm_module.table_list.push(table_type);
                 }
                 wasmparser::ParserState::ImportSectionEntry { module, field, ty } => {
                     wasm_module.import_list.push(Import {
@@ -232,6 +235,14 @@ const uint64_t tableReferenceBias = 0;
                 )?;
                 function_names.push(name);
             }
+            wasmparser::ImportSectionEntryType::Table(wasmparser::TableType {
+                element_type: wasmparser::Type::AnyFunc,
+                limits: wasmparser::ResizableLimits { initial: count, .. },
+            }) => {
+                let mut table = vec![];
+                table.resize(std::cmp::max(256, count as usize), "0".to_string()); // TODO: implement import table.
+                tables.push(table);
+            }
             _ => {}
         }
     }
@@ -250,6 +261,11 @@ const uint64_t {} = 0;\n",
         function_entries.push(Some(next_function_index as usize));
         next_function_index += 1;
         function_names.push(name.clone());
+    }
+    for e in wasm_module.table_list {
+        let mut table = vec![];
+        table.resize(e.limits.initial as usize, "0".to_string());
+        tables.push(table);
     }
 
     loop {
@@ -285,22 +301,6 @@ const uint64_t {} = 0;\n",
                 global_values.push(GlobalValue::Imported(name.clone()));
                 next_import_global_index += 1;
             }
-            // Import Table
-            wasmparser::ParserState::ImportSectionEntry {
-                module: _,
-                field: _,
-                ty:
-                    wasmparser::ImportSectionEntryType::Table(wasmparser::TableType {
-                        element_type: wasmparser::Type::AnyFunc,
-                        limits: wasmparser::ResizableLimits { initial: count, .. },
-                    }),
-            } => {
-                // #define wavm_spectest_table table0
-                // extern uintptr_t table0[16];
-                let mut table = vec![];
-                table.resize(std::cmp::max(256, count as usize), "0".to_string()); // TODO: implement import table.
-                tables.push(table);
-            }
             wasmparser::ParserState::ExportSectionEntry {
                 field,
                 kind: wasmparser::ExternalKind::Function,
@@ -319,14 +319,6 @@ const uint64_t {} = 0;\n",
                 if field == "_start" {
                     has_main = true;
                 }
-            }
-            wasmparser::ParserState::TableSectionEntry(wasmparser::TableType {
-                element_type: wasmparser::Type::AnyFunc,
-                limits: wasmparser::ResizableLimits { initial: count, .. },
-            }) => {
-                let mut table = vec![];
-                table.resize(count as usize, "0".to_string());
-                tables.push(table);
             }
             wasmparser::ParserState::MemorySectionEntry(wasmparser::MemoryType {
                 limits:
