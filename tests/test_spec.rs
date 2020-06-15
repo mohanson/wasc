@@ -13,9 +13,9 @@ fn test_spec_single_test<P: AsRef<std::path::Path>>(
     let mut config = wasc::context::Config::default();
     config.platform = context::Platform::PosixX8664Spectest;
     config.binary_wavm = "./third_party/WAVM/build/bin/wavm".to_string();
-    let mut middle = compile::compile(&wasm_path, config)?;
 
-    aot_generator::glue(&mut middle)?;
+    let mut middle = compile::compile(&wasm_path, config)?;
+    aot_generator::generate(&mut middle)?;
 
     dummy::init(&mut middle)?;
     let mut dummy_file = code_builder::CodeBuilder::place(&middle.dummy);

@@ -46,7 +46,7 @@ struct DynamicTableEntry {
     func_index: usize,
 }
 
-pub fn glue(middle: &mut context::Middle) -> Result<(), Box<dyn std::error::Error>> {
+pub fn generate(middle: &mut context::Middle) -> Result<(), Box<dyn std::error::Error>> {
     let wasm_data: Vec<u8> = std::fs::read(middle.wavm_precompiled_wasm.to_str().unwrap())?;
     rog::debugln!("glue wasm_data.length={:?}", wasm_data.len());
     let file_stem = middle.file_stem.clone();
