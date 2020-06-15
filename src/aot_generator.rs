@@ -240,11 +240,19 @@ const uint64_t tableReferenceBias = 0;
             }
             wasmparser::ImportSectionEntryType::Table(wasmparser::TableType {
                 element_type: wasmparser::Type::AnyFunc,
-                limits: wasmparser::ResizableLimits { initial: count, .. },
+                limits: wasmparser::ResizableLimits { initial, .. },
             }) => {
                 let mut table = vec![];
-                table.resize(std::cmp::max(256, count as usize), "0".to_string()); // TODO: implement import table.
+                table.resize(std::cmp::max(256, initial as usize), "0".to_string()); // TODO: implement import table.
                 tables.push(table);
+            }
+            wasmparser::ImportSectionEntryType::Memory(wasmparser::MemoryType {
+                limits: wasmparser::ResizableLimits { initial, .. },
+                ..
+            }) => {
+                let mut mem = vec![];
+                mem.resize(std::cmp::max(1, initial as usize) * 64 * 1024, 0);
+                memories.push(mem);
             }
             _ => {}
         }
@@ -280,20 +288,6 @@ const uint64_t {} = 0;\n",
     loop {
         let state = parser.read();
         match *state {
-            // Import memory
-            wasmparser::ParserState::ImportSectionEntry {
-                module: _,
-                field: _,
-                ty:
-                    wasmparser::ImportSectionEntryType::Memory(wasmparser::MemoryType {
-                        limits: wasmparser::ResizableLimits { initial: pages, .. },
-                        ..
-                    }),
-            } => {
-                let mut mem = vec![];
-                mem.resize(std::cmp::max(1, pages as usize) * 64 * 1024, 0);
-                memories.push(mem);
-            }
             // Import Global
             wasmparser::ParserState::ImportSectionEntry {
                 module,
