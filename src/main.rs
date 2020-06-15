@@ -19,11 +19,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         std::process::exit(0);
     }
     let mut config = context::Config::default();
-    config.wavm_binary = String::from("/src/wasc/third_party/WAVM/build/bin/wavm");
+    config.binary_wavm = String::from("/src/wasc/third_party/WAVM/build/bin/wavm");
 
     let mut middle = context::Middle::default();
     middle.config = config;
-    middle.dir = std::env::current_dir()?;
     middle.init_file(source);
 
     rog::debugln!("The wasc cli is work in progress.");
