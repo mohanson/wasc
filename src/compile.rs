@@ -39,7 +39,11 @@ pub fn compile<P: AsRef<std::path::Path>>(
             rog::debugln!("create {}", path_s.to_str().unwrap());
             std::fs::write(&path_s, &middle.config.platform_posix_x86_64_spectest_runtime)?;
         }
-        _ => unimplemented!(),
+        context::Platform::Unknown => {
+            // Must specify the target platform in advance, from environment variables, or command line parameters,
+            // or guess.
+            panic!("unknown platform");
+        }
     }
 
     Ok(middle)
