@@ -2,6 +2,67 @@ use super::context;
 use std::io::Write;
 use wasmparser::WasmDecoder;
 
+// Custom sections have the id 0. They are intended to be used for debugging
+// information or third-party extensions, and are ignored by the WebAssembly
+// semantics. Their contents consist of a name further identifying the custom
+// section, followed by an uninterpreted sequence of bytes for custom use.
+#[derive(Debug, Default)]
+struct Custom {
+    name: String,
+    data: Vec<u8>,
+}
+
+// WebAssembly module definition.
+#[derive(Debug, Default)]
+struct Module {
+    custom_list: Vec<Custom>,
+    type_list: Vec<u8>,
+    function_list: Vec<u8>,
+    table_list: Vec<u8>,
+    memory_list: Vec<u8>,
+    global_list: Vec<u8>,
+    element_list: Vec<u8>,
+    data_list: Vec<u8>,
+    start: Option<u32>,
+    import_list: Vec<u8>,
+    export_list: Vec<u8>,
+}
+
+impl Module {
+    // Build the module from raw bytes.
+    fn from(wasm: Vec<u8>) -> Self {
+        let mut module: Module = Module::default();
+        let mut parser = wasmparser::Parser::new(&wasm);
+        let mut section_code: Option<wasmparser::SectionCode> = None;
+        while !parser.eof() {
+            let state = parser.read();
+            match *state {
+                wasmparser::ParserState::StartSectionEntry(function_index) => {
+                    module.start = Some(function_index);
+                }
+                wasmparser::ParserState::BeginSection { code, .. } => {
+                    section_code = Some(code);
+                }
+                wasmparser::ParserState::EndSection => {
+                    section_code = None;
+                }
+                wasmparser::ParserState::SectionRawData(data) => {
+                    if let Some(wasmparser::SectionCode::Custom { name, .. }) = section_code {
+                        let custom = Custom {
+                            name: name.to_string(),
+                            data: data.to_vec(),
+                        };
+                        module.custom_list.push(custom);
+                    }
+                }
+                wasmparser::ParserState::Error(ref err) => panic!("Error: {:?}", err),
+                _ => {}
+            }
+        }
+        module
+    }
+}
+
 // Functions that map between the symbols used for externally visible functions and the function
 fn get_external_name(base_name: &str, index: u32) -> String {
     format!("{}{}", base_name, index)
@@ -48,14 +109,19 @@ struct DynamicTableEntry {
 
 pub fn generate(middle: &mut context::Middle) -> Result<(), Box<dyn std::error::Error>> {
     let wasm_data: Vec<u8> = std::fs::read(middle.wavm_precompiled_wasm.to_str().unwrap())?;
-    rog::debugln!("glue wasm_data.length={:?}", wasm_data.len());
+    let module = Module::from(wasm_data.clone());
+
     let file_stem = middle.file_stem.clone();
     let glue_path = middle.prog_dir.join(file_stem.clone() + "_glue.h");
     let object_path = middle.prog_dir.join(file_stem.clone() + ".o");
-    rog::debugln!("glue glue_path={:?}", glue_path);
-    rog::debugln!("glue object_path={:?}", object_path);
     let mut glue_file = std::fs::File::create(glue_path.clone())?;
     let mut object_file = std::fs::File::create(object_path.clone())?;
+
+    for e in module.custom_list {
+        if e.name == "wavm.precompiled_object" {
+            object_file.write_all(&e.data)?;
+        }
+    }
 
     let header_id = format!("{}_GLUE_H", file_stem);
     glue_file.write_all(
@@ -101,14 +167,12 @@ const uint64_t tableReferenceBias = 0;
     )?;
 
     let mut parser = wasmparser::Parser::new(&wasm_data);
-    let mut section_name: Option<String> = None;
     let mut type_entries: Vec<wasmparser::FuncType> = vec![];
     let mut next_import_index = 0;
     let mut next_import_global_index = 0;
     let mut next_function_index = 0;
     let mut function_entries: Vec<Option<usize>> = vec![];
     let mut function_names: Vec<String> = vec![];
-    let mut has_init = false;
     let mut has_main = false;
     let mut memories: Vec<Vec<u8>> = vec![];
     let mut max_page_num: Option<u32> = None;
@@ -126,27 +190,9 @@ const uint64_t tableReferenceBias = 0;
     let mut table_offset: Option<usize> = None;
     let mut dynamic_table_offset: Option<String> = None;
     let mut dynamic_tables: Vec<DynamicTableEntry> = vec![];
-    let mut start: Option<u32> = None;
     loop {
         let state = parser.read();
         match *state {
-            wasmparser::ParserState::StartSectionEntry(function_index) => {
-                start = Some(function_index);
-                has_init = true;
-            }
-            wasmparser::ParserState::BeginSection { code, .. } => {
-                if let wasmparser::SectionCode::Custom { name, .. } = code {
-                    section_name = Some(name.to_string());
-                }
-            }
-            wasmparser::ParserState::EndSection => {
-                section_name = None;
-            }
-            wasmparser::ParserState::SectionRawData(data) => {
-                if section_name.clone().unwrap_or("".to_string()) == "wavm.precompiled_object" {
-                    object_file.write_all(data).expect("write object file");
-                }
-            }
             wasmparser::ParserState::TypeSectionEntry(ref t) => {
                 glue_file.write_all(
                     format!(
@@ -475,15 +521,7 @@ const uint64_t {} = 0;\n",
         }
     }
 
-    if tables.len() != 0 {
-        has_init = true;
-    }
-    for (_, _) in dynamic_tables.iter().enumerate() {
-        has_init = true;
-    }
-
     for (i, mem) in dynamic_memories.iter().enumerate() {
-        has_init = true;
         glue_file.write_all(format!("uint32_t data{}_length = {};\n", i, mem.data.len()).as_bytes())?;
         glue_file.write_all(format!("uint8_t data{}[{}] = {{", i, mem.data.len()).as_bytes())?;
         for (j, c) in mem.data.iter().enumerate() {
@@ -497,51 +535,49 @@ const uint64_t {} = 0;\n",
         }
         glue_file.write_all(b"\n};\n")?;
     }
+
     // Write init function
-    if has_init {
-        middle.misc_has_init = true;
-        glue_file.write_all("void init() {\n".as_bytes())?;
-        for (i, mem) in dynamic_memories.iter().enumerate() {
-            glue_file.write_all(
-                format!(
-                    "memcpy(memory{} + {}, data{}, {});\n",
-                    mem.index,
-                    mem.offset,
-                    i,
-                    mem.data.len()
-                )
-                .as_bytes(),
-            )?;
-        }
-        for (_, table) in dynamic_tables.iter().enumerate() {
-            glue_file.write_all(
-                format!(
-                    "table{}[{} + {}] = ((uintptr_t) ({}));\n",
-                    table.index,
-                    table.offset,
-                    table.shift,
-                    get_external_name("functionDef", table.func_index as u32)
-                )
-                .as_bytes(),
-            )?;
-        }
-        for (i, _) in tables.iter().enumerate() {
-            glue_file.write_all(
-                format!(
-                    "  for (int i = 0; i < table{}_length; i++) {{
+    glue_file.write_all("void init() {\n".as_bytes())?;
+    for (i, mem) in dynamic_memories.iter().enumerate() {
+        glue_file.write_all(
+            format!(
+                "memcpy(memory{} + {}, data{}, {});\n",
+                mem.index,
+                mem.offset,
+                i,
+                mem.data.len()
+            )
+            .as_bytes(),
+        )?;
+    }
+    for (_, table) in dynamic_tables.iter().enumerate() {
+        glue_file.write_all(
+            format!(
+                "table{}[{} + {}] = ((uintptr_t) ({}));\n",
+                table.index,
+                table.offset,
+                table.shift,
+                get_external_name("functionDef", table.func_index as u32)
+            )
+            .as_bytes(),
+        )?;
+    }
+    for (i, _) in tables.iter().enumerate() {
+        glue_file.write_all(
+            format!(
+                "  for (int i = 0; i < table{}_length; i++) {{
     table{}[i] = table{}[i] - ((uintptr_t) &tableReferenceBias) - 0x20;
   }}\n",
-                    i, i, i
-                )
-                .as_bytes(),
-            )?;
-        }
-
-        if let Some(function_index) = start {
-            glue_file.write_all(format!("  {}(NULL);\n", function_names[function_index as usize]).as_bytes())?;
-        }
-        glue_file.write_all("}\n".as_bytes())?;
+                i, i, i
+            )
+            .as_bytes(),
+        )?;
     }
+
+    if let Some(function_index) = module.start {
+        glue_file.write_all(format!("  {}(NULL);\n", function_names[function_index as usize]).as_bytes())?;
+    }
+    glue_file.write_all("}\n".as_bytes())?;
 
     if has_main {
         glue_file.write_all(
