@@ -2,6 +2,31 @@ use super::context;
 use std::io::Write;
 use wasmparser::WasmDecoder;
 
+// See: https://webassembly.github.io/spec/core/valid/instructions.html#constant-expressions.
+#[derive(Debug)]
+pub enum ConstantOperator {
+    I32Const { value: i32 },
+    I64Const { value: i64 },
+    F32Const { value: u32 },
+    F64Const { value: u64 },
+    GlobalGet { global_index: u32 },
+}
+
+impl<'a> From<wasmparser::Operator<'a>> for ConstantOperator {
+    fn from(o: wasmparser::Operator) -> Self {
+        match o {
+            wasmparser::Operator::I32Const { value } => ConstantOperator::I32Const { value: value },
+            wasmparser::Operator::I64Const { value } => ConstantOperator::I64Const { value: value },
+            wasmparser::Operator::F32Const { value } => ConstantOperator::F32Const { value: value.bits() },
+            wasmparser::Operator::F64Const { value } => ConstantOperator::F64Const { value: value.bits() },
+            wasmparser::Operator::GlobalGet { global_index } => ConstantOperator::GlobalGet {
+                global_index: global_index,
+            },
+            _ => unimplemented!(),
+        }
+    }
+}
+
 // Custom sections have the id 0. They are intended to be used for debugging
 // information or third-party extensions, and are ignored by the WebAssembly
 // semantics. Their contents consist of a name further identifying the custom
@@ -20,6 +45,13 @@ struct Import {
     ty: wasmparser::ImportSectionEntryType,
 }
 
+// The globals component of a module defines a vector of global variables.
+#[derive(Debug)]
+struct Global {
+    global_type: wasmparser::GlobalType,
+    expr: Option<ConstantOperator>,
+}
+
 // WebAssembly module definition.
 #[derive(Debug, Default)]
 struct Module {
@@ -28,7 +60,7 @@ struct Module {
     function_list: Vec<u32>,
     table_list: Vec<wasmparser::TableType>,
     memory_list: Vec<wasmparser::MemoryType>,
-    global_list: Vec<u8>,
+    global_list: Vec<Global>,
     element_list: Vec<u8>,
     data_list: Vec<u8>,
     start: Option<u32>,
@@ -75,6 +107,20 @@ impl Module {
                 wasmparser::ParserState::MemorySectionEntry(memory_type) => {
                     wasm_module.memory_list.push(memory_type);
                 }
+                wasmparser::ParserState::BeginGlobalSectionEntry(global_type) => {
+                    let global = Global {
+                        global_type: global_type,
+                        expr: None,
+                    };
+                    wasm_module.global_list.push(global);
+                }
+                wasmparser::ParserState::EndGlobalSectionEntry => {}
+                wasmparser::ParserState::InitExpressionOperator(ref value) => match section_code {
+                    Some(wasmparser::SectionCode::Global) => {
+                        wasm_module.global_list.last_mut().unwrap().expr = Some(value.clone().into())
+                    }
+                    _ => {}
+                },
                 wasmparser::ParserState::ImportSectionEntry { module, field, ty } => {
                     wasm_module.import_list.push(Import {
                         module: module.to_string(),
@@ -98,7 +144,6 @@ fn get_external_name(base_name: &str, index: u32) -> String {
 enum CurrentSection {
     Empty,
     Data,
-    Global,
     Element,
 }
 
@@ -208,8 +253,6 @@ const uint64_t tableReferenceBias = 0;
     let mut dynamic_data_offset: Option<String> = None;
     let mut current_section = CurrentSection::Empty;
     let mut next_global_index = 0;
-    let mut global_content_type = wasmparser::Type::EmptyBlockType;
-    let mut global_mutable = false;
     let mut global_values: Vec<GlobalValue> = vec![];
     let mut tables: Vec<Vec<String>> = vec![];
     let mut table_index: Option<usize> = None;
@@ -219,6 +262,19 @@ const uint64_t tableReferenceBias = 0;
 
     for (i, _) in wasm_module.type_list.iter().enumerate() {
         glue_file.write_all(format!("const uint64_t {} = 0;\n", get_external_name("typeId", i as u32)).as_bytes())?;
+    }
+    for e in wasm_module.global_list {
+        glue_file.write_all(
+            generate_global_entry(
+                next_global_index,
+                &e.global_type.content_type,
+                e.global_type.mutable,
+                &e.expr.unwrap(),
+                &mut global_values,
+            )
+            .as_bytes(),
+        )?;
+        next_global_index += 1;
     }
     for e in wasm_module.import_list {
         match e.ty {
@@ -254,6 +310,17 @@ const uint64_t tableReferenceBias = 0;
                 mem.resize(std::cmp::max(1, initial as usize) * 64 * 1024, 0);
                 memories.push(mem);
             }
+            wasmparser::ImportSectionEntryType::Global(wasmparser::GlobalType { content_type, .. }) => {
+                // #define wavm_spectest_global_i32 global0
+                // extern int32_t global0;
+                let name = format!("wavm_{}_{}", e.module, e.field);
+                let import_symbol = get_external_name("global", next_import_global_index);
+                let global_type = wasm_type_to_c_type(content_type);
+                glue_file.write_all(format!("#define {} {}\n", name, import_symbol).as_bytes())?;
+                glue_file.write_all(format!("extern {} {};\n", global_type, import_symbol).as_bytes())?;
+                global_values.push(GlobalValue::Imported(name.clone()));
+                next_import_global_index += 1;
+            }
             _ => {}
         }
     }
@@ -288,22 +355,6 @@ const uint64_t {} = 0;\n",
     loop {
         let state = parser.read();
         match *state {
-            // Import Global
-            wasmparser::ParserState::ImportSectionEntry {
-                module,
-                field,
-                ty: wasmparser::ImportSectionEntryType::Global(wasmparser::GlobalType { content_type, .. }),
-            } => {
-                // #define wavm_spectest_global_i32 global0
-                // extern int32_t global0;
-                let name = format!("wavm_{}_{}", module, field);
-                let import_symbol = get_external_name("global", next_import_global_index);
-                let global_type = wasm_type_to_c_type(content_type);
-                glue_file.write_all(format!("#define {} {}\n", name, import_symbol).as_bytes())?;
-                glue_file.write_all(format!("extern {} {};\n", global_type, import_symbol).as_bytes())?;
-                global_values.push(GlobalValue::Imported(name.clone()));
-                next_import_global_index += 1;
-            }
             wasmparser::ParserState::ExportSectionEntry {
                 field,
                 kind: wasmparser::ExternalKind::Function,
@@ -360,19 +411,6 @@ const uint64_t {} = 0;\n",
                         }
                     }
                 }
-                CurrentSection::Global => {
-                    glue_file.write_all(
-                        generate_global_entry(
-                            next_global_index,
-                            &global_content_type,
-                            global_mutable,
-                            &value,
-                            &mut global_values,
-                        )
-                        .as_bytes(),
-                    )?;
-                    next_global_index += 1;
-                }
                 CurrentSection::Empty => {
                     rog::debugln!("Omitted init expression: {:?}", value);
                 }
@@ -415,14 +453,14 @@ const uint64_t {} = 0;\n",
                     }
                 }
             }
-            wasmparser::ParserState::BeginGlobalSectionEntry(wasmparser::GlobalType { content_type, mutable }) => {
-                global_content_type = content_type;
-                global_mutable = mutable;
-                current_section = CurrentSection::Global;
-            }
-            wasmparser::ParserState::EndGlobalSectionEntry => {
-                current_section = CurrentSection::Empty;
-            }
+            // wasmparser::ParserState::BeginGlobalSectionEntry(wasmparser::GlobalType { content_type, mutable }) => {
+            //     global_content_type = content_type;
+            //     global_mutable = mutable;
+            //     current_section = CurrentSection::Global;
+            // }
+            // wasmparser::ParserState::EndGlobalSectionEntry => {
+            //     current_section = CurrentSection::Empty;
+            // }
             wasmparser::ParserState::BeginElementSectionEntry {
                 table: wasmparser::ElemSectionEntryTable::Active(i),
                 ty: wasmparser::Type::AnyFunc,
@@ -635,7 +673,7 @@ fn generate_global_entry(
     index: usize,
     content_type: &wasmparser::Type,
     mutable: bool,
-    value: &wasmparser::Operator,
+    value: &ConstantOperator,
     global_values: &mut Vec<GlobalValue>,
 ) -> String {
     let mutable_string = if mutable { "" } else { "const " };
@@ -643,7 +681,7 @@ fn generate_global_entry(
 
     match content_type {
         wasmparser::Type::I32 => {
-            if let wasmparser::Operator::I32Const { value } = value {
+            if let ConstantOperator::I32Const { value } = value {
                 global_values.push(GlobalValue::I32(*value));
                 format!(
                     "{}{} {} = {};\n",
@@ -657,7 +695,7 @@ fn generate_global_entry(
             }
         }
         wasmparser::Type::I64 => {
-            if let wasmparser::Operator::I64Const { value } = value {
+            if let ConstantOperator::I64Const { value } = value {
                 global_values.push(GlobalValue::I64(*value));
                 format!(
                     "{}{} {} = {};\n",
@@ -671,28 +709,28 @@ fn generate_global_entry(
             }
         }
         wasmparser::Type::F32 => {
-            if let wasmparser::Operator::F32Const { value } = value {
-                global_values.push(GlobalValue::F32(value.bits()));
+            if let ConstantOperator::F32Const { value } = value {
+                global_values.push(GlobalValue::F32(*value));
                 format!(
                     "{}{} {} = {};\n",
                     mutable_string,
                     type_string,
                     get_external_name("global", index as u32),
-                    unsafe { std::mem::transmute::<u32, f32>(value.bits()).to_string() }
+                    unsafe { std::mem::transmute::<u32, f32>(*value).to_string() }
                 )
             } else {
                 unimplemented!()
             }
         }
         wasmparser::Type::F64 => {
-            if let wasmparser::Operator::F64Const { value } = value {
-                global_values.push(GlobalValue::F64(value.bits()));
+            if let ConstantOperator::F64Const { value } = value {
+                global_values.push(GlobalValue::F64(*value));
                 format!(
                     "{}{} {} = {};\n",
                     mutable_string,
                     type_string,
                     get_external_name("global", index as u32),
-                    unsafe { std::mem::transmute::<u64, f64>(value.bits()).to_string() }
+                    unsafe { std::mem::transmute::<u64, f64>(*value).to_string() }
                 )
             } else {
                 unimplemented!()
