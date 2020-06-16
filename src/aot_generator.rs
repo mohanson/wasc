@@ -22,7 +22,7 @@ impl<'a> From<wasmparser::Operator<'a>> for ConstantOperator {
             wasmparser::Operator::GlobalGet { global_index } => ConstantOperator::GlobalGet {
                 global_index: global_index,
             },
-            _ => unimplemented!(),
+            _ => panic!("unreachable"),
         }
     }
 }
@@ -218,26 +218,138 @@ impl Module {
     }
 }
 
-// Functions that map between the symbols used for externally visible functions and the function.
-fn get_external_name(base_name: &str, index: u32) -> String {
-    format!("{}{}", base_name, index)
-}
-
-enum GlobalValue {
+// Values are represented by themselves.
+#[derive(Debug)]
+enum Value {
     I32(i32),
     I64(i64),
     F32(u32),
     F64(u64),
-    Imported(String),
 }
 
-impl GlobalValue {
-    fn as_i32(&self) -> i32 {
-        if let GlobalValue::I32(x) = self {
-            return *x;
-        }
-        panic!("unreachable")
+// A global instance is the runtime representation of a global variable. It holds an individual value and a flag
+// indicating whether it is mutable.
+#[derive(Debug)]
+struct GlobalInstance {
+    global_type: wasmparser::GlobalType,
+    value: Option<Value>,
+    extern_name: Option<String>,
+}
+
+// The store represents all global state that can be manipulated by WebAssembly programs. It consists of the runtime
+// representation of all instances of functions, tables, memories, and globals that have been allocated during the
+// life time of the abstract machine Syntactically.
+//
+// Note: only the necessary data information is stored, which is different from the spec.
+#[derive(Debug, Default)]
+struct Store {
+    function_list: Vec<u8>,
+    table_list: Vec<u8>,
+    memory_list: Vec<u8>,
+    global_list: Vec<GlobalInstance>,
+}
+
+impl Store {
+    fn allocate_global(&mut self, global_instance: GlobalInstance) -> u32 {
+        let global_addr = self.global_list.len() as u32;
+        self.global_list.push(global_instance);
+        global_addr
     }
+}
+
+// A module instance is the runtime representation of a module. It is created by instantiating a module, and
+// collects runtime representations of all entities that are imported, defined, or exported by the module.
+#[derive(Debug, Default)]
+struct ModuleInstance {
+    type_list: Vec<wasmparser::FuncType>,
+    function_addr_list: Vec<u32>,
+    table_addr_list: Vec<u32>,
+    memory_addr_list: Vec<u32>,
+    global_addr_list: Vec<u32>,
+    export_list: Vec<u8>,
+}
+
+impl ModuleInstance {
+    fn from(module: &Module, store: &mut Store) -> Self {
+        let mut module_instance = ModuleInstance::default();
+        module_instance.type_list = module.type_list.clone();
+        // Handle import
+        for e in &module.import_list {
+            match e.ty {
+                wasmparser::ImportSectionEntryType::Function(_) => {}
+                wasmparser::ImportSectionEntryType::Memory(_) => {}
+                wasmparser::ImportSectionEntryType::Table(_) => {}
+                wasmparser::ImportSectionEntryType::Global(global_type) => {
+                    let global_addr = store.allocate_global(GlobalInstance {
+                        global_type: global_type,
+                        value: None,
+                        extern_name: Some(format!("{}_{}", e.module, e.field)),
+                    });
+                    module_instance.global_addr_list.push(global_addr);
+                }
+            }
+        }
+        // Let vals be the vector of global initialization values.
+        for e in &module.global_list {
+            match e.global_type.content_type {
+                wasmparser::Type::I32 => {
+                    if let Some(ConstantOperator::I32Const { value }) = e.expr {
+                        let global_addr = store.allocate_global(GlobalInstance {
+                            global_type: e.global_type,
+                            value: Some(Value::I32(value)),
+                            extern_name: None,
+                        });
+                        module_instance.global_addr_list.push(global_addr);
+                    } else {
+                        panic!("unreachable");
+                    }
+                }
+                wasmparser::Type::I64 => {
+                    if let Some(ConstantOperator::I64Const { value }) = e.expr {
+                        let global_addr = store.allocate_global(GlobalInstance {
+                            global_type: e.global_type,
+                            value: Some(Value::I64(value)),
+                            extern_name: None,
+                        });
+                        module_instance.global_addr_list.push(global_addr);
+                    } else {
+                        panic!("unreachable");
+                    }
+                }
+                wasmparser::Type::F32 => {
+                    if let Some(ConstantOperator::F32Const { value }) = e.expr {
+                        let global_addr = store.allocate_global(GlobalInstance {
+                            global_type: e.global_type,
+                            value: Some(Value::F32(value)),
+                            extern_name: None,
+                        });
+                        module_instance.global_addr_list.push(global_addr);
+                    } else {
+                        panic!("unreachable");
+                    }
+                }
+                wasmparser::Type::F64 => {
+                    if let Some(ConstantOperator::F64Const { value }) = e.expr {
+                        let global_addr = store.allocate_global(GlobalInstance {
+                            global_type: e.global_type,
+                            value: Some(Value::F64(value)),
+                            extern_name: None,
+                        });
+                        module_instance.global_addr_list.push(global_addr);
+                    } else {
+                        panic!("unreachable");
+                    }
+                }
+                _ => panic!("unreachable"),
+            }
+        }
+        module_instance
+    }
+}
+
+// Functions that map between the symbols used for externally visible functions and the function.
+fn get_external_name(base_name: &str, index: u32) -> String {
+    format!("{}{}", base_name, index)
 }
 
 #[derive(Debug)]
@@ -258,6 +370,8 @@ struct DynamicTableEntry {
 pub fn generate(middle: &mut context::Middle) -> Result<(), Box<dyn std::error::Error>> {
     let wasm_data: Vec<u8> = std::fs::read(middle.wavm_precompiled_wasm.to_str().unwrap())?;
     let wasm_module = Module::from(wasm_data.clone());
+    let mut store = Store::default();
+    let wasm_instance = ModuleInstance::from(&wasm_module, &mut store);
 
     let file_stem = middle.file_stem.clone();
     let object_path = middle.prog_dir.join(file_stem.clone() + ".o");
@@ -285,13 +399,12 @@ pub fn generate(middle: &mut context::Middle) -> Result<(), Box<dyn std::error::
     let mut max_page_num: Option<u32> = None;
     let mut dynamic_memories: Vec<DynamicMemory> = vec![];
     let mut next_global_index = 0;
-    let mut global_values: Vec<GlobalValue> = vec![];
     let mut tables: Vec<Vec<String>> = vec![];
     let mut table_offset: Option<usize> = None;
     let mut dynamic_table_offset: Option<String> = None;
     let mut dynamic_tables: Vec<DynamicTableEntry> = vec![];
 
-    for i in 0..wasm_module.type_list.len() {
+    for i in 0..wasm_instance.type_list.len() {
         glue_file.write(format!("const uint64_t {} = 0;", get_external_name("typeId", i as u32)).as_str());
     }
     for e in wasm_module.global_list {
@@ -301,7 +414,6 @@ pub fn generate(middle: &mut context::Middle) -> Result<(), Box<dyn std::error::
                 &e.global_type.content_type,
                 e.global_type.mutable,
                 &e.expr.unwrap(),
-                &mut global_values,
             )
             .as_str(),
         );
@@ -311,7 +423,7 @@ pub fn generate(middle: &mut context::Middle) -> Result<(), Box<dyn std::error::
         match e.ty {
             wasmparser::ImportSectionEntryType::Function(func_type_index) => {
                 function_entries.push(None);
-                let func_type = &wasm_module.type_list[func_type_index as usize];
+                let func_type = &wasm_instance.type_list[func_type_index as usize];
                 let name = format!("wavm_{}_{}", e.module, e.field);
                 let import_symbol = get_external_name("functionImport", next_import_index);
                 glue_file.write(format!("#define {} {}", name, import_symbol).as_str());
@@ -349,14 +461,13 @@ pub fn generate(middle: &mut context::Middle) -> Result<(), Box<dyn std::error::
                 let global_type = wasm_type_to_c_type(content_type);
                 glue_file.write(format!("#define {} {}", name, import_symbol).as_str());
                 glue_file.write(format!("extern {} {};", global_type, import_symbol).as_str());
-                global_values.push(GlobalValue::Imported(name.clone()));
                 next_import_global_index += 1;
             }
             _ => {}
         }
     }
     for e in wasm_module.function_list {
-        let func_type = &wasm_module.type_list[e as usize];
+        let func_type = &wasm_instance.type_list[e as usize];
         let name = get_external_name("functionDef", next_function_index);
         glue_file.write(format!("extern {};", convert_func_type_to_c_function(&func_type, name.clone())).as_str());
         glue_file.write(
@@ -388,13 +499,22 @@ pub fn generate(middle: &mut context::Middle) -> Result<(), Box<dyn std::error::
                 memories[e.memory_index as usize][offset..offset + e.init.len()].copy_from_slice(&e.init);
             }
             Some(ConstantOperator::GlobalGet { global_index }) => {
-                if let GlobalValue::Imported(s) = &global_values[global_index as usize] {
-                    let dmemory = DynamicMemory {
-                        index: global_index as usize,
-                        offset: s.to_string(),
-                        data: e.init.to_vec(),
-                    };
-                    dynamic_memories.push(dmemory);
+                let global_instance =
+                    &store.global_list[wasm_instance.global_addr_list[global_index as usize] as usize];
+                match global_instance.value {
+                    Some(Value::I32(offset)) => {
+                        let offset = offset as usize;
+                        memories[e.memory_index as usize][offset..offset + e.init.len()].copy_from_slice(&e.init);
+                    }
+                    None => {
+                        let dmemory = DynamicMemory {
+                            index: global_index as usize,
+                            offset: format!("wavm_{}", global_instance.extern_name.as_ref().unwrap()),
+                            data: e.init.to_vec(),
+                        };
+                        dynamic_memories.push(dmemory);
+                    }
+                    _ => panic!("unreachable"),
                 }
             }
             _ => {}
@@ -428,14 +548,17 @@ pub fn generate(middle: &mut context::Middle) -> Result<(), Box<dyn std::error::
                 table_offset = Some(value as usize);
             }
             Some(ConstantOperator::GlobalGet { global_index }) => {
-                let global_value = &global_values[global_index as usize];
-                if let GlobalValue::Imported(x) = global_value {
-                    dynamic_table_offset = Some(x.to_string())
-                } else {
-                    table_offset = Some(global_value.as_i32() as usize)
+                let global_instance =
+                    &store.global_list[wasm_instance.global_addr_list[global_index as usize] as usize];
+                match global_instance.value {
+                    Some(Value::I32(offset)) => table_offset = Some(offset as usize),
+                    None => {
+                        dynamic_table_offset = Some(format!("wavm_{}", global_instance.extern_name.as_ref().unwrap()))
+                    }
+                    _ => panic!("unreachable"),
                 }
             }
-            _ => unimplemented!(),
+            _ => panic!("unreachable"),
         }
 
         let index = e.table_index as usize;
@@ -535,7 +658,6 @@ pub fn generate(middle: &mut context::Middle) -> Result<(), Box<dyn std::error::
         glue_file.write(format!("uint32_t data{}_length = {};", i, mem.data.len()).as_str());
         glue_file.write(format!("uint8_t data{}[{}] = {{", i, mem.data.len()).as_str());
         for (j, c) in mem.data.iter().enumerate() {
-            // glue_file.write(format!("0x{:x}", c).as_str());
             if j < mem.data.len() - 1 {
                 glue_file.write(format!("0x{:x},", c).as_str());
             } else {
@@ -646,7 +768,6 @@ fn generate_global_entry(
     content_type: &wasmparser::Type,
     mutable: bool,
     value: &ConstantOperator,
-    global_values: &mut Vec<GlobalValue>,
 ) -> String {
     let mutable_string = if mutable { "" } else { "const " };
     let type_string = wasm_type_to_c_type(content_type.clone());
@@ -654,7 +775,6 @@ fn generate_global_entry(
     match content_type {
         wasmparser::Type::I32 => {
             if let ConstantOperator::I32Const { value } = value {
-                global_values.push(GlobalValue::I32(*value));
                 format!(
                     "{}{} {} = {};\n",
                     mutable_string,
@@ -668,7 +788,6 @@ fn generate_global_entry(
         }
         wasmparser::Type::I64 => {
             if let ConstantOperator::I64Const { value } = value {
-                global_values.push(GlobalValue::I64(*value));
                 format!(
                     "{}{} {} = {};\n",
                     mutable_string,
@@ -682,7 +801,6 @@ fn generate_global_entry(
         }
         wasmparser::Type::F32 => {
             if let ConstantOperator::F32Const { value } = value {
-                global_values.push(GlobalValue::F32(*value));
                 format!(
                     "{}{} {} = {};\n",
                     mutable_string,
@@ -696,7 +814,6 @@ fn generate_global_entry(
         }
         wasmparser::Type::F64 => {
             if let ConstantOperator::F64Const { value } = value {
-                global_values.push(GlobalValue::F64(*value));
                 format!(
                     "{}{} {} = {};\n",
                     mutable_string,

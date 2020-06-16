@@ -1,6 +1,6 @@
 (module
  (import "spectest" "global_i32" (global $global_i32 i32))
- (global $zen (mut i32) (i32.const 10))
+ (global $zen i32 (i32.const 10))
  (export "main" (func $main))
  (func $main (; 0 ;) (result i32)
   (i32.add
