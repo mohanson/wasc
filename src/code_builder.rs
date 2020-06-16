@@ -22,6 +22,13 @@ impl CodeBuilder {
 
     // Function write will add indent and "\n" automatically.
     pub fn write(&mut self, line: &str) {
+        if line == "}" || line == "};" {
+            self.head_whitespace -= 2;
+            self.data += &" ".repeat(self.head_whitespace);
+            self.data += line;
+            self.data += "\n";
+            return;
+        }
         self.data += &" ".repeat(self.head_whitespace);
         self.data += line;
         self.data += "\n";

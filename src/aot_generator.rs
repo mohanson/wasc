@@ -1,5 +1,5 @@
+use super::code_builder;
 use super::context;
-use std::io::Write;
 use wasmparser::WasmDecoder;
 
 // See: https://webassembly.github.io/spec/core/valid/instructions.html#constant-expressions.
@@ -270,10 +270,10 @@ pub fn generate(middle: &mut context::Middle) -> Result<(), Box<dyn std::error::
     std::fs::write(&object_path, &object_data)?;
 
     let glue_path = middle.prog_dir.join(file_stem.clone() + "_glue.h");
-    let mut glue_file = std::fs::File::create(glue_path.clone())?;
+    let mut glue_file = code_builder::CodeBuilder::place(&glue_path);
 
     let header_id = format!("{}_GLUE_H", file_stem.to_uppercase());
-    glue_file.write_all(format!(include_str!("glue.template"), header_id, header_id).as_bytes())?;
+    glue_file.write(format!(include_str!("glue.template"), header_id, header_id).as_str());
 
     let mut next_import_index = 0;
     let mut next_import_global_index = 0;
@@ -292,10 +292,10 @@ pub fn generate(middle: &mut context::Middle) -> Result<(), Box<dyn std::error::
     let mut dynamic_tables: Vec<DynamicTableEntry> = vec![];
 
     for (i, _) in wasm_module.type_list.iter().enumerate() {
-        glue_file.write_all(format!("const uint64_t {} = 0;\n", get_external_name("typeId", i as u32)).as_bytes())?;
+        glue_file.write(format!("const uint64_t {} = 0;", get_external_name("typeId", i as u32)).as_str());
     }
     for e in wasm_module.global_list {
-        glue_file.write_all(
+        glue_file.write(
             generate_global_entry(
                 next_global_index,
                 &e.global_type.content_type,
@@ -303,8 +303,8 @@ pub fn generate(middle: &mut context::Middle) -> Result<(), Box<dyn std::error::
                 &e.expr.unwrap(),
                 &mut global_values,
             )
-            .as_bytes(),
-        )?;
+            .as_str(),
+        );
         next_global_index += 1;
     }
     for e in wasm_module.import_list {
@@ -314,15 +314,15 @@ pub fn generate(middle: &mut context::Middle) -> Result<(), Box<dyn std::error::
                 let func_type = &wasm_module.type_list[func_type_index as usize];
                 let name = format!("wavm_{}_{}", e.module, e.field);
                 let import_symbol = get_external_name("functionImport", next_import_index);
-                glue_file.write_all(format!("#define {} {}\n", name, import_symbol).as_bytes())?;
+                glue_file.write(format!("#define {} {}", name, import_symbol).as_str());
                 next_import_index += 1;
-                glue_file.write_all(
+                glue_file.write(
                     format!(
-                        "extern {};\n",
+                        "extern {};",
                         convert_func_type_to_c_function(&func_type, import_symbol.clone())
                     )
-                    .as_bytes(),
-                )?;
+                    .as_str(),
+                );
                 function_names.push(name);
             }
             wasmparser::ImportSectionEntryType::Table(wasmparser::TableType {
@@ -347,8 +347,8 @@ pub fn generate(middle: &mut context::Middle) -> Result<(), Box<dyn std::error::
                 let name = format!("wavm_{}_{}", e.module, e.field);
                 let import_symbol = get_external_name("global", next_import_global_index);
                 let global_type = wasm_type_to_c_type(content_type);
-                glue_file.write_all(format!("#define {} {}\n", name, import_symbol).as_bytes())?;
-                glue_file.write_all(format!("extern {} {};\n", global_type, import_symbol).as_bytes())?;
+                glue_file.write(format!("#define {} {}", name, import_symbol).as_str());
+                glue_file.write(format!("extern {} {};", global_type, import_symbol).as_str());
                 global_values.push(GlobalValue::Imported(name.clone()));
                 next_import_global_index += 1;
             }
@@ -358,15 +358,14 @@ pub fn generate(middle: &mut context::Middle) -> Result<(), Box<dyn std::error::
     for e in wasm_module.function_list {
         let func_type = &wasm_module.type_list[e as usize];
         let name = get_external_name("functionDef", next_function_index);
-        glue_file.write_all(
+        glue_file.write(format!("extern {};", convert_func_type_to_c_function(&func_type, name.clone())).as_str());
+        glue_file.write(
             format!(
-                "extern {};
-const uint64_t {} = 0;\n",
-                convert_func_type_to_c_function(&func_type, name.clone()),
-                get_external_name("functionDefMutableDatas", next_function_index),
+                "const uint64_t {} = 0;",
+                get_external_name("functionDefMutableDatas", next_function_index)
             )
-            .as_bytes(),
-        )?;
+            .as_str(),
+        );
         function_entries.push(Some(next_function_index as usize));
         next_function_index += 1;
         function_names.push(name.clone());
@@ -406,14 +405,14 @@ const uint64_t {} = 0;\n",
         match e.kind {
             wasmparser::ExternalKind::Function => {
                 let function_index = function_entries[e.index as usize].expect("Exported function should exist!");
-                glue_file.write_all(
+                glue_file.write(
                     format!(
-                        "#define wavm_exported_function_{} {}\n",
+                        "#define wavm_exported_function_{} {}",
                         convert_func_name_to_c_function(&e.field),
                         get_external_name("functionDef", function_index as u32),
                     )
-                    .as_bytes(),
-                )?;
+                    .as_str(),
+                );
 
                 if &e.field == "_start" {
                     has_main = true;
@@ -462,72 +461,9 @@ const uint64_t {} = 0;\n",
         }
     }
 
-    // loop {
-    //     let state = parser.read();
-    //     match *state {
-    //         wasmparser::ParserState::InitExpressionOperator(ref value) => match current_section {
-    //             CurrentSection::Element => {
-    //                 if let wasmparser::Operator::I32Const { value } = value {
-    //                     table_offset = Some(*value as usize);
-    //                 }
-    //                 if let wasmparser::Operator::GlobalGet { global_index } = value {
-    //                     let global_value = &global_values[*global_index as usize];
-    //                     if let GlobalValue::Imported(x) = global_value {
-    //                         dynamic_table_offset = Some(x.to_string())
-    //                     } else {
-    //                         table_offset = Some(global_value.as_i32() as usize)
-    //                     }
-    //                 }
-    //             }
-    //             CurrentSection::Empty => {
-    //                 rog::debugln!("Omitted init expression: {:?}", value);
-    //             }
-    //         },
-    //         wasmparser::ParserState::ElementSectionEntryBody(ref items) => {
-    //             let index = table_index.unwrap();
-    //             if let Some(x) = dynamic_table_offset.clone() {
-    //                 for (i, item) in items.iter().enumerate() {
-    //                     if let wasmparser::ElementItem::Func(func_index) = item {
-    //                         dynamic_tables.push(DynamicTableEntry {
-    //                             index: index,
-    //                             offset: x.clone(),
-    //                             shift: i,
-    //                             func_index: *func_index as usize,
-    //                         });
-    //                     }
-    //                 }
-    //             } else {
-    //                 let offset = table_offset.unwrap();
-    //                 for (i, item) in items.iter().enumerate() {
-    //                     if let wasmparser::ElementItem::Func(func_index) = item {
-    //                         tables[index][offset + i] =
-    //                             format!("((uintptr_t) ({}))", get_external_name("functionDef", *func_index));
-    //                     }
-    //                 }
-    //             }
-    //         }
-    //         wasmparser::ParserState::BeginElementSectionEntry {
-    //             table: wasmparser::ElemSectionEntryTable::Active(i),
-    //             ty: wasmparser::Type::AnyFunc,
-    //         } => {
-    //             table_index = Some(i as usize);
-    //             current_section = CurrentSection::Element;
-    //         }
-    //         wasmparser::ParserState::EndElementSectionEntry => {
-    //             table_index = None;
-    //             table_offset = None;
-    //             dynamic_table_offset = None;
-    //             current_section = CurrentSection::Empty;
-    //         }
-    //         wasmparser::ParserState::EndWasm => break,
-    //         wasmparser::ParserState::Error(ref err) => panic!("Error: {:?}", err),
-    //         _ => rog::debugln!("Unprocessed states: {:?}", state),
-    //     }
-    // }
-
     for (i, table) in tables.iter().enumerate() {
-        glue_file.write_all(format!("uint32_t table{}_length = {};\n", i, table.len()).as_bytes())?;
-        glue_file.write_all(format!("uintptr_t table{}[{}] = {{", i, table.len()).as_bytes())?;
+        glue_file.write(format!("uint32_t table{}_length = {};", i, table.len()).as_str());
+        glue_file.write(format!("uintptr_t table{}[{}] = {{", i, table.len()).as_str());
         let reversed_striped_table: Vec<String> = table
             .iter()
             .rev()
@@ -539,137 +475,128 @@ const uint64_t {} = 0;\n",
             striped_table.push("0".to_string());
         }
         for (j, c) in striped_table.iter().enumerate() {
-            if j % 4 == 0 {
-                glue_file.write_all(b"\n  ")?;
-            }
-            glue_file.write_all(c.as_bytes())?;
             if j < striped_table.len() - 1 {
-                glue_file.write_all(b", ")?;
+                glue_file.write(format!("{},", c).as_str());
+            } else {
+                glue_file.write(c);
             }
         }
-        glue_file.write_all(b"\n};\n")?;
-        glue_file.write_all(
+        glue_file.write("};");
+        glue_file.write(
             format!(
-                "uintptr_t* {} = table{};
-#define TABLE{}_DEFINED 1\n",
+                "uintptr_t* {} = table{};",
                 get_external_name("tableOffset", i as u32),
-                i,
                 i
             )
-            .as_bytes(),
-        )?;
+            .as_str(),
+        );
+        glue_file.write(format!("#define TABLE{}_DEFINED 1", i).as_str());
     }
 
     for (i, mem) in memories.iter().enumerate() {
-        glue_file.write_all(format!("uint32_t memory{}_length = {};\n", i, mem.len()).as_bytes())?;
-        glue_file.write_all(
+        glue_file.write(format!("uint32_t memory{}_length = {};", i, mem.len()).as_str());
+        glue_file.write(
             format!(
                 "uint8_t __attribute__((section (\".wasm_memory\"))) memory{}[{}] = {{",
                 i,
                 mem.len()
             )
-            .as_bytes(),
-        )?;
+            .as_str(),
+        );
         let reversed_striped_mem: Vec<u8> = mem.iter().rev().map(|x| *x).skip_while(|c| *c == 0).collect();
         let mut striped_mem: Vec<u8> = reversed_striped_mem.into_iter().rev().collect();
         if striped_mem.len() == 0 {
             striped_mem.push(0);
         }
         for (j, c) in striped_mem.iter().enumerate() {
-            if j % 32 == 0 {
-                glue_file.write_all(b"\n  ")?;
-            }
-            glue_file.write_all(format!("0x{:x}", c).as_bytes())?;
             if j < striped_mem.len() - 1 {
-                glue_file.write_all(b", ")?;
+                glue_file.write(format!("0x{:x},", c).as_str());
+            } else {
+                glue_file.write(format!("0x{:x}", c).as_str());
             }
         }
-        glue_file.write_all(b"\n};\n")?;
-        glue_file.write_all(
+        glue_file.write("};");
+        glue_file.write(
             format!(
-                "struct memory_runtime_data {} = {{memory{}, {}}};
-#define MEMORY{}_DEFINED 1\n",
+                "struct memory_runtime_data {} = {{memory{}, {}}};",
                 get_external_name("memoryOffset", i as u32),
                 i,
-                mem.len() / 65536,
-                i
+                mem.len() / 65536
             )
-            .as_bytes(),
-        )?;
+            .as_str(),
+        );
+        glue_file.write(format!("#define MEMORY{}_DEFINED 1", i).as_str());
         if let Some(x) = max_page_num {
-            glue_file.write_all(format!("#define WAVM_MAX_PAGE {}\n", x.to_string()).as_bytes())?;
+            glue_file.write(format!("#define WAVM_MAX_PAGE {}", x.to_string()).as_str());
         }
     }
 
     for (i, mem) in dynamic_memories.iter().enumerate() {
-        glue_file.write_all(format!("uint32_t data{}_length = {};\n", i, mem.data.len()).as_bytes())?;
-        glue_file.write_all(format!("uint8_t data{}[{}] = {{", i, mem.data.len()).as_bytes())?;
+        glue_file.write(format!("uint32_t data{}_length = {};", i, mem.data.len()).as_str());
+        glue_file.write(format!("uint8_t data{}[{}] = {{", i, mem.data.len()).as_str());
         for (j, c) in mem.data.iter().enumerate() {
-            if j % 32 == 0 {
-                glue_file.write_all(b"\n  ")?;
-            }
-            glue_file.write_all(format!("0x{:x}", c).as_bytes())?;
+            // glue_file.write(format!("0x{:x}", c).as_str());
             if j < mem.data.len() - 1 {
-                glue_file.write_all(b", ")?;
+                glue_file.write(format!("0x{:x},", c).as_str());
+            } else {
+                glue_file.write(format!("0x{:x}", c).as_str());
             }
         }
-        glue_file.write_all(b"\n};\n")?;
+        glue_file.write("};");
     }
 
     // Write init function
-    glue_file.write_all("void init() {\n".as_bytes())?;
+    glue_file.write("void init() {");
     for (i, mem) in dynamic_memories.iter().enumerate() {
-        glue_file.write_all(
+        glue_file.write(
             format!(
-                "memcpy(memory{} + {}, data{}, {});\n",
+                "memcpy(memory{} + {}, data{}, {});",
                 mem.index,
                 mem.offset,
                 i,
                 mem.data.len()
             )
-            .as_bytes(),
-        )?;
+            .as_str(),
+        );
     }
     for (_, table) in dynamic_tables.iter().enumerate() {
-        glue_file.write_all(
+        glue_file.write(
             format!(
-                "table{}[{} + {}] = ((uintptr_t) ({}));\n",
+                "table{}[{} + {}] = ((uintptr_t) ({}));",
                 table.index,
                 table.offset,
                 table.shift,
                 get_external_name("functionDef", table.func_index as u32)
             )
-            .as_bytes(),
-        )?;
+            .as_str(),
+        );
     }
     for (i, _) in tables.iter().enumerate() {
-        glue_file.write_all(
+        glue_file.write(format!("for (int i = 0; i < table{}_length; i++) {{", i).as_str());
+        glue_file.write(
             format!(
-                "  for (int i = 0; i < table{}_length; i++) {{
-    table{}[i] = table{}[i] - ((uintptr_t) &tableReferenceBias) - 0x20;
-  }}\n",
-                i, i, i
+                "table{}[i] = table{}[i] - ((uintptr_t) &tableReferenceBias) - 0x20;",
+                i, i
             )
-            .as_bytes(),
-        )?;
+            .as_str(),
+        );
+        glue_file.write("}");
     }
 
     if let Some(function_index) = wasm_module.start {
-        glue_file.write_all(format!("  {}(NULL);\n", function_names[function_index as usize]).as_bytes())?;
+        glue_file.write(format!("{}(NULL);", function_names[function_index as usize]).as_str());
     }
-    glue_file.write_all("}\n".as_bytes())?;
+    glue_file.write("}");
 
     if has_main {
-        glue_file.write_all(
-            b"\nint main() {
-  wavm_exported_function__start(NULL);
-  // This should not be reached
-  return -1;
-}\n",
-        )?;
+        glue_file.write("int main() {");
+        glue_file.write("wavm_exported_function__start(NULL);");
+        glue_file.write("return -1;");
+        glue_file.write("}");
     }
 
-    glue_file.write_all(format!("\n#endif /* {} */\n", header_id).as_bytes())?;
+    glue_file.write(format!("#endif /* {} */", header_id).as_str());
+    glue_file.close()?;
 
     middle.aot_object = object_path;
     middle.aot_glue = glue_path;
