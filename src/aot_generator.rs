@@ -61,6 +61,15 @@ struct Data {
     init: Vec<u8>,
 }
 
+// The initial contents of a table is uninitialized. The elem component of a module defines a vector of element
+// segments that initialize a subrange of a table, at a given offset, from a static vector of elements.
+#[derive(Debug)]
+struct Element {
+    table_index: u32,
+    offset: Option<ConstantOperator>,
+    init: Vec<wasmparser::ElementItem>,
+}
+
 // The exports component of a module defines a set of exports that become accessible to the host environment once
 // the module has been instantiated.
 #[derive(Debug)]
@@ -79,7 +88,7 @@ struct Module {
     table_list: Vec<wasmparser::TableType>,
     memory_list: Vec<wasmparser::MemoryType>,
     global_list: Vec<Global>,
-    element_list: Vec<u8>,
+    element_list: Vec<Element>,
     data_list: Vec<Data>,
     start: Option<u32>,
     import_list: Vec<Import>,
@@ -106,11 +115,10 @@ impl Module {
                 }
                 wasmparser::ParserState::SectionRawData(data) => {
                     if let Some(wasmparser::SectionCode::Custom { name, .. }) = section_code {
-                        let custom = Custom {
+                        wasm_module.custom_list.push(Custom {
                             name: name.to_string(),
                             data: data.to_vec(),
-                        };
-                        wasm_module.custom_list.push(custom);
+                        });
                     }
                 }
                 wasmparser::ParserState::TypeSectionEntry(ref func_type) => {
@@ -126,11 +134,10 @@ impl Module {
                     wasm_module.memory_list.push(memory_type);
                 }
                 wasmparser::ParserState::BeginGlobalSectionEntry(global_type) => {
-                    let global = Global {
+                    wasm_module.global_list.push(Global {
                         global_type: global_type,
                         expr: None,
-                    };
-                    wasm_module.global_list.push(global);
+                    });
                 }
                 wasmparser::ParserState::EndGlobalSectionEntry => {}
                 wasmparser::ParserState::InitExpressionOperator(ref value) => match section_code {
@@ -140,19 +147,54 @@ impl Module {
                     Some(wasmparser::SectionCode::Data) => {
                         wasm_module.data_list.last_mut().unwrap().offset = Some(value.clone().into())
                     }
+                    Some(wasmparser::SectionCode::Element) => {
+                        wasm_module.element_list.last_mut().unwrap().offset = Some(value.clone().into())
+                    }
                     _ => {}
                 },
                 wasmparser::ParserState::BeginActiveDataSectionEntry(memory_index) => {
-                    let data = Data {
+                    wasm_module.data_list.push(Data {
                         memory_index: memory_index,
                         offset: None,
                         init: vec![],
-                    };
-                    wasm_module.data_list.push(data);
+                    });
                 }
                 wasmparser::ParserState::EndDataSectionEntry => {}
                 wasmparser::ParserState::DataSectionEntryBodyChunk(init) => {
                     wasm_module.data_list.last_mut().unwrap().init = init.to_vec();
+                }
+                wasmparser::ParserState::BeginElementSectionEntry {
+                    table: wasmparser::ElemSectionEntryTable::Active(table_index),
+                    ty: wasmparser::Type::AnyFunc,
+                } => {
+                    wasm_module.element_list.push(Element {
+                        table_index: table_index,
+                        offset: None,
+                        init: vec![],
+                    });
+                }
+                wasmparser::ParserState::EndElementSectionEntry => {}
+                wasmparser::ParserState::ElementSectionEntryBody(ref element_list) => {
+                    for e in element_list.iter() {
+                        match e {
+                            wasmparser::ElementItem::Null => {
+                                wasm_module
+                                    .element_list
+                                    .last_mut()
+                                    .unwrap()
+                                    .init
+                                    .push(wasmparser::ElementItem::Null);
+                            }
+                            wasmparser::ElementItem::Func(func_index) => {
+                                wasm_module
+                                    .element_list
+                                    .last_mut()
+                                    .unwrap()
+                                    .init
+                                    .push(wasmparser::ElementItem::Func(*func_index));
+                            }
+                        }
+                    }
                 }
                 wasmparser::ParserState::ImportSectionEntry { module, field, ty } => {
                     wasm_module.import_list.push(Import {
@@ -161,14 +203,14 @@ impl Module {
                         ty: ty,
                     });
                 }
-                wasmparser::ParserState::ExportSectionEntry {field, kind, index,} => {
-                    wasm_module.export_list.push( Export {
+                wasmparser::ParserState::ExportSectionEntry { field, kind, index } => {
+                    wasm_module.export_list.push(Export {
                         field: field.to_string(),
                         kind,
                         index,
                     });
                 }
-                wasmparser::ParserState::Error(ref err) => panic!("Error: {:?}", err),
+                wasmparser::ParserState::Error(ref err) => panic!("{:?}", err),
                 _ => {}
             }
         }
@@ -179,11 +221,6 @@ impl Module {
 // Functions that map between the symbols used for externally visible functions and the function.
 fn get_external_name(base_name: &str, index: u32) -> String {
     format!("{}{}", base_name, index)
-}
-
-enum CurrentSection {
-    Empty,
-    Element,
 }
 
 enum GlobalValue {
@@ -277,7 +314,6 @@ const uint64_t tableReferenceBias = 0;
         .as_bytes(),
     )?;
 
-    let mut parser = wasmparser::Parser::new(&wasm_data);
     let mut next_import_index = 0;
     let mut next_import_global_index = 0;
     let mut next_function_index = 0;
@@ -287,11 +323,9 @@ const uint64_t tableReferenceBias = 0;
     let mut memories: Vec<Vec<u8>> = vec![];
     let mut max_page_num: Option<u32> = None;
     let mut dynamic_memories: Vec<DynamicMemory> = vec![];
-    let mut current_section = CurrentSection::Empty;
     let mut next_global_index = 0;
     let mut global_values: Vec<GlobalValue> = vec![];
     let mut tables: Vec<Vec<String>> = vec![];
-    let mut table_index: Option<usize> = None;
     let mut table_offset: Option<usize> = None;
     let mut dynamic_table_offset: Option<String> = None;
     let mut dynamic_tables: Vec<DynamicTableEntry> = vec![];
@@ -423,73 +457,112 @@ const uint64_t {} = 0;\n",
                 if &e.field == "_start" {
                     has_main = true;
                 }
-            },
-            _ => {},
+            }
+            _ => {}
         }
     }
 
-    loop {
-        let state = parser.read();
-        match *state {
-            wasmparser::ParserState::InitExpressionOperator(ref value) => match current_section {
-                CurrentSection::Element => {
-                    if let wasmparser::Operator::I32Const { value } = value {
-                        table_offset = Some(*value as usize);
-                    }
-                    if let wasmparser::Operator::GlobalGet { global_index } = value {
-                        let global_value = &global_values[*global_index as usize];
-                        if let GlobalValue::Imported(x) = global_value {
-                            dynamic_table_offset = Some(x.to_string())
-                        } else {
-                            table_offset = Some(global_value.as_i32() as usize)
-                        }
-                    }
-                }
-                CurrentSection::Empty => {
-                    rog::debugln!("Omitted init expression: {:?}", value);
-                }
-            },
-            wasmparser::ParserState::ElementSectionEntryBody(ref items) => {
-                let index = table_index.unwrap();
-                if let Some(x) = dynamic_table_offset.clone() {
-                    for (i, item) in items.iter().enumerate() {
-                        if let wasmparser::ElementItem::Func(func_index) = item {
-                            dynamic_tables.push(DynamicTableEntry {
-                                index: index,
-                                offset: x.clone(),
-                                shift: i,
-                                func_index: *func_index as usize,
-                            });
-                        }
-                    }
+    for e in wasm_module.element_list {
+        match e.offset {
+            Some(ConstantOperator::I32Const { value }) => {
+                table_offset = Some(value as usize);
+            }
+            Some(ConstantOperator::GlobalGet { global_index }) => {
+                let global_value = &global_values[global_index as usize];
+                if let GlobalValue::Imported(x) = global_value {
+                    dynamic_table_offset = Some(x.to_string())
                 } else {
-                    let offset = table_offset.unwrap();
-                    for (i, item) in items.iter().enumerate() {
-                        if let wasmparser::ElementItem::Func(func_index) = item {
-                            tables[index][offset + i] =
-                                format!("((uintptr_t) ({}))", get_external_name("functionDef", *func_index));
-                        }
-                    }
+                    table_offset = Some(global_value.as_i32() as usize)
                 }
             }
-            wasmparser::ParserState::BeginElementSectionEntry {
-                table: wasmparser::ElemSectionEntryTable::Active(i),
-                ty: wasmparser::Type::AnyFunc,
-            } => {
-                table_index = Some(i as usize);
-                current_section = CurrentSection::Element;
+            _ => unimplemented!(),
+        }
+
+        let index = e.table_index as usize;
+        if let Some(x) = dynamic_table_offset.clone() {
+            for (i, item) in e.init.iter().enumerate() {
+                if let wasmparser::ElementItem::Func(func_index) = item {
+                    dynamic_tables.push(DynamicTableEntry {
+                        index: index,
+                        offset: x.clone(),
+                        shift: i,
+                        func_index: *func_index as usize,
+                    });
+                }
             }
-            wasmparser::ParserState::EndElementSectionEntry => {
-                table_index = None;
-                table_offset = None;
-                dynamic_table_offset = None;
-                current_section = CurrentSection::Empty;
+        } else {
+            let offset = table_offset.unwrap();
+            for (i, item) in e.init.iter().enumerate() {
+                if let wasmparser::ElementItem::Func(func_index) = item {
+                    tables[index][offset + i] =
+                        format!("((uintptr_t) ({}))", get_external_name("functionDef", *func_index));
+                }
             }
-            wasmparser::ParserState::EndWasm => break,
-            wasmparser::ParserState::Error(ref err) => panic!("Error: {:?}", err),
-            _ => rog::debugln!("Unprocessed states: {:?}", state),
         }
     }
+
+    // loop {
+    //     let state = parser.read();
+    //     match *state {
+    //         wasmparser::ParserState::InitExpressionOperator(ref value) => match current_section {
+    //             CurrentSection::Element => {
+    //                 if let wasmparser::Operator::I32Const { value } = value {
+    //                     table_offset = Some(*value as usize);
+    //                 }
+    //                 if let wasmparser::Operator::GlobalGet { global_index } = value {
+    //                     let global_value = &global_values[*global_index as usize];
+    //                     if let GlobalValue::Imported(x) = global_value {
+    //                         dynamic_table_offset = Some(x.to_string())
+    //                     } else {
+    //                         table_offset = Some(global_value.as_i32() as usize)
+    //                     }
+    //                 }
+    //             }
+    //             CurrentSection::Empty => {
+    //                 rog::debugln!("Omitted init expression: {:?}", value);
+    //             }
+    //         },
+    //         wasmparser::ParserState::ElementSectionEntryBody(ref items) => {
+    //             let index = table_index.unwrap();
+    //             if let Some(x) = dynamic_table_offset.clone() {
+    //                 for (i, item) in items.iter().enumerate() {
+    //                     if let wasmparser::ElementItem::Func(func_index) = item {
+    //                         dynamic_tables.push(DynamicTableEntry {
+    //                             index: index,
+    //                             offset: x.clone(),
+    //                             shift: i,
+    //                             func_index: *func_index as usize,
+    //                         });
+    //                     }
+    //                 }
+    //             } else {
+    //                 let offset = table_offset.unwrap();
+    //                 for (i, item) in items.iter().enumerate() {
+    //                     if let wasmparser::ElementItem::Func(func_index) = item {
+    //                         tables[index][offset + i] =
+    //                             format!("((uintptr_t) ({}))", get_external_name("functionDef", *func_index));
+    //                     }
+    //                 }
+    //             }
+    //         }
+    //         wasmparser::ParserState::BeginElementSectionEntry {
+    //             table: wasmparser::ElemSectionEntryTable::Active(i),
+    //             ty: wasmparser::Type::AnyFunc,
+    //         } => {
+    //             table_index = Some(i as usize);
+    //             current_section = CurrentSection::Element;
+    //         }
+    //         wasmparser::ParserState::EndElementSectionEntry => {
+    //             table_index = None;
+    //             table_offset = None;
+    //             dynamic_table_offset = None;
+    //             current_section = CurrentSection::Empty;
+    //         }
+    //         wasmparser::ParserState::EndWasm => break,
+    //         wasmparser::ParserState::Error(ref err) => panic!("Error: {:?}", err),
+    //         _ => rog::debugln!("Unprocessed states: {:?}", state),
+    //     }
+    // }
 
     for (i, table) in tables.iter().enumerate() {
         glue_file.write_all(format!("uint32_t table{}_length = {};\n", i, table.len()).as_bytes())?;
