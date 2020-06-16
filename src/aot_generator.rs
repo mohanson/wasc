@@ -61,6 +61,15 @@ struct Data {
     init: Vec<u8>,
 }
 
+// The exports component of a module defines a set of exports that become accessible to the host environment once
+// the module has been instantiated.
+#[derive(Debug)]
+struct Export {
+    field: String,
+    kind: wasmparser::ExternalKind,
+    index: u32,
+}
+
 // WebAssembly module definition.
 #[derive(Debug, Default)]
 struct Module {
@@ -74,7 +83,7 @@ struct Module {
     data_list: Vec<Data>,
     start: Option<u32>,
     import_list: Vec<Import>,
-    export_list: Vec<u8>,
+    export_list: Vec<Export>,
 }
 
 impl Module {
@@ -150,6 +159,13 @@ impl Module {
                         module: module.to_string(),
                         field: field.to_string(),
                         ty: ty,
+                    });
+                }
+                wasmparser::ParserState::ExportSectionEntry {field, kind, index,} => {
+                    wasm_module.export_list.push( Export {
+                        field: field.to_string(),
+                        kind,
+                        index,
                     });
                 }
                 wasmparser::ParserState::Error(ref err) => panic!("Error: {:?}", err),
@@ -391,28 +407,30 @@ const uint64_t {} = 0;\n",
         }
     }
 
-    loop {
-        let state = parser.read();
-        match *state {
-            wasmparser::ParserState::ExportSectionEntry {
-                field,
-                kind: wasmparser::ExternalKind::Function,
-                index,
-            } => {
-                let function_index = function_entries[index as usize].expect("Exported function should exist!");
+    for e in wasm_module.export_list {
+        match e.kind {
+            wasmparser::ExternalKind::Function => {
+                let function_index = function_entries[e.index as usize].expect("Exported function should exist!");
                 glue_file.write_all(
                     format!(
                         "#define wavm_exported_function_{} {}\n",
-                        convert_func_name_to_c_function(field),
+                        convert_func_name_to_c_function(&e.field),
                         get_external_name("functionDef", function_index as u32),
                     )
                     .as_bytes(),
                 )?;
 
-                if field == "_start" {
+                if &e.field == "_start" {
                     has_main = true;
                 }
-            }
+            },
+            _ => {},
+        }
+    }
+
+    loop {
+        let state = parser.read();
+        match *state {
             wasmparser::ParserState::InitExpressionOperator(ref value) => match current_section {
                 CurrentSection::Element => {
                     if let wasmparser::Operator::I32Const { value } = value {
