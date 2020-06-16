@@ -52,6 +52,15 @@ struct Global {
     expr: Option<ConstantOperator>,
 }
 
+// The initial contents of a memory are zero-valued bytes. The data component of a module defines a vector of data
+// segments that initialize a range of memory, at a given offset, with a static vector of bytes.
+#[derive(Debug)]
+struct Data {
+    memory_index: u32,
+    offset: Option<ConstantOperator>,
+    init: Vec<u8>,
+}
+
 // WebAssembly module definition.
 #[derive(Debug, Default)]
 struct Module {
@@ -62,7 +71,7 @@ struct Module {
     memory_list: Vec<wasmparser::MemoryType>,
     global_list: Vec<Global>,
     element_list: Vec<u8>,
-    data_list: Vec<u8>,
+    data_list: Vec<Data>,
     start: Option<u32>,
     import_list: Vec<Import>,
     export_list: Vec<u8>,
@@ -119,8 +128,23 @@ impl Module {
                     Some(wasmparser::SectionCode::Global) => {
                         wasm_module.global_list.last_mut().unwrap().expr = Some(value.clone().into())
                     }
+                    Some(wasmparser::SectionCode::Data) => {
+                        wasm_module.data_list.last_mut().unwrap().offset = Some(value.clone().into())
+                    }
                     _ => {}
                 },
+                wasmparser::ParserState::BeginActiveDataSectionEntry(memory_index) => {
+                    let data = Data {
+                        memory_index: memory_index,
+                        offset: None,
+                        init: vec![],
+                    };
+                    wasm_module.data_list.push(data);
+                }
+                wasmparser::ParserState::EndDataSectionEntry => {}
+                wasmparser::ParserState::DataSectionEntryBodyChunk(init) => {
+                    wasm_module.data_list.last_mut().unwrap().init = init.to_vec();
+                }
                 wasmparser::ParserState::ImportSectionEntry { module, field, ty } => {
                     wasm_module.import_list.push(Import {
                         module: module.to_string(),
@@ -136,14 +160,13 @@ impl Module {
     }
 }
 
-// Functions that map between the symbols used for externally visible functions and the function
+// Functions that map between the symbols used for externally visible functions and the function.
 fn get_external_name(base_name: &str, index: u32) -> String {
     format!("{}{}", base_name, index)
 }
 
 enum CurrentSection {
     Empty,
-    Data,
     Element,
 }
 
@@ -248,9 +271,6 @@ const uint64_t tableReferenceBias = 0;
     let mut memories: Vec<Vec<u8>> = vec![];
     let mut max_page_num: Option<u32> = None;
     let mut dynamic_memories: Vec<DynamicMemory> = vec![];
-    let mut data_index: Option<usize> = None;
-    let mut data_offset: Option<usize> = None;
-    let mut dynamic_data_offset: Option<String> = None;
     let mut current_section = CurrentSection::Empty;
     let mut next_global_index = 0;
     let mut global_values: Vec<GlobalValue> = vec![];
@@ -351,6 +371,25 @@ const uint64_t {} = 0;\n",
         table.resize(e.limits.initial as usize, "0".to_string());
         tables.push(table);
     }
+    for e in wasm_module.data_list {
+        match e.offset {
+            Some(ConstantOperator::I32Const { value }) => {
+                let offset = value as usize;
+                memories[e.memory_index as usize][offset..offset + e.init.len()].copy_from_slice(&e.init);
+            }
+            Some(ConstantOperator::GlobalGet { global_index }) => {
+                if let GlobalValue::Imported(s) = &global_values[global_index as usize] {
+                    let dmemory = DynamicMemory {
+                        index: global_index as usize,
+                        offset: s.to_string(),
+                        data: e.init.to_vec(),
+                    };
+                    dynamic_memories.push(dmemory);
+                }
+            }
+            _ => {}
+        }
+    }
 
     loop {
         let state = parser.read();
@@ -374,30 +413,7 @@ const uint64_t {} = 0;\n",
                     has_main = true;
                 }
             }
-            wasmparser::ParserState::BeginActiveDataSectionEntry(i) => {
-                data_index = Some(i as usize);
-                current_section = CurrentSection::Data;
-            }
-            wasmparser::ParserState::EndDataSectionEntry => {
-                data_index = None;
-                data_offset = None;
-                dynamic_data_offset = None;
-                current_section = CurrentSection::Empty;
-            }
             wasmparser::ParserState::InitExpressionOperator(ref value) => match current_section {
-                CurrentSection::Data => {
-                    if let wasmparser::Operator::I32Const { value } = value {
-                        data_offset = Some(*value as usize);
-                    }
-                    if let wasmparser::Operator::GlobalGet { global_index } = value {
-                        let global_value = &global_values[*global_index as usize];
-                        if let GlobalValue::Imported(x) = global_value {
-                            dynamic_data_offset = Some(x.to_string())
-                        } else {
-                            data_offset = Some(global_value.as_i32() as usize)
-                        }
-                    }
-                }
                 CurrentSection::Element => {
                     if let wasmparser::Operator::I32Const { value } = value {
                         table_offset = Some(*value as usize);
@@ -415,21 +431,6 @@ const uint64_t {} = 0;\n",
                     rog::debugln!("Omitted init expression: {:?}", value);
                 }
             },
-            wasmparser::ParserState::DataSectionEntryBodyChunk(data) => {
-                let index = data_index.unwrap();
-                if let Some(x) = dynamic_data_offset.clone() {
-                    let dmemory = DynamicMemory {
-                        index,
-                        offset: x.clone(),
-                        data: data.to_vec(),
-                    };
-                    dynamic_memories.push(dmemory);
-                } else {
-                    let offset = data_offset.unwrap();
-                    memories[index][offset..offset + data.len()].copy_from_slice(&data);
-                    data_offset = Some(offset + data.len());
-                }
-            }
             wasmparser::ParserState::ElementSectionEntryBody(ref items) => {
                 let index = table_index.unwrap();
                 if let Some(x) = dynamic_table_offset.clone() {
@@ -453,14 +454,6 @@ const uint64_t {} = 0;\n",
                     }
                 }
             }
-            // wasmparser::ParserState::BeginGlobalSectionEntry(wasmparser::GlobalType { content_type, mutable }) => {
-            //     global_content_type = content_type;
-            //     global_mutable = mutable;
-            //     current_section = CurrentSection::Global;
-            // }
-            // wasmparser::ParserState::EndGlobalSectionEntry => {
-            //     current_section = CurrentSection::Empty;
-            // }
             wasmparser::ParserState::BeginElementSectionEntry {
                 table: wasmparser::ElemSectionEntryTable::Active(i),
                 ty: wasmparser::Type::AnyFunc,
