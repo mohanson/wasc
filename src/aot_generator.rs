@@ -291,7 +291,7 @@ pub fn generate(middle: &mut context::Middle) -> Result<(), Box<dyn std::error::
     let mut dynamic_table_offset: Option<String> = None;
     let mut dynamic_tables: Vec<DynamicTableEntry> = vec![];
 
-    for (i, _) in wasm_module.type_list.iter().enumerate() {
+    for i in 0..wasm_module.type_list.len() {
         glue_file.write(format!("const uint64_t {} = 0;", get_external_name("typeId", i as u32)).as_str());
     }
     for e in wasm_module.global_list {
