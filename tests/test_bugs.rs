@@ -45,7 +45,7 @@ fn test_bugs() -> Result<(), Box<dyn std::error::Error>> {
     let _ = exit_code;
     exit_code = test_spec_single_test("./res/spectest_bugs_wasc/import_global.wasm")?;
     assert_eq!(exit_code, 42);
-    // exit_code = test_spec_single_test("./res/spectest_bugs_wasc/import_global_2.wasm")?;
-    // assert_eq!(exit_code, 52);
+    exit_code = test_spec_single_test("./res/spectest_bugs_wasc/import_global_add.wasm")?;
+    assert_eq!(exit_code, 52);
     Ok(())
 }

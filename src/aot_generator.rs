@@ -352,19 +352,15 @@ fn get_external_name(base_name: &str, index: u32) -> String {
     format!("{}{}", base_name, index)
 }
 
-#[derive(Debug)]
-struct DynamicMemory {
-    index: usize,
-    offset: String,
-    data: Vec<u8>,
-}
-
-#[derive(Debug)]
-struct DynamicTableEntry {
-    index: usize,
-    offset: String,
-    shift: usize,
-    func_index: usize,
+// Emit wasm type to c code.
+fn emit_type(t: wasmparser::Type) -> String {
+    match t {
+        wasmparser::Type::I32 => "int32_t".to_string(),
+        wasmparser::Type::I64 => "int64_t".to_string(),
+        wasmparser::Type::F32 => "float".to_string(),
+        wasmparser::Type::F64 => "double".to_string(),
+        _ => panic!("unreachable"),
+    }
 }
 
 pub fn generate(middle: &mut context::Middle) -> Result<(), Box<dyn std::error::Error>> {
@@ -374,6 +370,7 @@ pub fn generate(middle: &mut context::Middle) -> Result<(), Box<dyn std::error::
     let wasm_instance = ModuleInstance::from(&wasm_module, &mut store);
 
     let file_stem = middle.file_stem.clone();
+    // Save precompiled object.
     let object_path = middle.prog_dir.join(file_stem.clone() + ".o");
     let mut object_data: Vec<u8> = vec![];
     for e in wasm_module.custom_list {
@@ -390,7 +387,6 @@ pub fn generate(middle: &mut context::Middle) -> Result<(), Box<dyn std::error::
     glue_file.write(format!(include_str!("glue.template"), header_id, header_id).as_str());
 
     let mut next_import_index = 0;
-    let mut next_import_global_index = 0;
     let mut next_function_index = 0;
     let mut function_entries: Vec<Option<usize>> = vec![];
     let mut function_names: Vec<String> = vec![];
@@ -398,27 +394,52 @@ pub fn generate(middle: &mut context::Middle) -> Result<(), Box<dyn std::error::
     let mut memories: Vec<Vec<u8>> = vec![];
     let mut max_page_num: Option<u32> = None;
     let mut dynamic_memories: Vec<DynamicMemory> = vec![];
-    let mut next_global_index = 0;
     let mut tables: Vec<Vec<String>> = vec![];
     let mut table_offset: Option<usize> = None;
     let mut dynamic_table_offset: Option<String> = None;
     let mut dynamic_tables: Vec<DynamicTableEntry> = vec![];
 
+    // Emit type.
     for i in 0..wasm_instance.type_list.len() {
         glue_file.write(format!("const uint64_t {} = 0;", get_external_name("typeId", i as u32)).as_str());
     }
-    for e in wasm_module.global_list {
-        glue_file.write(
-            generate_global_entry(
-                next_global_index,
-                &e.global_type.content_type,
-                e.global_type.mutable,
-                &e.expr.unwrap(),
-            )
-            .as_str(),
-        );
-        next_global_index += 1;
+    // Emit global.
+    for i in &wasm_instance.global_addr_list {
+        let global_instance = &store.global_list[*i as usize];
+        let extern_name = get_external_name("global", *i);
+        let type_string = emit_type(global_instance.global_type.content_type.clone());
+        match &global_instance.value {
+            Some(value) => {
+                let mutable_string = if global_instance.global_type.mutable {
+                    ""
+                } else {
+                    "const "
+                };
+                match value {
+                    Value::I32(v) => {
+                        glue_file.write(format!("{}{} {} = {};", mutable_string, type_string, extern_name, v).as_str());
+                    }
+                    Value::I64(v) => {
+                        glue_file.write(format!("{}{} {} = {};", mutable_string, type_string, extern_name, v).as_str());
+                    }
+                    Value::F32(v) => {
+                        let f = unsafe { std::mem::transmute::<u32, f32>(*v).to_string() };
+                        glue_file.write(format!("{}{} {} = {};", mutable_string, type_string, extern_name, f).as_str());
+                    }
+                    Value::F64(v) => {
+                        let f = unsafe { std::mem::transmute::<u64, f64>(*v).to_string() };
+                        glue_file.write(format!("{}{} {} = {};", mutable_string, type_string, extern_name, f).as_str());
+                    }
+                }
+            }
+            None => {
+                let wavm_name = format!("wavm_{}", global_instance.extern_name.as_ref().unwrap());
+                glue_file.write(format!("#define {} {}", wavm_name, extern_name).as_str());
+                glue_file.write(format!("extern {} {};", type_string, extern_name).as_str());
+            }
+        }
     }
+
     for e in wasm_module.import_list {
         match e.ty {
             wasmparser::ImportSectionEntryType::Function(func_type_index) => {
@@ -452,16 +473,6 @@ pub fn generate(middle: &mut context::Middle) -> Result<(), Box<dyn std::error::
                 let mut mem = vec![];
                 mem.resize(std::cmp::max(1, initial as usize) * 64 * 1024, 0);
                 memories.push(mem);
-            }
-            wasmparser::ImportSectionEntryType::Global(wasmparser::GlobalType { content_type, .. }) => {
-                // #define wavm_spectest_global_i32 global0
-                // extern int32_t global0;
-                let name = format!("wavm_{}_{}", e.module, e.field);
-                let import_symbol = get_external_name("global", next_import_global_index);
-                let global_type = wasm_type_to_c_type(content_type);
-                glue_file.write(format!("#define {} {}", name, import_symbol).as_str());
-                glue_file.write(format!("extern {} {};", global_type, import_symbol).as_str());
-                next_import_global_index += 1;
             }
             _ => {}
         }
@@ -725,16 +736,6 @@ pub fn generate(middle: &mut context::Middle) -> Result<(), Box<dyn std::error::
     Ok(())
 }
 
-fn wasm_type_to_c_type(t: wasmparser::Type) -> String {
-    match t {
-        wasmparser::Type::I32 => "int32_t".to_string(),
-        wasmparser::Type::I64 => "int64_t".to_string(),
-        wasmparser::Type::F32 => "float".to_string(),
-        wasmparser::Type::F64 => "double".to_string(),
-        _ => panic!("Unsupported type: {:?}", t),
-    }
-}
-
 pub fn convert_func_name_to_c_function(name: &str) -> String {
     let mut new_name = String::new();
     for e in name.chars() {
@@ -753,78 +754,27 @@ fn convert_func_type_to_c_function(func_type: &wasmparser::FuncType, name: Strin
     if func_type.form != wasmparser::Type::Func || func_type.returns.len() > 1 {
         panic!("Invalid func type: {:?}", func_type);
     }
-    let mut fields: Vec<String> = func_type.params.iter().map(|t| wasm_type_to_c_type(*t)).collect();
+    let mut fields: Vec<String> = func_type.params.iter().map(|t| emit_type(*t)).collect();
     fields.insert(0, "void*".to_string());
     let return_type = if func_type.returns.len() > 0 {
-        format!("wavm_ret_{}", wasm_type_to_c_type(func_type.returns[0]))
+        format!("wavm_ret_{}", emit_type(func_type.returns[0]))
     } else {
         "void*".to_string()
     };
     format!("{} ({}) ({})", return_type, name, fields.join(", ")).to_string()
 }
 
-fn generate_global_entry(
+#[derive(Debug)]
+struct DynamicMemory {
     index: usize,
-    content_type: &wasmparser::Type,
-    mutable: bool,
-    value: &ConstantOperator,
-) -> String {
-    let mutable_string = if mutable { "" } else { "const " };
-    let type_string = wasm_type_to_c_type(content_type.clone());
+    offset: String,
+    data: Vec<u8>,
+}
 
-    match content_type {
-        wasmparser::Type::I32 => {
-            if let ConstantOperator::I32Const { value } = value {
-                format!(
-                    "{}{} {} = {};\n",
-                    mutable_string,
-                    type_string,
-                    get_external_name("global", index as u32),
-                    value.to_string()
-                )
-            } else {
-                unimplemented!()
-            }
-        }
-        wasmparser::Type::I64 => {
-            if let ConstantOperator::I64Const { value } = value {
-                format!(
-                    "{}{} {} = {};\n",
-                    mutable_string,
-                    type_string,
-                    get_external_name("global", index as u32),
-                    value.to_string()
-                )
-            } else {
-                unimplemented!()
-            }
-        }
-        wasmparser::Type::F32 => {
-            if let ConstantOperator::F32Const { value } = value {
-                format!(
-                    "{}{} {} = {};\n",
-                    mutable_string,
-                    type_string,
-                    get_external_name("global", index as u32),
-                    unsafe { std::mem::transmute::<u32, f32>(*value).to_string() }
-                )
-            } else {
-                unimplemented!()
-            }
-        }
-        wasmparser::Type::F64 => {
-            if let ConstantOperator::F64Const { value } = value {
-                format!(
-                    "{}{} {} = {};\n",
-                    mutable_string,
-                    type_string,
-                    get_external_name("global", index as u32),
-                    unsafe { std::mem::transmute::<u64, f64>(*value).to_string() }
-                )
-            } else {
-                unimplemented!()
-            }
-        }
-        _ => panic!("Invalid content type: {:?} for global entry", content_type),
-    }
+#[derive(Debug)]
+struct DynamicTableEntry {
+    index: usize,
+    offset: String,
+    shift: usize,
+    func_index: usize,
 }
