@@ -57,7 +57,6 @@ pub struct Middle {
     pub aot_glue: std::path::PathBuf,
     // Path of dummy file.
     pub dummy: std::path::PathBuf,
-    pub misc_has_init: bool,
 }
 
 impl Middle {

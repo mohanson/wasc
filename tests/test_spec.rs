@@ -29,10 +29,7 @@ fn test_spec_single_test<P: AsRef<std::path::Path>>(
     );
     dummy_file.write("");
     dummy_file.write("int main() {");
-
-    if middle.misc_has_init {
-        dummy_file.write("init();");
-    }
+    dummy_file.write("init();");
     let mut wavm_ret_index = 1;
     let mut uint32_t_index = 1;
     let mut uint64_t_index = 1;
