@@ -260,16 +260,17 @@ pub fn generate(middle: &mut context::Middle) -> Result<(), Box<dyn std::error::
     let wasm_module = Module::from(wasm_data.clone());
 
     let file_stem = middle.file_stem.clone();
-    let glue_path = middle.prog_dir.join(file_stem.clone() + "_glue.h");
     let object_path = middle.prog_dir.join(file_stem.clone() + ".o");
-    let mut glue_file = std::fs::File::create(glue_path.clone())?;
-    let mut object_file = std::fs::File::create(object_path.clone())?;
-
+    let mut object_data: Vec<u8> = vec![];
     for e in wasm_module.custom_list {
         if e.name == "wavm.precompiled_object" {
-            object_file.write_all(&e.data)?;
+            object_data.extend_from_slice(&e.data);
         }
     }
+    std::fs::write(&object_path, &object_data)?;
+
+    let glue_path = middle.prog_dir.join(file_stem.clone() + "_glue.h");
+    let mut glue_file = std::fs::File::create(glue_path.clone())?;
 
     let header_id = format!("{}_GLUE_H", file_stem);
     glue_file.write_all(
