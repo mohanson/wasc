@@ -272,48 +272,8 @@ pub fn generate(middle: &mut context::Middle) -> Result<(), Box<dyn std::error::
     let glue_path = middle.prog_dir.join(file_stem.clone() + "_glue.h");
     let mut glue_file = std::fs::File::create(glue_path.clone())?;
 
-    let header_id = format!("{}_GLUE_H", file_stem);
-    glue_file.write_all(
-        format!(
-            "#include<stddef.h>
-#include<stdint.h>
-
-#ifndef {}
-#define {}
-
-typedef struct {{
-  void* dummy;
-  int32_t value;
-}} wavm_ret_int32_t;
-
-typedef struct {{
-  void* dummy;
-  int64_t value;
-}} wavm_ret_int64_t;
-
-typedef struct {{
-  void* dummy;
-  float value;
-}} wavm_ret_float;
-
-typedef struct {{
-  void* dummy;
-  double value;
-}} wavm_ret_double;
-
-typedef struct memory_runtime_data {{
-    uint8_t* base;
-    uint64_t num_pages;
-}} memory_runtime_data;
-
-const uint64_t functionDefMutableData = 0;
-const uint64_t biasedInstanceId = 0;
-const uint64_t tableReferenceBias = 0;
-\n",
-            header_id, header_id
-        )
-        .as_bytes(),
-    )?;
+    let header_id = format!("{}_GLUE_H", file_stem.to_uppercase());
+    glue_file.write_all(format!(include_str!("glue.template"), header_id, header_id).as_bytes())?;
 
     let mut next_import_index = 0;
     let mut next_import_global_index = 0;

@@ -1,0 +1,34 @@
+#include<stddef.h>
+#include<stdint.h>
+
+#ifndef {}
+#define {}
+
+typedef struct {{
+  void* dummy;
+  int32_t value;
+}} wavm_ret_int32_t;
+
+typedef struct {{
+  void* dummy;
+  int64_t value;
+}} wavm_ret_int64_t;
+
+typedef struct {{
+  void* dummy;
+  float value;
+}} wavm_ret_float;
+
+typedef struct {{
+  void* dummy;
+  double value;
+}} wavm_ret_double;
+
+typedef struct memory_runtime_data {{
+  uint8_t* base;
+  uint64_t num_pages;
+}} memory_runtime_data;
+
+const uint64_t functionDefMutableData = 0;
+const uint64_t biasedInstanceId = 0;
+const uint64_t tableReferenceBias = 0;
