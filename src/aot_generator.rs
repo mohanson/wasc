@@ -555,21 +555,21 @@ pub fn generate(middle: &mut context::Middle) -> Result<(), Box<dyn std::error::
         }
     }
     // Emit memory.
-    // for e in wasm_module.data_list {
-    //     let memory_instance = &mut store.memory_list[wasm_instance.memory_addr_list[e.memory_index as usize] as usize];
-    //     match memory_instance {
-    //         MemoryInstance::Wasm { memory_type: _, data } => {
-    //             data.push(e);
-    //         }
-    //         MemoryInstance::Host {
-    //             memory_type: _,
-    //             data,
-    //             extern_name: _,
-    //         } => {
-    //             data.push(e);
-    //         }
-    //     }
-    // }
+    for e in wasm_module.data_list {
+        let memory_instance = &mut store.memory_list[wasm_instance.memory_addr_list[e.memory_index as usize] as usize];
+        match memory_instance {
+            MemoryInstance::Wasm { memory_type: _, data } => {
+                data.push(e);
+            }
+            MemoryInstance::Host {
+                memory_type: _,
+                data,
+                extern_name: _,
+            } => {
+                data.push(e);
+            }
+        }
+    }
     // for i in wasm_instance.memory_addr_list {
     //     let memory_instance = store.memory_list[wasm_instance.memory_addr_list[i] as usize];
     //     match memory_instance {
@@ -626,37 +626,86 @@ pub fn generate(middle: &mut context::Middle) -> Result<(), Box<dyn std::error::
         table.resize(e.limits.initial as usize, "0".to_string());
         tables.push(table);
     }
-    for e in wasm_module.data_list {
-        match e.offset {
-            Some(ConstantOperator::I32Const { value }) => {
-                let offset = value as usize;
-                memories[e.memory_index as usize][offset..offset + e.init.len()].copy_from_slice(&e.init);
-            }
-            Some(ConstantOperator::GlobalGet { global_index }) => {
-                let global_instance =
-                    &store.global_list[wasm_instance.global_addr_list[global_index as usize] as usize];
-                match global_instance {
-                    GlobalInstance::Wasm { global_type: _, value } => match value {
-                        Value::I32(offset) => {
-                            let offset = *offset as usize;
+
+    for i in wasm_instance.memory_addr_list {
+        let memory_instance = &store.memory_list[i as usize];
+        match memory_instance {
+            MemoryInstance::Wasm { memory_type, data } => {
+                for e in data {
+                    match e.offset {
+                        Some(ConstantOperator::I32Const { value }) => {
+                            let offset = value as usize;
                             memories[e.memory_index as usize][offset..offset + e.init.len()].copy_from_slice(&e.init);
                         }
-                        _ => panic!("unreachable"),
-                    },
-                    GlobalInstance::Host {
-                        global_type: _,
-                        extern_name,
-                    } => {
-                        let dmemory = DynamicMemory {
-                            index: global_index as usize,
-                            offset: format!("wavm_{}", extern_name),
-                            data: e.init.to_vec(),
-                        };
-                        dynamic_memories.push(dmemory);
+                        Some(ConstantOperator::GlobalGet { global_index }) => {
+                            let global_instance =
+                                &store.global_list[wasm_instance.global_addr_list[global_index as usize] as usize];
+                            match global_instance {
+                                GlobalInstance::Wasm { global_type: _, value } => match value {
+                                    Value::I32(offset) => {
+                                        let offset = *offset as usize;
+                                        memories[e.memory_index as usize][offset..offset + e.init.len()]
+                                            .copy_from_slice(&e.init);
+                                    }
+                                    _ => panic!("unreachable"),
+                                },
+                                GlobalInstance::Host {
+                                    global_type: _,
+                                    extern_name,
+                                } => {
+                                    let dmemory = DynamicMemory {
+                                        index: global_index as usize,
+                                        offset: format!("wavm_{}", extern_name),
+                                        data: e.init.to_vec(),
+                                    };
+                                    dynamic_memories.push(dmemory);
+                                }
+                            }
+                        }
+                        _ => {}
                     }
                 }
             }
-            _ => {}
+            MemoryInstance::Host {
+                memory_type: _,
+                data,
+                extern_name,
+            } => {
+                for e in data {
+                    match e.offset {
+                        Some(ConstantOperator::I32Const { value }) => {
+                            let offset = value as usize;
+                            memories[e.memory_index as usize][offset..offset + e.init.len()].copy_from_slice(&e.init);
+                        }
+                        Some(ConstantOperator::GlobalGet { global_index }) => {
+                            let global_instance =
+                                &store.global_list[wasm_instance.global_addr_list[global_index as usize] as usize];
+                            match global_instance {
+                                GlobalInstance::Wasm { global_type: _, value } => match value {
+                                    Value::I32(offset) => {
+                                        let offset = *offset as usize;
+                                        memories[e.memory_index as usize][offset..offset + e.init.len()]
+                                            .copy_from_slice(&e.init);
+                                    }
+                                    _ => panic!("unreachable"),
+                                },
+                                GlobalInstance::Host {
+                                    global_type: _,
+                                    extern_name,
+                                } => {
+                                    let dmemory = DynamicMemory {
+                                        index: global_index as usize,
+                                        offset: format!("wavm_{}", extern_name),
+                                        data: e.init.to_vec(),
+                                    };
+                                    dynamic_memories.push(dmemory);
+                                }
+                            }
+                        }
+                        _ => {}
+                    }
+                }
+            }
         }
     }
 
