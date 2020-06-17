@@ -230,10 +230,15 @@ enum Value {
 // A global instance is the runtime representation of a global variable. It holds an individual value and a flag
 // indicating whether it is mutable.
 #[derive(Debug)]
-struct GlobalInstance {
-    global_type: wasmparser::GlobalType,
-    value: Option<Value>,
-    extern_name: Option<String>,
+enum GlobalInstance {
+    Wasm {
+        global_type: wasmparser::GlobalType,
+        value: Value,
+    },
+    Host {
+        global_type: wasmparser::GlobalType,
+        extern_name: String,
+    },
 }
 
 // A function instance is the runtime representation of a function. It effectively is a closure of the original
@@ -309,10 +314,9 @@ impl ModuleInstance {
                 wasmparser::ImportSectionEntryType::Memory(_) => {}
                 wasmparser::ImportSectionEntryType::Table(_) => {}
                 wasmparser::ImportSectionEntryType::Global(global_type) => {
-                    let global_addr = store.allocate_global(GlobalInstance {
+                    let global_addr = store.allocate_global(GlobalInstance::Host {
                         global_type: global_type,
-                        value: None,
-                        extern_name: Some(format!("{}_{}", e.module, e.field)),
+                        extern_name: format!("{}_{}", e.module, e.field),
                     });
                     module_instance.global_addr_list.push(global_addr);
                 }
@@ -323,10 +327,9 @@ impl ModuleInstance {
             match e.global_type.content_type {
                 wasmparser::Type::I32 => {
                     if let Some(ConstantOperator::I32Const { value }) = e.expr {
-                        let global_addr = store.allocate_global(GlobalInstance {
+                        let global_addr = store.allocate_global(GlobalInstance::Wasm {
                             global_type: e.global_type,
-                            value: Some(Value::I32(value)),
-                            extern_name: None,
+                            value: Value::I32(value),
                         });
                         module_instance.global_addr_list.push(global_addr);
                     } else {
@@ -335,10 +338,9 @@ impl ModuleInstance {
                 }
                 wasmparser::Type::I64 => {
                     if let Some(ConstantOperator::I64Const { value }) = e.expr {
-                        let global_addr = store.allocate_global(GlobalInstance {
+                        let global_addr = store.allocate_global(GlobalInstance::Wasm {
                             global_type: e.global_type,
-                            value: Some(Value::I64(value)),
-                            extern_name: None,
+                            value: Value::I64(value),
                         });
                         module_instance.global_addr_list.push(global_addr);
                     } else {
@@ -347,10 +349,9 @@ impl ModuleInstance {
                 }
                 wasmparser::Type::F32 => {
                     if let Some(ConstantOperator::F32Const { value }) = e.expr {
-                        let global_addr = store.allocate_global(GlobalInstance {
+                        let global_addr = store.allocate_global(GlobalInstance::Wasm {
                             global_type: e.global_type,
-                            value: Some(Value::F32(value)),
-                            extern_name: None,
+                            value: Value::F32(value),
                         });
                         module_instance.global_addr_list.push(global_addr);
                     } else {
@@ -359,10 +360,9 @@ impl ModuleInstance {
                 }
                 wasmparser::Type::F64 => {
                     if let Some(ConstantOperator::F64Const { value }) = e.expr {
-                        let global_addr = store.allocate_global(GlobalInstance {
+                        let global_addr = store.allocate_global(GlobalInstance::Wasm {
                             global_type: e.global_type,
-                            value: Some(Value::F64(value)),
-                            extern_name: None,
+                            value: Value::F64(value),
                         });
                         module_instance.global_addr_list.push(global_addr);
                     } else {
@@ -457,14 +457,11 @@ pub fn generate(middle: &mut context::Middle) -> Result<(), Box<dyn std::error::
     for i in &wasm_instance.global_addr_list {
         let global_instance = &store.global_list[*i as usize];
         let extern_name = get_external_name("global", *i);
-        let type_string = emit_type(global_instance.global_type.content_type.clone());
-        match &global_instance.value {
-            Some(value) => {
-                let mutable_string = if global_instance.global_type.mutable {
-                    ""
-                } else {
-                    "const "
-                };
+
+        match global_instance {
+            GlobalInstance::Wasm { global_type, value } => {
+                let type_string = emit_type(global_type.content_type.clone());
+                let mutable_string = if global_type.mutable { "" } else { "const " };
                 match value {
                     Value::I32(v) => {
                         glue_file.write(format!("{}{} {} = {};", mutable_string, type_string, extern_name, v).as_str());
@@ -482,8 +479,12 @@ pub fn generate(middle: &mut context::Middle) -> Result<(), Box<dyn std::error::
                     }
                 }
             }
-            None => {
-                let wavm_name = format!("wavm_{}", global_instance.extern_name.as_ref().unwrap());
+            GlobalInstance::Host {
+                global_type,
+                extern_name: extern_name_host,
+            } => {
+                let type_string = emit_type(global_type.content_type.clone());
+                let wavm_name = format!("wavm_{}", extern_name_host);
                 glue_file.write(format!("#define {} {}", wavm_name, extern_name).as_str());
                 glue_file.write(format!("extern {} {};", type_string, extern_name).as_str());
             }
@@ -561,20 +562,25 @@ pub fn generate(middle: &mut context::Middle) -> Result<(), Box<dyn std::error::
             Some(ConstantOperator::GlobalGet { global_index }) => {
                 let global_instance =
                     &store.global_list[wasm_instance.global_addr_list[global_index as usize] as usize];
-                match global_instance.value {
-                    Some(Value::I32(offset)) => {
-                        let offset = offset as usize;
-                        memories[e.memory_index as usize][offset..offset + e.init.len()].copy_from_slice(&e.init);
-                    }
-                    None => {
+                match global_instance {
+                    GlobalInstance::Wasm { global_type: _, value } => match value {
+                        Value::I32(offset) => {
+                            let offset = *offset as usize;
+                            memories[e.memory_index as usize][offset..offset + e.init.len()].copy_from_slice(&e.init);
+                        }
+                        _ => panic!("unreachable"),
+                    },
+                    GlobalInstance::Host {
+                        global_type: _,
+                        extern_name,
+                    } => {
                         let dmemory = DynamicMemory {
                             index: global_index as usize,
-                            offset: format!("wavm_{}", global_instance.extern_name.as_ref().unwrap()),
+                            offset: format!("wavm_{}", extern_name),
                             data: e.init.to_vec(),
                         };
                         dynamic_memories.push(dmemory);
                     }
-                    _ => panic!("unreachable"),
                 }
             }
             _ => {}
@@ -610,12 +616,15 @@ pub fn generate(middle: &mut context::Middle) -> Result<(), Box<dyn std::error::
             Some(ConstantOperator::GlobalGet { global_index }) => {
                 let global_instance =
                     &store.global_list[wasm_instance.global_addr_list[global_index as usize] as usize];
-                match global_instance.value {
-                    Some(Value::I32(offset)) => table_offset = Some(offset as usize),
-                    None => {
-                        dynamic_table_offset = Some(format!("wavm_{}", global_instance.extern_name.as_ref().unwrap()))
-                    }
-                    _ => panic!("unreachable"),
+                match global_instance {
+                    GlobalInstance::Wasm { global_type: _, value } => match value {
+                        Value::I32(offset) => table_offset = Some(*offset as usize),
+                        _ => panic!("unreachable"),
+                    },
+                    GlobalInstance::Host {
+                        global_type: _,
+                        extern_name,
+                    } => dynamic_table_offset = Some(format!("wavm_{}", extern_name)),
                 }
             }
             _ => panic!("unreachable"),
