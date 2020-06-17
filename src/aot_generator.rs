@@ -236,6 +236,21 @@ struct GlobalInstance {
     extern_name: Option<String>,
 }
 
+// A function instance is the runtime representation of a function. It effectively is a closure of the original
+// function over the runtime module instance of its originating module. The module instance is used to resolve
+// references to other definitions during execution of the function.
+#[derive(Debug)]
+enum FunctionInstance {
+    WasmFunc {
+        function_type: wasmparser::FuncType,
+    },
+    // A host function is a function expressed outside WebAssembly but passed to a module as an import.
+    HostFunc {
+        function_type: wasmparser::FuncType,
+        extern_name: String,
+    },
+}
+
 // The store represents all global state that can be manipulated by WebAssembly programs. It consists of the runtime
 // representation of all instances of functions, tables, memories, and globals that have been allocated during the
 // life time of the abstract machine Syntactically.
@@ -243,13 +258,19 @@ struct GlobalInstance {
 // Note: only the necessary data information is stored, which is different from the spec.
 #[derive(Debug, Default)]
 struct Store {
-    function_list: Vec<u8>,
+    function_list: Vec<FunctionInstance>,
     table_list: Vec<u8>,
     memory_list: Vec<u8>,
     global_list: Vec<GlobalInstance>,
 }
 
 impl Store {
+    fn allocate_function(&mut self, function_instance: FunctionInstance) -> u32 {
+        let function_addr = self.function_list.len() as u32;
+        self.function_list.push(function_instance);
+        function_addr
+    }
+
     fn allocate_global(&mut self, global_instance: GlobalInstance) -> u32 {
         let global_addr = self.global_list.len() as u32;
         self.global_list.push(global_instance);
@@ -276,7 +297,15 @@ impl ModuleInstance {
         // Handle import
         for e in &module.import_list {
             match e.ty {
-                wasmparser::ImportSectionEntryType::Function(_) => {}
+                wasmparser::ImportSectionEntryType::Function(function_type_index) => {
+                    let function_type = &module_instance.type_list[function_type_index as usize];
+                    let extern_name = format!("{}_{}", e.module, e.field);
+                    let function_addr = store.allocate_function(FunctionInstance::HostFunc {
+                        function_type: function_type.clone(),
+                        extern_name: extern_name,
+                    });
+                    module_instance.function_addr_list.push(function_addr);
+                }
                 wasmparser::ImportSectionEntryType::Memory(_) => {}
                 wasmparser::ImportSectionEntryType::Table(_) => {}
                 wasmparser::ImportSectionEntryType::Global(global_type) => {
@@ -343,6 +372,14 @@ impl ModuleInstance {
                 _ => panic!("unreachable"),
             }
         }
+        // Allocate each function in module.function_list
+        for e in &module.function_list {
+            let function_type = &module_instance.type_list[*e as usize];
+            let function_addr = store.allocate_function(FunctionInstance::WasmFunc {
+                function_type: function_type.clone(),
+            });
+            module_instance.function_addr_list.push(function_addr);
+        }
         module_instance
     }
 }
@@ -361,6 +398,21 @@ fn emit_type(t: wasmparser::Type) -> String {
         wasmparser::Type::F64 => "double".to_string(),
         _ => panic!("unreachable"),
     }
+}
+
+// Emit wasm function type to c function signature.
+fn emit_function_signature(func_type: &wasmparser::FuncType, name: String) -> String {
+    if func_type.form != wasmparser::Type::Func || func_type.returns.len() > 1 {
+        panic!("unreachable");
+    }
+    let mut fields: Vec<String> = func_type.params.iter().map(|t| emit_type(*t)).collect();
+    fields.insert(0, "void*".to_string());
+    let return_type = if func_type.returns.len() > 0 {
+        format!("wavm_ret_{}", emit_type(func_type.returns[0]))
+    } else {
+        "void*".to_string()
+    };
+    format!("{} ({}) ({})", return_type, name, fields.join(", ")).to_string()
 }
 
 pub fn generate(middle: &mut context::Middle) -> Result<(), Box<dyn std::error::Error>> {
@@ -386,8 +438,6 @@ pub fn generate(middle: &mut context::Middle) -> Result<(), Box<dyn std::error::
     let header_id = format!("{}_GLUE_H", file_stem.to_uppercase());
     glue_file.write(format!(include_str!("glue.template"), header_id, header_id).as_str());
 
-    let mut next_import_index = 0;
-    let mut next_function_index = 0;
     let mut function_entries: Vec<Option<usize>> = vec![];
     let mut function_names: Vec<String> = vec![];
     let mut has_main = false;
@@ -439,25 +489,39 @@ pub fn generate(middle: &mut context::Middle) -> Result<(), Box<dyn std::error::
             }
         }
     }
+    // Emit function
+    let mut wasm_function_counter = 0;
+    let mut host_function_counter = 0;
+    for i in &wasm_instance.function_addr_list {
+        let function_instance = &store.function_list[*i as usize];
+        match function_instance {
+            FunctionInstance::WasmFunc { function_type } => {
+                let name = get_external_name("functionDef", wasm_function_counter);
+                glue_file.write(format!("extern {};", emit_function_signature(&function_type, name.clone())).as_str());
+                let a = get_external_name("functionDefMutableDatas", wasm_function_counter);
+                glue_file.write(format!("const uint64_t {} = 0;", a).as_str());
+                function_entries.push(Some(wasm_function_counter as usize));
+                wasm_function_counter += 1;
+                function_names.push(name.clone());
+            }
+            FunctionInstance::HostFunc {
+                function_type,
+                extern_name,
+            } => {
+                function_entries.push(None);
+                let name = format!("wavm_{}", extern_name);
+                let import_symbol = get_external_name("functionImport", host_function_counter);
+                let signature = emit_function_signature(&function_type, import_symbol.clone());
+                glue_file.write(format!("#define {} {}", name, import_symbol).as_str());
+                glue_file.write(format!("extern {};", signature).as_str());
+                function_names.push(name);
+                host_function_counter += 1
+            }
+        }
+    }
 
     for e in wasm_module.import_list {
         match e.ty {
-            wasmparser::ImportSectionEntryType::Function(func_type_index) => {
-                function_entries.push(None);
-                let func_type = &wasm_instance.type_list[func_type_index as usize];
-                let name = format!("wavm_{}_{}", e.module, e.field);
-                let import_symbol = get_external_name("functionImport", next_import_index);
-                glue_file.write(format!("#define {} {}", name, import_symbol).as_str());
-                next_import_index += 1;
-                glue_file.write(
-                    format!(
-                        "extern {};",
-                        convert_func_type_to_c_function(&func_type, import_symbol.clone())
-                    )
-                    .as_str(),
-                );
-                function_names.push(name);
-            }
             wasmparser::ImportSectionEntryType::Table(wasmparser::TableType {
                 element_type: wasmparser::Type::AnyFunc,
                 limits: wasmparser::ResizableLimits { initial, .. },
@@ -476,21 +540,6 @@ pub fn generate(middle: &mut context::Middle) -> Result<(), Box<dyn std::error::
             }
             _ => {}
         }
-    }
-    for e in wasm_module.function_list {
-        let func_type = &wasm_instance.type_list[e as usize];
-        let name = get_external_name("functionDef", next_function_index);
-        glue_file.write(format!("extern {};", convert_func_type_to_c_function(&func_type, name.clone())).as_str());
-        glue_file.write(
-            format!(
-                "const uint64_t {} = 0;",
-                get_external_name("functionDefMutableDatas", next_function_index)
-            )
-            .as_str(),
-        );
-        function_entries.push(Some(next_function_index as usize));
-        next_function_index += 1;
-        function_names.push(name.clone());
     }
     for e in wasm_module.memory_list {
         let mut mem = vec![];
@@ -748,20 +797,6 @@ pub fn convert_func_name_to_c_function(name: &str) -> String {
         }
     }
     new_name
-}
-
-fn convert_func_type_to_c_function(func_type: &wasmparser::FuncType, name: String) -> String {
-    if func_type.form != wasmparser::Type::Func || func_type.returns.len() > 1 {
-        panic!("Invalid func type: {:?}", func_type);
-    }
-    let mut fields: Vec<String> = func_type.params.iter().map(|t| emit_type(*t)).collect();
-    fields.insert(0, "void*".to_string());
-    let return_type = if func_type.returns.len() > 0 {
-        format!("wavm_ret_{}", emit_type(func_type.returns[0]))
-    } else {
-        "void*".to_string()
-    };
-    format!("{} ({}) ({})", return_type, name, fields.join(", ")).to_string()
 }
 
 #[derive(Debug)]
