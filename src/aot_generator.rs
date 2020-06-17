@@ -256,6 +256,21 @@ enum FunctionInstance {
     },
 }
 
+// A memory instance is the runtime representation of a linear memory. It holds a vector of bytes and an optional
+// maximum size, if one was specified at the definition site of the memory.
+#[derive(Debug)]
+enum MemoryInstance {
+    Wasm {
+        memory_type: wasmparser::MemoryType,
+        data: Vec<Data>,
+    },
+    Host {
+        memory_type: wasmparser::MemoryType,
+        data: Vec<Data>,
+        extern_name: String,
+    },
+}
+
 // The store represents all global state that can be manipulated by WebAssembly programs. It consists of the runtime
 // representation of all instances of functions, tables, memories, and globals that have been allocated during the
 // life time of the abstract machine Syntactically.
@@ -265,11 +280,17 @@ enum FunctionInstance {
 struct Store {
     function_list: Vec<FunctionInstance>,
     table_list: Vec<u8>,
-    memory_list: Vec<u8>,
+    memory_list: Vec<MemoryInstance>,
     global_list: Vec<GlobalInstance>,
 }
 
 impl Store {
+    fn allocate_memory(&mut self, memory_instance: MemoryInstance) -> u32 {
+        let memory_addr = self.memory_list.len() as u32;
+        self.memory_list.push(memory_instance);
+        memory_addr
+    }
+
     fn allocate_function(&mut self, function_instance: FunctionInstance) -> u32 {
         let function_addr = self.function_list.len() as u32;
         self.function_list.push(function_instance);
@@ -311,7 +332,15 @@ impl ModuleInstance {
                     });
                     module_instance.function_addr_list.push(function_addr);
                 }
-                wasmparser::ImportSectionEntryType::Memory(_) => {}
+                wasmparser::ImportSectionEntryType::Memory(memory_type) => {
+                    let extern_name = format!("{}_{}", e.module, e.field);
+                    let memory_addr = store.allocate_memory(MemoryInstance::Host {
+                        memory_type: memory_type,
+                        data: vec![],
+                        extern_name: extern_name,
+                    });
+                    module_instance.memory_addr_list.push(memory_addr);
+                }
                 wasmparser::ImportSectionEntryType::Table(_) => {}
                 wasmparser::ImportSectionEntryType::Global(global_type) => {
                     let global_addr = store.allocate_global(GlobalInstance::Host {
@@ -379,6 +408,14 @@ impl ModuleInstance {
                 function_type: function_type.clone(),
             });
             module_instance.function_addr_list.push(function_addr);
+        }
+        // Allocate each memory in module.memory_list
+        for e in &module.memory_list {
+            let memory_addr = store.allocate_memory(MemoryInstance::Wasm {
+                memory_type: *e,
+                data: vec![],
+            });
+            module_instance.memory_addr_list.push(memory_addr);
         }
         module_instance
     }
@@ -488,7 +525,7 @@ pub fn generate(middle: &mut context::Middle) -> Result<(), Box<dyn std::error::
             }
         }
     }
-    // Emit function
+    // Emit function.
     let mut wasm_function_counter = 0;
     let mut host_function_counter = 0;
     let mut function_name_list: Vec<String> = vec![];
@@ -517,6 +554,45 @@ pub fn generate(middle: &mut context::Middle) -> Result<(), Box<dyn std::error::
             }
         }
     }
+    // Emit memory.
+    // for e in wasm_module.data_list {
+    //     let memory_instance = &mut store.memory_list[wasm_instance.memory_addr_list[e.memory_index as usize] as usize];
+    //     match memory_instance {
+    //         MemoryInstance::Wasm { memory_type: _, data } => {
+    //             data.push(e);
+    //         }
+    //         MemoryInstance::Host {
+    //             memory_type: _,
+    //             data,
+    //             extern_name: _,
+    //         } => {
+    //             data.push(e);
+    //         }
+    //     }
+    // }
+    // for i in wasm_instance.memory_addr_list {
+    //     let memory_instance = store.memory_list[wasm_instance.memory_addr_list[i] as usize];
+    //     match memory_instance {
+    //         MemoryInstance::Wasm { memory_type, data } => {
+    //             let mut memory: Vec<u8> = vec![0x00; memory_type.limits.initial];
+    //             for e in data {
+    //                 match e.offset {
+    //                     Some(ConstantOperator::I32Const { value }) => {
+    //                         let offset = value as usize;
+    //                         memory[offset..offset + e.init.len()].copy_from_slice(&e.init);
+    //                     }
+    //                     Some(ConstantOperator::GlobalGet { global_index }) => {}
+    //                     _ => panic!("unreachable"),
+    //                 }
+    //             }
+    //         }
+    //         MemoryInstance::Host {
+    //             memory_type: _,
+    //             data,
+    //             extern_name,
+    //         } => {}
+    //     }
+    // }
 
     for e in wasm_module.import_list {
         match e.ty {
@@ -587,7 +663,6 @@ pub fn generate(middle: &mut context::Middle) -> Result<(), Box<dyn std::error::
     for e in wasm_module.export_list {
         match e.kind {
             wasmparser::ExternalKind::Function => {
-                // let function_index = wasm_instance.function_addr_list[e.index as usize];
                 glue_file.write(
                     format!(
                         "#define wavm_exported_function_{} {}",
