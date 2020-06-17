@@ -438,8 +438,6 @@ pub fn generate(middle: &mut context::Middle) -> Result<(), Box<dyn std::error::
     let header_id = format!("{}_GLUE_H", file_stem.to_uppercase());
     glue_file.write(format!(include_str!("glue.template"), header_id, header_id).as_str());
 
-    let mut function_entries: Vec<Option<usize>> = vec![];
-    let mut function_names: Vec<String> = vec![];
     let mut has_main = false;
     let mut memories: Vec<Vec<u8>> = vec![];
     let mut max_page_num: Option<u32> = None;
@@ -493,6 +491,7 @@ pub fn generate(middle: &mut context::Middle) -> Result<(), Box<dyn std::error::
     // Emit function
     let mut wasm_function_counter = 0;
     let mut host_function_counter = 0;
+    let mut function_name_list: Vec<String> = vec![];
     for i in &wasm_instance.function_addr_list {
         let function_instance = &store.function_list[*i as usize];
         match function_instance {
@@ -501,21 +500,19 @@ pub fn generate(middle: &mut context::Middle) -> Result<(), Box<dyn std::error::
                 glue_file.write(format!("extern {};", emit_function_signature(&function_type, name.clone())).as_str());
                 let a = get_external_name("functionDefMutableDatas", wasm_function_counter);
                 glue_file.write(format!("const uint64_t {} = 0;", a).as_str());
-                function_entries.push(Some(wasm_function_counter as usize));
                 wasm_function_counter += 1;
-                function_names.push(name.clone());
+                function_name_list.push(name);
             }
             FunctionInstance::HostFunc {
                 function_type,
                 extern_name,
             } => {
-                function_entries.push(None);
                 let name = format!("wavm_{}", extern_name);
                 let import_symbol = get_external_name("functionImport", host_function_counter);
                 let signature = emit_function_signature(&function_type, import_symbol.clone());
                 glue_file.write(format!("#define {} {}", name, import_symbol).as_str());
                 glue_file.write(format!("extern {};", signature).as_str());
-                function_names.push(name);
+                function_name_list.push(name);
                 host_function_counter += 1
             }
         }
@@ -590,12 +587,12 @@ pub fn generate(middle: &mut context::Middle) -> Result<(), Box<dyn std::error::
     for e in wasm_module.export_list {
         match e.kind {
             wasmparser::ExternalKind::Function => {
-                let function_index = function_entries[e.index as usize].expect("Exported function should exist!");
+                // let function_index = wasm_instance.function_addr_list[e.index as usize];
                 glue_file.write(
                     format!(
                         "#define wavm_exported_function_{} {}",
                         convert_func_name_to_c_function(&e.field),
-                        get_external_name("functionDef", function_index as u32),
+                        function_name_list[e.index as usize],
                     )
                     .as_str(),
                 );
@@ -775,7 +772,7 @@ pub fn generate(middle: &mut context::Middle) -> Result<(), Box<dyn std::error::
     }
 
     if let Some(function_index) = wasm_module.start {
-        glue_file.write(format!("{}(NULL);", function_names[function_index as usize]).as_str());
+        glue_file.write(format!("{}(NULL);", function_name_list[function_index as usize]).as_str());
     }
     glue_file.write("}");
 
