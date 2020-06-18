@@ -476,9 +476,6 @@ pub fn generate(middle: &mut context::Middle) -> Result<(), Box<dyn std::error::
     glue_file.write(format!(include_str!("glue.template"), header_id, header_id).as_str());
 
     let mut has_main = false;
-    let mut memories: Vec<Vec<u8>> = vec![];
-    let mut max_page_num: Option<u32> = None;
-    let mut dynamic_memories: Vec<DynamicMemory> = vec![];
     let mut tables: Vec<Vec<String>> = vec![];
     let mut table_offset: Option<usize> = None;
     let mut dynamic_table_offset: Option<String> = None;
@@ -555,6 +552,7 @@ pub fn generate(middle: &mut context::Middle) -> Result<(), Box<dyn std::error::
         }
     }
     // Emit memory.
+    let mut init_function_list: Vec<String> = vec![];
     for e in wasm_module.data_list {
         let memory_instance = &mut store.memory_list[wasm_instance.memory_addr_list[e.memory_index as usize] as usize];
         match memory_instance {
@@ -570,29 +568,96 @@ pub fn generate(middle: &mut context::Middle) -> Result<(), Box<dyn std::error::
             }
         }
     }
-    // for i in wasm_instance.memory_addr_list {
-    //     let memory_instance = store.memory_list[wasm_instance.memory_addr_list[i] as usize];
-    //     match memory_instance {
-    //         MemoryInstance::Wasm { memory_type, data } => {
-    //             let mut memory: Vec<u8> = vec![0x00; memory_type.limits.initial];
-    //             for e in data {
-    //                 match e.offset {
-    //                     Some(ConstantOperator::I32Const { value }) => {
-    //                         let offset = value as usize;
-    //                         memory[offset..offset + e.init.len()].copy_from_slice(&e.init);
-    //                     }
-    //                     Some(ConstantOperator::GlobalGet { global_index }) => {}
-    //                     _ => panic!("unreachable"),
-    //                 }
-    //             }
-    //         }
-    //         MemoryInstance::Host {
-    //             memory_type: _,
-    //             data,
-    //             extern_name,
-    //         } => {}
-    //     }
-    // }
+    for i in wasm_instance.memory_addr_list {
+        let memory_instance = &store.memory_list[i as usize];
+        match memory_instance {
+            MemoryInstance::Wasm { memory_type, data } => {
+                glue_file.write(format!("uint8_t* memory{};", i).as_str());
+                let a = get_external_name("memoryOffset", i as u32);
+                glue_file.write(format!("struct memory_runtime_data {};", a).as_str());
+                if let Some(x) = memory_type.limits.maximum {
+                    glue_file.write(format!("#define MEMORY{}_MAX_PAGE {}", i, x).as_str());
+                }
+                for (j, e) in data.iter().enumerate() {
+                    glue_file.write(format!("uint8_t memory{}_data{}[{}] = {{", i, j, e.init.len()).as_str());
+                    for (k, b) in e.init.iter().enumerate() {
+                        if k < e.init.len() - 1 {
+                            glue_file.write(format!("0x{:x},", b).as_str());
+                        } else {
+                            glue_file.write(format!("0x{:x}", b).as_str());
+                        }
+                    }
+                    glue_file.write("};");
+                }
+
+                glue_file.write(format!("#define MEMORY{}_DEFINED 1", i).as_str());
+                glue_file.write(format!("void init_memory{}() {{", i).as_str());
+                glue_file.write(format!("memory{} = malloc({});", i, memory_type.limits.initial * 65536).as_str());
+
+                for (j, e) in data.iter().enumerate() {
+                    match e.offset {
+                        Some(ConstantOperator::I32Const { value }) => {
+                            let a = format!(
+                                "memcpy(memory{} + {}, memory{}_data{}, {});",
+                                i,
+                                value,
+                                i,
+                                j,
+                                e.init.len()
+                            );
+                            glue_file.write(a.as_str());
+                        }
+                        Some(ConstantOperator::GlobalGet { global_index }) => {
+                            let global_instance =
+                                &store.global_list[wasm_instance.global_addr_list[global_index as usize] as usize];
+                            match global_instance {
+                                GlobalInstance::Wasm { global_type: _, value } => match value {
+                                    Value::I32(value) => {
+                                        let a = format!(
+                                            "memcpy(memory{} + {}, memory{}_data{}, {});",
+                                            i,
+                                            value,
+                                            i,
+                                            j,
+                                            e.init.len()
+                                        );
+                                        glue_file.write(a.as_str());
+                                    }
+                                    _ => panic!("unreachable"),
+                                },
+                                GlobalInstance::Host {
+                                    global_type: _,
+                                    extern_name,
+                                } => {
+                                    let a = format!(
+                                        "memcpy(memory{} + wavm_{}, memory{}_data{}, {});",
+                                        i,
+                                        extern_name,
+                                        i,
+                                        j,
+                                        e.init.len()
+                                    );
+                                    glue_file.write(a.as_str());
+                                }
+                            }
+                        }
+                        _ => panic!("unreachable"),
+                    }
+                }
+                glue_file.write(format!("memoryOffset{}.base = memory{};", i, i).as_str());
+                glue_file.write(format!("memoryOffset{}.num_pages = {};", i, memory_type.limits.initial).as_str());
+                glue_file.write("}");
+                init_function_list.push(format!("init_memory{}", i));
+            }
+            MemoryInstance::Host {
+                memory_type: _,
+                data: _,
+                extern_name: _,
+            } => {
+                // Does it make sense to support it?
+            }
+        }
+    }
 
     for e in wasm_module.import_list {
         match e.ty {
@@ -604,111 +669,14 @@ pub fn generate(middle: &mut context::Middle) -> Result<(), Box<dyn std::error::
                 table.resize(std::cmp::max(256, initial as usize), "0".to_string()); // TODO: implement import table.
                 tables.push(table);
             }
-            wasmparser::ImportSectionEntryType::Memory(wasmparser::MemoryType {
-                limits: wasmparser::ResizableLimits { initial, .. },
-                ..
-            }) => {
-                let mut mem = vec![];
-                mem.resize(std::cmp::max(1, initial as usize) * 64 * 1024, 0);
-                memories.push(mem);
-            }
             _ => {}
         }
-    }
-    for e in wasm_module.memory_list {
-        let mut mem = vec![];
-        mem.resize(e.limits.initial as usize * 64 * 1024, 0);
-        memories.push(mem);
-        max_page_num = e.limits.maximum;
     }
     for e in wasm_module.table_list {
         let mut table = vec![];
         table.resize(e.limits.initial as usize, "0".to_string());
         tables.push(table);
     }
-
-    for i in wasm_instance.memory_addr_list {
-        let memory_instance = &store.memory_list[i as usize];
-        match memory_instance {
-            MemoryInstance::Wasm { memory_type, data } => {
-                for e in data {
-                    match e.offset {
-                        Some(ConstantOperator::I32Const { value }) => {
-                            let offset = value as usize;
-                            memories[e.memory_index as usize][offset..offset + e.init.len()].copy_from_slice(&e.init);
-                        }
-                        Some(ConstantOperator::GlobalGet { global_index }) => {
-                            let global_instance =
-                                &store.global_list[wasm_instance.global_addr_list[global_index as usize] as usize];
-                            match global_instance {
-                                GlobalInstance::Wasm { global_type: _, value } => match value {
-                                    Value::I32(offset) => {
-                                        let offset = *offset as usize;
-                                        memories[e.memory_index as usize][offset..offset + e.init.len()]
-                                            .copy_from_slice(&e.init);
-                                    }
-                                    _ => panic!("unreachable"),
-                                },
-                                GlobalInstance::Host {
-                                    global_type: _,
-                                    extern_name,
-                                } => {
-                                    let dmemory = DynamicMemory {
-                                        index: global_index as usize,
-                                        offset: format!("wavm_{}", extern_name),
-                                        data: e.init.to_vec(),
-                                    };
-                                    dynamic_memories.push(dmemory);
-                                }
-                            }
-                        }
-                        _ => {}
-                    }
-                }
-            }
-            MemoryInstance::Host {
-                memory_type: _,
-                data,
-                extern_name,
-            } => {
-                for e in data {
-                    match e.offset {
-                        Some(ConstantOperator::I32Const { value }) => {
-                            let offset = value as usize;
-                            memories[e.memory_index as usize][offset..offset + e.init.len()].copy_from_slice(&e.init);
-                        }
-                        Some(ConstantOperator::GlobalGet { global_index }) => {
-                            let global_instance =
-                                &store.global_list[wasm_instance.global_addr_list[global_index as usize] as usize];
-                            match global_instance {
-                                GlobalInstance::Wasm { global_type: _, value } => match value {
-                                    Value::I32(offset) => {
-                                        let offset = *offset as usize;
-                                        memories[e.memory_index as usize][offset..offset + e.init.len()]
-                                            .copy_from_slice(&e.init);
-                                    }
-                                    _ => panic!("unreachable"),
-                                },
-                                GlobalInstance::Host {
-                                    global_type: _,
-                                    extern_name,
-                                } => {
-                                    let dmemory = DynamicMemory {
-                                        index: global_index as usize,
-                                        offset: format!("wavm_{}", extern_name),
-                                        data: e.init.to_vec(),
-                                    };
-                                    dynamic_memories.push(dmemory);
-                                }
-                            }
-                        }
-                        _ => {}
-                    }
-                }
-            }
-        }
-    }
-
     for e in wasm_module.export_list {
         match e.kind {
             wasmparser::ExternalKind::Function => {
@@ -806,71 +774,12 @@ pub fn generate(middle: &mut context::Middle) -> Result<(), Box<dyn std::error::
         glue_file.write(format!("#define TABLE{}_DEFINED 1", i).as_str());
     }
 
-    for (i, mem) in memories.iter().enumerate() {
-        glue_file.write(format!("uint32_t memory{}_length = {};", i, mem.len()).as_str());
-        glue_file.write(
-            format!(
-                "uint8_t __attribute__((section (\".wasm_memory\"))) memory{}[{}] = {{",
-                i,
-                mem.len()
-            )
-            .as_str(),
-        );
-        let reversed_striped_mem: Vec<u8> = mem.iter().rev().map(|x| *x).skip_while(|c| *c == 0).collect();
-        let mut striped_mem: Vec<u8> = reversed_striped_mem.into_iter().rev().collect();
-        if striped_mem.len() == 0 {
-            striped_mem.push(0);
-        }
-        for (j, c) in striped_mem.iter().enumerate() {
-            if j < striped_mem.len() - 1 {
-                glue_file.write(format!("0x{:x},", c).as_str());
-            } else {
-                glue_file.write(format!("0x{:x}", c).as_str());
-            }
-        }
-        glue_file.write("};");
-        glue_file.write(
-            format!(
-                "struct memory_runtime_data {} = {{memory{}, {}}};",
-                get_external_name("memoryOffset", i as u32),
-                i,
-                mem.len() / 65536
-            )
-            .as_str(),
-        );
-        glue_file.write(format!("#define MEMORY{}_DEFINED 1", i).as_str());
-        if let Some(x) = max_page_num {
-            glue_file.write(format!("#define WAVM_MAX_PAGE {}", x.to_string()).as_str());
-        }
-    }
-
-    for (i, mem) in dynamic_memories.iter().enumerate() {
-        glue_file.write(format!("uint32_t data{}_length = {};", i, mem.data.len()).as_str());
-        glue_file.write(format!("uint8_t data{}[{}] = {{", i, mem.data.len()).as_str());
-        for (j, c) in mem.data.iter().enumerate() {
-            if j < mem.data.len() - 1 {
-                glue_file.write(format!("0x{:x},", c).as_str());
-            } else {
-                glue_file.write(format!("0x{:x}", c).as_str());
-            }
-        }
-        glue_file.write("};");
-    }
-
     // Write init function
     glue_file.write("void init() {");
-    for (i, mem) in dynamic_memories.iter().enumerate() {
-        glue_file.write(
-            format!(
-                "memcpy(memory{} + {}, data{}, {});",
-                mem.index,
-                mem.offset,
-                i,
-                mem.data.len()
-            )
-            .as_str(),
-        );
+    for e in init_function_list {
+        glue_file.write(format!("{}();", e).as_str());
     }
+
     for (_, table) in dynamic_tables.iter().enumerate() {
         glue_file.write(
             format!(
