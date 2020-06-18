@@ -487,12 +487,12 @@ fn emit_function_signature(func_type: &wasmparser::FuncType, name: String) -> St
     format!("{} ({}) ({})", return_type, name, fields.join(", ")).to_string()
 }
 
-// Emit memory data with static offset
+// Emit memory data with static offset.
 fn emit_memory_data_wasm(mi: u32, di: u32, offset: u32, len: u32) -> String {
     format!("memcpy(memory{} + {}, memory{}_data{}, {});", mi, offset, mi, di, len)
 }
 
-// Emit memory data with extern offset
+// Emit memory data with extern offset.
 fn emit_memory_data_host(mi: u32, di: u32, offset: &str, len: u32) -> String {
     format!("memcpy(memory{} + {}, memory{}_data{}, {});", mi, offset, mi, di, len)
 }
@@ -592,8 +592,7 @@ pub fn generate(middle: &mut context::Middle) -> Result<(), Box<dyn std::error::
             }
         }
     }
-    // Emit memory.
-    let mut init_function_list: Vec<String> = vec![];
+    // Get the correspondence between data and memory.
     for e in wasm_module.data_list {
         let memory_instance = &mut store.memory_list[wasm_instance.memory_addr_list[e.memory_index as usize] as usize];
         match memory_instance {
@@ -609,6 +608,8 @@ pub fn generate(middle: &mut context::Middle) -> Result<(), Box<dyn std::error::
             }
         }
     }
+    // Emit memory.
+    let mut init_function_list: Vec<String> = vec![];
     for i in wasm_instance.memory_addr_list {
         let memory_instance = &store.memory_list[i as usize];
         match memory_instance {
@@ -621,13 +622,8 @@ pub fn generate(middle: &mut context::Middle) -> Result<(), Box<dyn std::error::
                 }
                 for (j, e) in data.iter().enumerate() {
                     glue_file.write(format!("uint8_t memory{}_data{}[{}] = {{", i, j, e.init.len()).as_str());
-                    for (k, b) in e.init.iter().enumerate() {
-                        if k < e.init.len() - 1 {
-                            glue_file.write(format!("0x{:x},", b).as_str());
-                        } else {
-                            glue_file.write(format!("0x{:x}", b).as_str());
-                        }
-                    }
+                    let array: Vec<String> = e.init.iter().map(|x| format!("0x{:02x}", x)).collect();
+                    glue_file.write_array(array, 16);
                     glue_file.write("};");
                 }
 
@@ -678,7 +674,7 @@ pub fn generate(middle: &mut context::Middle) -> Result<(), Box<dyn std::error::
             }
         }
     }
-    // Emit table.
+    // Get the correspondence between elem and table.
     for e in wasm_module.element_list {
         let table_instance = &mut store.table_list[wasm_instance.table_addr_list[e.table_index as usize] as usize];
         match table_instance {
@@ -697,6 +693,7 @@ pub fn generate(middle: &mut context::Middle) -> Result<(), Box<dyn std::error::
             }
         }
     }
+    // Emit table.
     for i in wasm_instance.table_addr_list {
         let table_instance = &store.table_list[i as usize];
         match table_instance {
@@ -757,13 +754,7 @@ pub fn generate(middle: &mut context::Middle) -> Result<(), Box<dyn std::error::
                 }
 
                 glue_file.write(format!("uintptr_t table{}[{}] = {{", i, table_type.limits.initial).as_str());
-                for (k, b) in table.iter().enumerate() {
-                    if k < table.len() - 1 {
-                        glue_file.write(format!("{},", b).as_str());
-                    } else {
-                        glue_file.write(format!("{}", b).as_str());
-                    }
-                }
+                glue_file.write_array(table, 4);
                 glue_file.write("};");
 
                 glue_file.write(format!("uintptr_t* tableOffset{} = table{};", i, i).as_str());

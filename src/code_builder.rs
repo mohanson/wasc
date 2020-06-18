@@ -39,4 +39,25 @@ impl CodeBuilder {
             self.head_whitespace -= 2;
         }
     }
+
+    // Building human-friendly arrays.
+    pub fn write_array(&mut self, a: Vec<String>, lbreak: u32) {
+        let mut l = String::new();
+        let mut c: u32 = 0;
+        for (i, e) in a.iter().enumerate() {
+            l += e;
+            c += 1;
+            if i != a.len() - 1 {
+                l += ", ";
+            }
+            if c == lbreak {
+                self.write(&l);
+                l.clear();
+                c = 0;
+            }
+        }
+        if !l.is_empty() {
+            self.write(&l);
+        }
+    }
 }
