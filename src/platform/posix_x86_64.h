@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <stdint.h>
 
 #ifndef WAVM_SPECTEST_ABI_H
 #define WAVM_SPECTEST_ABI_H

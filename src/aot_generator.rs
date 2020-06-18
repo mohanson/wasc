@@ -271,6 +271,21 @@ enum MemoryInstance {
     },
 }
 
+// A table instance is the runtime representation of a table. It holds a vector of function elements and an optional
+// maximum size, if one was specified in the table type at the table’s definition site.
+#[derive(Debug)]
+enum TableInstance {
+    Wasm {
+        table_type: wasmparser::TableType,
+        element_list: Vec<Element>,
+    },
+    Host {
+        table_type: wasmparser::TableType,
+        element_list: Vec<Element>,
+        extern_name: String,
+    },
+}
+
 // The store represents all global state that can be manipulated by WebAssembly programs. It consists of the runtime
 // representation of all instances of functions, tables, memories, and globals that have been allocated during the
 // life time of the abstract machine Syntactically.
@@ -279,7 +294,7 @@ enum MemoryInstance {
 #[derive(Debug, Default)]
 struct Store {
     function_list: Vec<FunctionInstance>,
-    table_list: Vec<u8>,
+    table_list: Vec<TableInstance>,
     memory_list: Vec<MemoryInstance>,
     global_list: Vec<GlobalInstance>,
 }
@@ -295,6 +310,12 @@ impl Store {
         let function_addr = self.function_list.len() as u32;
         self.function_list.push(function_instance);
         function_addr
+    }
+
+    fn allocate_table(&mut self, table_instance: TableInstance) -> u32 {
+        let table_addr = self.table_list.len() as u32;
+        self.table_list.push(table_instance);
+        table_addr
     }
 
     fn allocate_global(&mut self, global_instance: GlobalInstance) -> u32 {
@@ -322,10 +343,10 @@ impl ModuleInstance {
         module_instance.type_list = module.type_list.clone();
         // Handle import
         for e in &module.import_list {
+            let extern_name = format!("{}_{}", e.module, e.field);
             match e.ty {
                 wasmparser::ImportSectionEntryType::Function(function_type_index) => {
                     let function_type = &module_instance.type_list[function_type_index as usize];
-                    let extern_name = format!("{}_{}", e.module, e.field);
                     let function_addr = store.allocate_function(FunctionInstance::HostFunc {
                         function_type: function_type.clone(),
                         extern_name: extern_name,
@@ -333,7 +354,6 @@ impl ModuleInstance {
                     module_instance.function_addr_list.push(function_addr);
                 }
                 wasmparser::ImportSectionEntryType::Memory(memory_type) => {
-                    let extern_name = format!("{}_{}", e.module, e.field);
                     let memory_addr = store.allocate_memory(MemoryInstance::Host {
                         memory_type: memory_type,
                         data: vec![],
@@ -341,11 +361,18 @@ impl ModuleInstance {
                     });
                     module_instance.memory_addr_list.push(memory_addr);
                 }
-                wasmparser::ImportSectionEntryType::Table(_) => {}
+                wasmparser::ImportSectionEntryType::Table(table_type) => {
+                    let table_addr = store.allocate_table(TableInstance::Host {
+                        table_type: table_type,
+                        element_list: vec![],
+                        extern_name: extern_name,
+                    });
+                    module_instance.table_addr_list.push(table_addr);
+                }
                 wasmparser::ImportSectionEntryType::Global(global_type) => {
                     let global_addr = store.allocate_global(GlobalInstance::Host {
                         global_type: global_type,
-                        extern_name: format!("{}_{}", e.module, e.field),
+                        extern_name: extern_name,
                     });
                     module_instance.global_addr_list.push(global_addr);
                 }
@@ -408,6 +435,14 @@ impl ModuleInstance {
                 function_type: function_type.clone(),
             });
             module_instance.function_addr_list.push(function_addr);
+        }
+        // Allocate each table in module.table_list
+        for e in &module.table_list {
+            let table_addr = store.allocate_table(TableInstance::Wasm {
+                table_type: *e,
+                element_list: vec![],
+            });
+            module_instance.table_addr_list.push(table_addr);
         }
         // Allocate each memory in module.memory_list
         for e in &module.memory_list {
@@ -486,10 +521,6 @@ pub fn generate(middle: &mut context::Middle) -> Result<(), Box<dyn std::error::
     glue_file.write(format!(include_str!("glue.template"), header_id, header_id).as_str());
 
     let mut has_main = false;
-    let mut tables: Vec<Vec<String>> = vec![];
-    let mut table_offset: Option<usize> = None;
-    let mut dynamic_table_offset: Option<String> = None;
-    let mut dynamic_tables: Vec<DynamicTableEntry> = vec![];
 
     // Emit type.
     for i in 0..wasm_instance.type_list.len() {
@@ -602,7 +633,7 @@ pub fn generate(middle: &mut context::Middle) -> Result<(), Box<dyn std::error::
 
                 glue_file.write(format!("#define MEMORY{}_DEFINED 1", i).as_str());
                 glue_file.write(format!("void init_memory{}() {{", i).as_str());
-                glue_file.write(format!("memory{} = malloc({});", i, memory_type.limits.initial * 65536).as_str());
+                glue_file.write(format!("memory{} = calloc({}, 1);", i, memory_type.limits.initial * 65536).as_str());
                 for (j, e) in data.iter().enumerate() {
                     match e.offset {
                         Some(ConstantOperator::I32Const { value }) => {
@@ -647,25 +678,182 @@ pub fn generate(middle: &mut context::Middle) -> Result<(), Box<dyn std::error::
             }
         }
     }
-
-    for e in wasm_module.import_list {
-        match e.ty {
-            wasmparser::ImportSectionEntryType::Table(wasmparser::TableType {
-                element_type: wasmparser::Type::AnyFunc,
-                limits: wasmparser::ResizableLimits { initial, .. },
-            }) => {
-                let mut table = vec![];
-                table.resize(std::cmp::max(256, initial as usize), "0".to_string()); // TODO: implement import table.
-                tables.push(table);
+    // Emit table.
+    for e in wasm_module.element_list {
+        let table_instance = &mut store.table_list[wasm_instance.table_addr_list[e.table_index as usize] as usize];
+        match table_instance {
+            TableInstance::Wasm {
+                table_type: _,
+                element_list,
+            } => {
+                element_list.push(e);
             }
-            _ => {}
+            TableInstance::Host {
+                table_type: _,
+                element_list,
+                extern_name: _,
+            } => {
+                element_list.push(e);
+            }
         }
     }
-    for e in wasm_module.table_list {
-        let mut table = vec![];
-        table.resize(e.limits.initial as usize, "0".to_string());
-        tables.push(table);
+    for i in wasm_instance.table_addr_list {
+        let table_instance = &store.table_list[i as usize];
+        match table_instance {
+            TableInstance::Wasm {
+                table_type,
+                element_list,
+            } => {
+                glue_file.write(format!("uint32_t table{}_length = {};", i, table_type.limits.initial).as_str());
+                let mut table: Vec<String> = vec!["0".into(); table_type.limits.initial as usize];
+                let mut space: Vec<String> = vec![];
+                for e in element_list {
+                    match e.offset {
+                        Some(ConstantOperator::I32Const { value }) => {
+                            for (j, item) in e.init.iter().enumerate() {
+                                if let wasmparser::ElementItem::Func(func_index) = item {
+                                    table[value as usize + j] =
+                                        format!("((uintptr_t) ({}))", get_external_name("functionDef", *func_index));
+                                }
+                            }
+                        }
+                        Some(ConstantOperator::GlobalGet { global_index }) => {
+                            let global_addr = wasm_instance.global_addr_list[global_index as usize];
+                            let global_instance = &store.global_list[global_addr as usize];
+                            match global_instance {
+                                GlobalInstance::Wasm { global_type: _, value } => match value {
+                                    Value::I32(value) => {
+                                        for (j, item) in e.init.iter().enumerate() {
+                                            if let wasmparser::ElementItem::Func(func_index) = item {
+                                                table[*value as usize + j] = format!(
+                                                    "((uintptr_t) ({}))",
+                                                    get_external_name("functionDef", *func_index)
+                                                )
+                                            }
+                                        }
+                                    }
+                                    _ => panic!("unreachable"),
+                                },
+                                GlobalInstance::Host {
+                                    global_type: _,
+                                    extern_name,
+                                } => {
+                                    for (j, item) in e.init.iter().enumerate() {
+                                        if let wasmparser::ElementItem::Func(func_index) = item {
+                                            space.push(format!(
+                                                "table{}[{} + {}] = ((uintptr_t) ({}));",
+                                                i,
+                                                format!("wavm_{}", extern_name),
+                                                j,
+                                                get_external_name("functionDef", *func_index as u32)
+                                            ));
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                        _ => panic!("unreachable"),
+                    }
+                }
+
+                glue_file.write(format!("uintptr_t table{}[{}] = {{", i, table_type.limits.initial).as_str());
+                for (k, b) in table.iter().enumerate() {
+                    if k < table.len() - 1 {
+                        glue_file.write(format!("{},", b).as_str());
+                    } else {
+                        glue_file.write(format!("{}", b).as_str());
+                    }
+                }
+                glue_file.write("};");
+
+                glue_file.write(format!("uintptr_t* tableOffset{} = table{};", i, i).as_str());
+                glue_file.write(format!("#define TABLE{}_DEFINED 1", i).as_str());
+
+                glue_file.write(format!("void init_table{}() {{", i).as_str());
+                for e in space {
+                    glue_file.write(&e);
+                }
+                glue_file.write(format!("for (int i = 0; i < table{}_length; i++) {{", i).as_str());
+                glue_file.write(
+                    format!(
+                        "table{}[i] = table{}[i] - ((uintptr_t) &tableReferenceBias) - 0x20;",
+                        i, i
+                    )
+                    .as_str(),
+                );
+                glue_file.write("}");
+                glue_file.write("}");
+                init_function_list.push(format!("init_table{}", i));
+            }
+            TableInstance::Host {
+                table_type: _,
+                element_list,
+                extern_name,
+            } => {
+                let name = format!("wavm_{}", extern_name);
+                let import_symbol = get_external_name("table", i);
+                glue_file.write(format!("#define {}_length {}_length", name, import_symbol).as_str());
+                glue_file.write(format!("extern uint32_t table{}_length;", i).as_str());
+                glue_file.write(format!("#define {} {}", name, import_symbol).as_str());
+                glue_file.write(format!("extern uintptr_t table{}[];", i).as_str());
+                glue_file.write(format!("uintptr_t* tableOffset{} = table{};", i, i).as_str());
+                glue_file.write(format!("#define TABLE{}_DEFINED 1", i).as_str());
+
+                glue_file.write(format!("void init_table{}() {{", i).as_str());
+
+                for e in element_list {
+                    for (j, item) in e.init.iter().enumerate() {
+                        let offset: String = match e.offset {
+                            Some(ConstantOperator::I32Const { value }) => value.to_string(),
+                            Some(ConstantOperator::GlobalGet { global_index }) => {
+                                let global_addr = wasm_instance.global_addr_list[global_index as usize];
+                                let global_instance = &store.global_list[global_addr as usize];
+                                match global_instance {
+                                    GlobalInstance::Wasm { global_type: _, value } => match value {
+                                        Value::I32(value) => value.to_string(),
+                                        _ => panic!("unreachable"),
+                                    },
+                                    GlobalInstance::Host {
+                                        global_type: _,
+                                        extern_name,
+                                    } => extern_name.to_string(),
+                                }
+                            }
+                            _ => panic!("unreachable"),
+                        };
+
+                        if let wasmparser::ElementItem::Func(func_index) = item {
+                            glue_file.write(
+                                format!(
+                                    "table{}[{} + {}] = ((uintptr_t) ({}));",
+                                    i,
+                                    offset,
+                                    j,
+                                    get_external_name("functionDef", *func_index)
+                                )
+                                .as_str(),
+                            );
+                        }
+                    }
+                }
+
+                glue_file.write(format!("for (int i = 0; i < table{}_length; i++) {{", i).as_str());
+
+                glue_file.write(
+                    format!(
+                        "table{}[i] = table{}[i] - ((uintptr_t) &tableReferenceBias) - 0x20;",
+                        i, i
+                    )
+                    .as_str(),
+                );
+
+                glue_file.write("}");
+                glue_file.write("}");
+                init_function_list.push(format!("init_table{}", i));
+            }
+        }
     }
+    // Emit export
     for e in wasm_module.export_list {
         match e.kind {
             wasmparser::ExternalKind::Function => {
@@ -686,113 +874,10 @@ pub fn generate(middle: &mut context::Middle) -> Result<(), Box<dyn std::error::
         }
     }
 
-    for e in wasm_module.element_list {
-        match e.offset {
-            Some(ConstantOperator::I32Const { value }) => {
-                table_offset = Some(value as usize);
-            }
-            Some(ConstantOperator::GlobalGet { global_index }) => {
-                let global_instance =
-                    &store.global_list[wasm_instance.global_addr_list[global_index as usize] as usize];
-                match global_instance {
-                    GlobalInstance::Wasm { global_type: _, value } => match value {
-                        Value::I32(offset) => table_offset = Some(*offset as usize),
-                        _ => panic!("unreachable"),
-                    },
-                    GlobalInstance::Host {
-                        global_type: _,
-                        extern_name,
-                    } => dynamic_table_offset = Some(format!("wavm_{}", extern_name)),
-                }
-            }
-            _ => panic!("unreachable"),
-        }
-
-        let index = e.table_index as usize;
-        if let Some(x) = dynamic_table_offset.clone() {
-            for (i, item) in e.init.iter().enumerate() {
-                if let wasmparser::ElementItem::Func(func_index) = item {
-                    dynamic_tables.push(DynamicTableEntry {
-                        index: index,
-                        offset: x.clone(),
-                        shift: i,
-                        func_index: *func_index as usize,
-                    });
-                }
-            }
-        } else {
-            let offset = table_offset.unwrap();
-            for (i, item) in e.init.iter().enumerate() {
-                if let wasmparser::ElementItem::Func(func_index) = item {
-                    tables[index][offset + i] =
-                        format!("((uintptr_t) ({}))", get_external_name("functionDef", *func_index));
-                }
-            }
-        }
-    }
-
-    for (i, table) in tables.iter().enumerate() {
-        glue_file.write(format!("uint32_t table{}_length = {};", i, table.len()).as_str());
-        glue_file.write(format!("uintptr_t table{}[{}] = {{", i, table.len()).as_str());
-        let reversed_striped_table: Vec<String> = table
-            .iter()
-            .rev()
-            .map(|x| x.clone())
-            .skip_while(|c| *c == "0")
-            .collect();
-        let mut striped_table: Vec<String> = reversed_striped_table.into_iter().rev().collect();
-        if striped_table.len() == 0 {
-            striped_table.push("0".to_string());
-        }
-        for (j, c) in striped_table.iter().enumerate() {
-            if j < striped_table.len() - 1 {
-                glue_file.write(format!("{},", c).as_str());
-            } else {
-                glue_file.write(c);
-            }
-        }
-        glue_file.write("};");
-        glue_file.write(
-            format!(
-                "uintptr_t* {} = table{};",
-                get_external_name("tableOffset", i as u32),
-                i
-            )
-            .as_str(),
-        );
-        glue_file.write(format!("#define TABLE{}_DEFINED 1", i).as_str());
-    }
-
-    // Write init function
     glue_file.write("void init() {");
     for e in init_function_list {
         glue_file.write(format!("{}();", e).as_str());
     }
-
-    for (_, table) in dynamic_tables.iter().enumerate() {
-        glue_file.write(
-            format!(
-                "table{}[{} + {}] = ((uintptr_t) ({}));",
-                table.index,
-                table.offset,
-                table.shift,
-                get_external_name("functionDef", table.func_index as u32)
-            )
-            .as_str(),
-        );
-    }
-    for (i, _) in tables.iter().enumerate() {
-        glue_file.write(format!("for (int i = 0; i < table{}_length; i++) {{", i).as_str());
-        glue_file.write(
-            format!(
-                "table{}[i] = table{}[i] - ((uintptr_t) &tableReferenceBias) - 0x20;",
-                i, i
-            )
-            .as_str(),
-        );
-        glue_file.write("}");
-    }
-
     if let Some(function_index) = wasm_module.start {
         glue_file.write(format!("{}(NULL);", function_name_list[function_index as usize]).as_str());
     }
@@ -825,19 +910,4 @@ pub fn convert_func_name_to_c_function(name: &str) -> String {
         }
     }
     new_name
-}
-
-#[derive(Debug)]
-struct DynamicMemory {
-    index: usize,
-    offset: String,
-    data: Vec<u8>,
-}
-
-#[derive(Debug)]
-struct DynamicTableEntry {
-    index: usize,
-    offset: String,
-    shift: usize,
-    func_index: usize,
 }

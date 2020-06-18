@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <stdint.h>
 
 #ifndef WAVM_SPECTEST_ABI_H
 #define WAVM_SPECTEST_ABI_H
@@ -60,6 +61,9 @@ void invalidFloatOperationTrap()
 int32_t wavm_spectest_global_i32 = 42;
 float wavm_spectest_global_f32 = 42.0;
 double wavm_spectest_global_f64 = 420;
+
+uint32_t wavm_spectest_table_length = 10;
+uintptr_t wavm_spectest_table[10] = {};
 
 void *wavm_spectest_print_i32(void *dummy, int32_t i)
 {
