@@ -87,7 +87,7 @@ fn test_spec_single_test<P: AsRef<std::path::Path>>(
                                     "{} wavm_ret{} = wavm_exported_function_{}({});",
                                     rttype,
                                     wavm_ret_index,
-                                    aot_generator::convert_func_name_to_c_function(field),
+                                    aot_generator::cnaming(field),
                                     args_with_null.join(",")
                                 )
                                 .as_str(),
@@ -165,7 +165,7 @@ fn test_spec_single_test<P: AsRef<std::path::Path>>(
                             dummy_file.write(
                                 format!(
                                     "wavm_exported_function_{}({});",
-                                    aot_generator::convert_func_name_to_c_function(field),
+                                    aot_generator::cnaming(field),
                                     args_with_null.join(", ")
                                 )
                                 .as_str(),

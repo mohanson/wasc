@@ -461,6 +461,21 @@ fn get_external_name(base_name: &str, index: u32) -> String {
     format!("{}{}", base_name, index)
 }
 
+// Since the naming rules supported by C and wasm are different, the wasm naming needs to be converted.
+pub fn cnaming(name: &str) -> String {
+    let mut new_name = String::new();
+    for e in name.chars() {
+        if e == '-' {
+            new_name += "_";
+        } else if !e.is_ascii_alphanumeric() {
+            new_name += &hex::encode(&e.to_string());
+        } else {
+            new_name += &e.to_string();
+        }
+    }
+    new_name
+}
+
 // Emit wasm type to c code.
 fn emit_type(t: wasmparser::Type) -> String {
     match t {
@@ -851,7 +866,7 @@ pub fn generate(middle: &mut context::Middle) -> Result<(), Box<dyn std::error::
                 glue_file.write(
                     format!(
                         "#define wavm_exported_function_{} {}",
-                        convert_func_name_to_c_function(&e.field),
+                        cnaming(&e.field),
                         function_name_list[e.index as usize],
                     )
                     .as_str(),
@@ -887,18 +902,4 @@ pub fn generate(middle: &mut context::Middle) -> Result<(), Box<dyn std::error::
     middle.aot_object = object_path;
     middle.aot_glue = glue_path;
     Ok(())
-}
-
-pub fn convert_func_name_to_c_function(name: &str) -> String {
-    let mut new_name = String::new();
-    for e in name.chars() {
-        if e == '-' {
-            new_name += "_";
-        } else if !e.is_ascii_alphanumeric() {
-            new_name += &hex::encode(&e.to_string());
-        } else {
-            new_name += &e.to_string();
-        }
-    }
-    new_name
 }
