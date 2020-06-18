@@ -593,7 +593,6 @@ pub fn generate(middle: &mut context::Middle) -> Result<(), Box<dyn std::error::
                 glue_file.write(format!("#define MEMORY{}_DEFINED 1", i).as_str());
                 glue_file.write(format!("void init_memory{}() {{", i).as_str());
                 glue_file.write(format!("memory{} = malloc({});", i, memory_type.limits.initial * 65536).as_str());
-
                 for (j, e) in data.iter().enumerate() {
                     match e.offset {
                         Some(ConstantOperator::I32Const { value }) => {
