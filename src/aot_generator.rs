@@ -452,6 +452,16 @@ fn emit_function_signature(func_type: &wasmparser::FuncType, name: String) -> St
     format!("{} ({}) ({})", return_type, name, fields.join(", ")).to_string()
 }
 
+// Emit memory data with static offset
+fn emit_memory_data_wasm(mi: u32, di: u32, offset: u32, len: u32) -> String {
+    format!("memcpy(memory{} + {}, memory{}_data{}, {});", mi, offset, mi, di, len)
+}
+
+// Emit memory data with extern offset
+fn emit_memory_data_host(mi: u32, di: u32, offset: &str, len: u32) -> String {
+    format!("memcpy(memory{} + {}, memory{}_data{}, {});", mi, offset, mi, di, len)
+}
+
 pub fn generate(middle: &mut context::Middle) -> Result<(), Box<dyn std::error::Error>> {
     let wasm_data: Vec<u8> = std::fs::read(middle.wavm_precompiled_wasm.to_str().unwrap())?;
     let wasm_module = Module::from(wasm_data.clone());
@@ -596,30 +606,16 @@ pub fn generate(middle: &mut context::Middle) -> Result<(), Box<dyn std::error::
                 for (j, e) in data.iter().enumerate() {
                     match e.offset {
                         Some(ConstantOperator::I32Const { value }) => {
-                            let a = format!(
-                                "memcpy(memory{} + {}, memory{}_data{}, {});",
-                                i,
-                                value,
-                                i,
-                                j,
-                                e.init.len()
-                            );
+                            let a = emit_memory_data_wasm(i, j as u32, value as u32, e.init.len() as u32);
                             glue_file.write(a.as_str());
                         }
                         Some(ConstantOperator::GlobalGet { global_index }) => {
-                            let global_instance =
-                                &store.global_list[wasm_instance.global_addr_list[global_index as usize] as usize];
+                            let global_addr = wasm_instance.global_addr_list[global_index as usize];
+                            let global_instance = &store.global_list[global_addr as usize];
                             match global_instance {
                                 GlobalInstance::Wasm { global_type: _, value } => match value {
                                     Value::I32(value) => {
-                                        let a = format!(
-                                            "memcpy(memory{} + {}, memory{}_data{}, {});",
-                                            i,
-                                            value,
-                                            i,
-                                            j,
-                                            e.init.len()
-                                        );
+                                        let a = emit_memory_data_wasm(i, j as u32, *value as u32, e.init.len() as u32);
                                         glue_file.write(a.as_str());
                                     }
                                     _ => panic!("unreachable"),
@@ -628,14 +624,8 @@ pub fn generate(middle: &mut context::Middle) -> Result<(), Box<dyn std::error::
                                     global_type: _,
                                     extern_name,
                                 } => {
-                                    let a = format!(
-                                        "memcpy(memory{} + wavm_{}, memory{}_data{}, {});",
-                                        i,
-                                        extern_name,
-                                        i,
-                                        j,
-                                        e.init.len()
-                                    );
+                                    let offset = format!("wavm_{}", extern_name);
+                                    let a = emit_memory_data_host(i, j as u32, offset.as_str(), e.init.len() as u32);
                                     glue_file.write(a.as_str());
                                 }
                             }
