@@ -237,7 +237,7 @@ enum GlobalInstance {
     },
     Host {
         global_type: wasmparser::GlobalType,
-        extern_name: String,
+        import_name: String,
     },
 }
 
@@ -252,7 +252,7 @@ enum FunctionInstance {
     // A host function is a function expressed outside WebAssembly but passed to a module as an import.
     HostFunc {
         function_type: wasmparser::FuncType,
-        extern_name: String,
+        import_name: String,
     },
 }
 
@@ -267,7 +267,7 @@ enum MemoryInstance {
     Host {
         memory_type: wasmparser::MemoryType,
         data: Vec<Data>,
-        extern_name: String,
+        import_name: String,
     },
 }
 
@@ -282,7 +282,7 @@ enum TableInstance {
     Host {
         table_type: wasmparser::TableType,
         element_list: Vec<Element>,
-        extern_name: String,
+        import_name: String,
     },
 }
 
@@ -343,13 +343,13 @@ impl ModuleInstance {
         module_instance.type_list = module.type_list.clone();
         // Handle import
         for e in &module.import_list {
-            let extern_name = format!("{}_{}", e.module, e.field);
+            let import_name = format!("{}_{}", e.module, e.field);
             match e.ty {
                 wasmparser::ImportSectionEntryType::Function(function_type_index) => {
                     let function_type = &module_instance.type_list[function_type_index as usize];
                     let function_addr = store.allocate_function(FunctionInstance::HostFunc {
                         function_type: function_type.clone(),
-                        extern_name: extern_name,
+                        import_name: import_name,
                     });
                     module_instance.function_addr_list.push(function_addr);
                 }
@@ -357,7 +357,7 @@ impl ModuleInstance {
                     let memory_addr = store.allocate_memory(MemoryInstance::Host {
                         memory_type: memory_type,
                         data: vec![],
-                        extern_name: extern_name,
+                        import_name: import_name,
                     });
                     module_instance.memory_addr_list.push(memory_addr);
                 }
@@ -365,14 +365,14 @@ impl ModuleInstance {
                     let table_addr = store.allocate_table(TableInstance::Host {
                         table_type: table_type,
                         element_list: vec![],
-                        extern_name: extern_name,
+                        import_name: import_name,
                     });
                     module_instance.table_addr_list.push(table_addr);
                 }
                 wasmparser::ImportSectionEntryType::Global(global_type) => {
                     let global_addr = store.allocate_global(GlobalInstance::Host {
                         global_type: global_type,
-                        extern_name: extern_name,
+                        import_name: import_name,
                     });
                     module_instance.global_addr_list.push(global_addr);
                 }
@@ -502,13 +502,8 @@ fn emit_function_signature(func_type: &wasmparser::FuncType, name: String) -> St
     format!("{} ({}) ({})", return_type, name, fields.join(", ")).to_string()
 }
 
-// Emit memory data with static offset.
-fn emit_memory_data_wasm(mi: u32, di: u32, offset: u32, len: u32) -> String {
-    format!("memcpy(memory{} + {}, memory{}_data{}, {});", mi, offset, mi, di, len)
-}
-
-// Emit memory data with extern offset.
-fn emit_memory_data_host(mi: u32, di: u32, offset: &str, len: u32) -> String {
+// Emit memory data with static/dynamic offset.
+fn emit_memory_data(mi: u32, di: u32, offset: &str, len: u32) -> String {
     format!("memcpy(memory{} + {}, memory{}_data{}, {});", mi, offset, mi, di, len)
 }
 
@@ -569,10 +564,10 @@ pub fn generate(middle: &mut context::Middle) -> Result<(), Box<dyn std::error::
             }
             GlobalInstance::Host {
                 global_type,
-                extern_name: extern_name_host,
+                import_name,
             } => {
                 let type_string = emit_type(global_type.content_type.clone());
-                let wavm_name = format!("wavm_{}", extern_name_host);
+                let wavm_name = format!("wavm_{}", import_name);
                 glue_file.write(format!("#define {} {}", wavm_name, extern_name));
                 glue_file.write(format!("extern {} {};", type_string, extern_name));
             }
@@ -598,9 +593,9 @@ pub fn generate(middle: &mut context::Middle) -> Result<(), Box<dyn std::error::
             }
             FunctionInstance::HostFunc {
                 function_type,
-                extern_name,
+                import_name,
             } => {
-                let name = format!("wavm_{}", extern_name);
+                let name = format!("wavm_{}", import_name);
                 let import_symbol = get_external_name("functionImport", host_function_counter);
                 let signature = emit_function_signature(&function_type, import_symbol.clone());
                 glue_file.write(format!("#define {} {}", name, import_symbol));
@@ -620,7 +615,7 @@ pub fn generate(middle: &mut context::Middle) -> Result<(), Box<dyn std::error::
             MemoryInstance::Host {
                 memory_type: _,
                 data,
-                extern_name: _,
+                import_name: _,
             } => {
                 data.push(e);
             }
@@ -633,8 +628,8 @@ pub fn generate(middle: &mut context::Middle) -> Result<(), Box<dyn std::error::
         match memory_instance {
             MemoryInstance::Wasm { memory_type, data } => {
                 glue_file.write(format!("uint8_t* memory{};", i));
-                let a = get_external_name("memoryOffset", i as u32);
-                glue_file.write(format!("struct memory_runtime_data {};", a));
+                let extern_name = get_external_name("memoryOffset", i as u32);
+                glue_file.write(format!("struct memory_instance {};", extern_name));
                 if let Some(x) = memory_type.limits.maximum {
                     glue_file.write(format!("#define MEMORY{}_MAX_PAGE {}", i, x));
                 }
@@ -644,18 +639,14 @@ pub fn generate(middle: &mut context::Middle) -> Result<(), Box<dyn std::error::
                     glue_file.write_array(array, 16);
                     glue_file.write("};");
                 }
-
                 glue_file.write(format!("#define MEMORY{}_DEFINED 1", i));
                 glue_file.write(format!("void init_memory{}() {{", i));
-                glue_file.write(format!(
-                    "memory{} = calloc({}, 1);",
-                    i,
-                    memory_type.limits.initial * 65536
-                ));
+                let memory_size = memory_type.limits.initial * 65536;
+                glue_file.write(format!("memory{} = calloc({}, 1);", i, memory_size));
                 for (j, e) in data.iter().enumerate() {
                     match e.offset {
                         Some(ConstantOperator::I32Const { value }) => {
-                            let a = emit_memory_data_wasm(i, j as u32, value as u32, e.init.len() as u32);
+                            let a = emit_memory_data(i, j as u32, value.to_string().as_str(), e.init.len() as u32);
                             glue_file.write(a);
                         }
                         Some(ConstantOperator::GlobalGet { global_index }) => {
@@ -664,17 +655,20 @@ pub fn generate(middle: &mut context::Middle) -> Result<(), Box<dyn std::error::
                             match global_instance {
                                 GlobalInstance::Wasm { global_type: _, value } => match value {
                                     Value::I32(value) => {
-                                        let a = emit_memory_data_wasm(i, j as u32, *value as u32, e.init.len() as u32);
+                                        let offset = value.to_string();
+                                        let len = e.init.len() as u32;
+                                        let a = emit_memory_data(i, j as u32, offset.as_str(), len);
                                         glue_file.write(a);
                                     }
                                     _ => panic!("unreachable"),
                                 },
                                 GlobalInstance::Host {
                                     global_type: _,
-                                    extern_name,
+                                    import_name,
                                 } => {
-                                    let offset = format!("wavm_{}", extern_name);
-                                    let a = emit_memory_data_host(i, j as u32, offset.as_str(), e.init.len() as u32);
+                                    let offset = format!("wavm_{}", import_name);
+                                    let len = e.init.len() as u32;
+                                    let a = emit_memory_data(i, j as u32, offset.as_str(), len);
                                     glue_file.write(a);
                                 }
                             }
@@ -682,15 +676,15 @@ pub fn generate(middle: &mut context::Middle) -> Result<(), Box<dyn std::error::
                         _ => panic!("unreachable"),
                     }
                 }
-                glue_file.write(format!("memoryOffset{}.base = memory{};", i, i));
-                glue_file.write(format!("memoryOffset{}.num_pages = {};", i, memory_type.limits.initial));
+                glue_file.write(format!("{}.base = memory{};", extern_name, i));
+                glue_file.write(format!("{}.num_pages = {};", extern_name, memory_type.limits.initial));
                 glue_file.write("}");
                 init_function_list.push(format!("init_memory{}", i));
             }
             MemoryInstance::Host {
                 memory_type: _,
                 data: _,
-                extern_name: _,
+                import_name: _,
             } => {
                 // Does it make sense to support it?
             }
@@ -709,7 +703,7 @@ pub fn generate(middle: &mut context::Middle) -> Result<(), Box<dyn std::error::
             TableInstance::Host {
                 table_type: _,
                 element_list,
-                extern_name: _,
+                import_name: _,
             } => {
                 element_list.push(e);
             }
@@ -755,14 +749,14 @@ pub fn generate(middle: &mut context::Middle) -> Result<(), Box<dyn std::error::
                                 },
                                 GlobalInstance::Host {
                                     global_type: _,
-                                    extern_name,
+                                    import_name,
                                 } => {
                                     for (j, item) in e.init.iter().enumerate() {
                                         if let wasmparser::ElementItem::Func(func_index) = item {
                                             space.push(format!(
                                                 "table{}[{} + {}] = ((uintptr_t) ({}));",
                                                 i,
-                                                format!("wavm_{}", extern_name),
+                                                format!("wavm_{}", import_name),
                                                 j,
                                                 get_external_name("functionDef", *func_index as u32)
                                             ));
@@ -798,9 +792,9 @@ pub fn generate(middle: &mut context::Middle) -> Result<(), Box<dyn std::error::
             TableInstance::Host {
                 table_type: _,
                 element_list,
-                extern_name,
+                import_name,
             } => {
-                let name = format!("wavm_{}", extern_name);
+                let name = format!("wavm_{}", import_name);
                 let import_symbol = get_external_name("table", i);
                 glue_file.write(format!("#define {}_length {}_length", name, import_symbol));
                 glue_file.write(format!("extern uint32_t table{}_length;", i));
@@ -825,8 +819,8 @@ pub fn generate(middle: &mut context::Middle) -> Result<(), Box<dyn std::error::
                                     },
                                     GlobalInstance::Host {
                                         global_type: _,
-                                        extern_name,
-                                    } => extern_name.to_string(),
+                                        import_name,
+                                    } => import_name.to_string(),
                                 }
                             }
                             _ => panic!("unreachable"),
