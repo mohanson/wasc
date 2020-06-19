@@ -466,12 +466,14 @@ fn get_external_name(base_name: &str, index: u32) -> String {
 pub fn cnaming(name: &str) -> String {
     let mut new_name = String::new();
     for e in name.chars() {
-        if e == '-' {
-            new_name += "_";
-        } else if !e.is_ascii_alphanumeric() {
-            new_name += &hex::encode(&e.to_string());
-        } else {
+        if e.is_ascii_alphanumeric() {
             new_name += &e.to_string();
+        } else if e == '_' {
+            new_name += "_";
+        } else if e == '-' {
+            new_name += "_";
+        } else {
+            new_name += &hex::encode(&e.to_string());
         }
     }
     new_name

@@ -39,6 +39,14 @@ pub fn compile<P: AsRef<std::path::Path>>(
             rog::debugln!("create {}", path_s.to_str().unwrap());
             std::fs::write(&path_s, &middle.config.platform_posix_x86_64_spectest_runtime)?;
         }
+        context::Platform::PosixX8664Wasi => {
+            let path_header = middle.platform_code_path.join("posix_x86_64_wasi.h");
+            rog::debugln!("create {}", path_header.to_str().unwrap());
+            std::fs::write(&path_header, &middle.config.platform_posix_x86_64_wasi)?;
+            let path_s = middle.platform_code_path.join("posix_x86_64_wasi_runtime.S");
+            rog::debugln!("create {}", path_s.to_str().unwrap());
+            std::fs::write(&path_s, &middle.config.platform_posix_x86_64_wasi_runtime)?;
+        }
         context::Platform::Unknown => {
             // Must specify the target platform in advance, from environment variables, or command line parameters,
             // or guess.
