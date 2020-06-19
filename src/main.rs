@@ -1,6 +1,8 @@
 use wasc::aot_generator;
+use wasc::code_builder;
 use wasc::compile;
 use wasc::context;
+use wasc::dummy;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     rog::reg("wasc");
@@ -23,7 +25,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         rog::println!("wasc: missing file operand");
         std::process::exit(0);
     }
-    rog::debugln!("The wasc cli is work in progress.");
 
     let mut config = context::Config::default();
     config.platform = match platform.as_str() {
@@ -36,12 +37,20 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut middle = compile::compile(&source, config)?;
     aot_generator::generate(&mut middle)?;
 
-    // aot_generator::glue(&mut middle)?;
-    // dummy::init(&mut middle)?;
-    // let mut dummy_file = dummy::CodeBuilder::open(&middle.dummy)?;
-    // dummy_file.write_line(format!("#include \"{}_glue.h\"", middle.file_stem).as_str())?;
-    // dummy_file.write_line("#include \"abi/posix_wasi_abi.h\"")?;
-    // dummy::gcc_build(&middle)?;
+    let ep_path = middle.prog_dir.join(format!("{}.c", middle.file_stem));
+    let mut ep_file = code_builder::CodeBuilder::place(ep_path);
+    let platform_header = match middle.config.platform {
+        context::Platform::PosixX8664 => format!("./{}_platform/posix_x86_64.h", middle.file_stem),
+        context::Platform::PosixX8664Spectest => format!("./{}_platform/posix_x86_64_spectest.h", middle.file_stem),
+        context::Platform::PosixX8664Wasi => format!("./{}_platform/posix_x86_64_wasi.h", middle.file_stem),
+        context::Platform::Unknown => panic!("unreachable"),
+    };
+    ep_file.write(format!("#include \"{}_glue.h\"", middle.file_stem).as_str());
+    ep_file.write(format!("#include \"{}\"", platform_header));
+    ep_file.close()?;
+
+    dummy::init(&mut middle)?;
+    dummy::gcc_build(&middle)?;
 
     Ok(())
 }
