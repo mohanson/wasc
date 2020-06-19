@@ -881,6 +881,7 @@ pub fn generate(middle: &mut context::Middle) -> Result<(), Box<dyn std::error::
     // Emit main function.
     if has_main {
         glue_file.write("int main() {");
+        glue_file.write("init();");
         glue_file.write("wavm_exported_function__start(NULL);");
         glue_file.write("return -1;");
         glue_file.write("}");
