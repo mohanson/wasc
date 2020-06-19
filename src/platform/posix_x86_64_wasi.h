@@ -3,13 +3,13 @@
 #include <stdint.h>
 #include <unistd.h>
 
-#ifndef WAVM_SPECTEST_ABI_H
-#define WAVM_SPECTEST_ABI_H
+#ifndef WAVM_POSIX_X86_64_WASI_H
+#define WAVM_POSIX_X86_64_WASI_H
 
+#define WAVM_PAGE_SIZE 0x10000
 #ifndef MEMORY0_MAX_PAGE
 #define MEMORY0_MAX_PAGE 65536
 #endif /* MEMORY0_MAX_PAGE */
-#define WAVM_PAGE_SIZE 0x10000
 
 #ifdef MEMORY0_DEFINED
 int32_t wavm_intrinsic_memory_grow(void *dummy, int32_t grow_by)
@@ -89,4 +89,4 @@ void *wavm_wasi_unstable_proc_exit(void *dummy, int32_t code)
   return dummy;
 }
 
-#endif /* WAVM_SPECTEST_ABI_H */
+#endif /* WAVM_POSIX_X86_64_WASI_H */
