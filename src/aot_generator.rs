@@ -72,7 +72,7 @@ struct Element {
 
 // The exports component of a module defines a set of exports that become accessible to the host environment once
 // the module has been instantiated.
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 struct Export {
     field: String,
     kind: wasmparser::ExternalKind,
@@ -334,13 +334,14 @@ struct ModuleInstance {
     table_addr_list: Vec<u32>,
     memory_addr_list: Vec<u32>,
     global_addr_list: Vec<u32>,
-    export_list: Vec<u8>,
+    export_list: Vec<Export>,
 }
 
 impl ModuleInstance {
     fn from(module: &Module, store: &mut Store) -> Self {
         let mut module_instance = ModuleInstance::default();
         module_instance.type_list = module.type_list.clone();
+        module_instance.export_list = module.export_list.clone();
         // Handle import
         for e in &module.import_list {
             let import_name = format!("{}_{}", e.module, e.field);
@@ -529,8 +530,6 @@ pub fn generate(middle: &mut context::Middle) -> Result<(), Box<dyn std::error::
 
     let header_id = format!("{}_GLUE_H", file_stem.to_uppercase());
     glue_file.write(format!(include_str!("glue.template"), header_id, header_id));
-
-    let mut has_main = false;
 
     // Emit type.
     for i in 0..wasm_instance.type_list.len() {
@@ -853,8 +852,9 @@ pub fn generate(middle: &mut context::Middle) -> Result<(), Box<dyn std::error::
             }
         }
     }
-    // Emit export
-    for e in wasm_module.export_list {
+    // Emit export.
+    let mut has_main = false;
+    for e in wasm_instance.export_list {
         match e.kind {
             wasmparser::ExternalKind::Function => {
                 glue_file.write(format!(
@@ -862,7 +862,6 @@ pub fn generate(middle: &mut context::Middle) -> Result<(), Box<dyn std::error::
                     cnaming(&e.field),
                     function_name_list[e.index as usize],
                 ));
-
                 if &e.field == "_start" {
                     has_main = true;
                 }
@@ -870,7 +869,7 @@ pub fn generate(middle: &mut context::Middle) -> Result<(), Box<dyn std::error::
             _ => {}
         }
     }
-
+    // Emit init function.
     glue_file.write("void init() {");
     for e in init_function_list {
         glue_file.write(format!("{}();", e));
@@ -879,14 +878,13 @@ pub fn generate(middle: &mut context::Middle) -> Result<(), Box<dyn std::error::
         glue_file.write(format!("{}(NULL);", function_name_list[function_index as usize]));
     }
     glue_file.write("}");
-
+    // Emit main function.
     if has_main {
         glue_file.write("int main() {");
         glue_file.write("wavm_exported_function__start(NULL);");
         glue_file.write("return -1;");
         glue_file.write("}");
     }
-
     glue_file.write(format!("#endif /* {} */", header_id));
     glue_file.close()?;
 
