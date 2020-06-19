@@ -511,24 +511,22 @@ fn emit_memory_data(mi: u32, di: u32, offset: &str, len: u32) -> String {
 }
 
 pub fn generate(middle: &mut context::Middle) -> Result<(), Box<dyn std::error::Error>> {
-    let wasm_data: Vec<u8> = std::fs::read(middle.wavm_precompiled_wasm.to_str().unwrap())?;
+    let wasm_data: Vec<u8> = std::fs::read(middle.path_precompiled.to_str().unwrap())?;
     let wasm_module = Module::from(wasm_data.clone());
     let mut store = Store::default();
     let wasm_instance = ModuleInstance::from(&wasm_module, &mut store);
 
     let file_stem = middle.file_stem.clone();
     // Save precompiled object.
-    let object_path = middle.path_prog.join(file_stem.clone() + ".o");
     let mut object_data: Vec<u8> = vec![];
     for e in wasm_module.custom_list {
         if e.name == "wavm.precompiled_object" {
             object_data.extend_from_slice(&e.data);
         }
     }
-    std::fs::write(&object_path, &object_data)?;
+    std::fs::write(&middle.path_object, &object_data)?;
 
-    let glue_path = middle.path_prog.join(file_stem.clone() + "_glue.h");
-    let mut glue_file = code_builder::CodeBuilder::place(&glue_path);
+    let mut glue_file = code_builder::CodeBuilder::place(&middle.path_glue);
 
     let header_id = format!("{}_GLUE_H", file_stem.to_uppercase());
     glue_file.write(format!(include_str!("glue.template"), header_id, header_id));
@@ -891,7 +889,5 @@ pub fn generate(middle: &mut context::Middle) -> Result<(), Box<dyn std::error::
     glue_file.write(format!("#endif /* {} */", header_id));
     glue_file.close()?;
 
-    middle.aot_object = object_path;
-    middle.aot_glue = glue_path;
     Ok(())
 }

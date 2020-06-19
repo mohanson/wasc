@@ -14,8 +14,7 @@ fn test_spec_single_test<P: AsRef<std::path::Path>>(wasm_path: P) -> Result<i32,
     let mut middle = compile::compile(&wasm_path, config)?;
     aot_generator::generate(&mut middle)?;
 
-    dummy::init(&mut middle)?;
-    let mut dummy_file = code_builder::CodeBuilder::place(&middle.dummy);
+    let mut dummy_file = code_builder::CodeBuilder::place(&middle.path_c);
     dummy_file.write(format!("#include \"{}_glue.h\"", middle.file_stem).as_str());
     dummy_file.write(
         format!(

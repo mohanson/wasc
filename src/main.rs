@@ -37,8 +37,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut middle = compile::compile(&source, config)?;
     aot_generator::generate(&mut middle)?;
 
-    let ep_path = middle.path_prog.join(format!("{}.c", middle.file_stem));
-    let mut ep_file = code_builder::CodeBuilder::place(ep_path);
+    let mut ep_file = code_builder::CodeBuilder::place(&middle.path_c);
     let platform_header = match middle.config.platform {
         context::Platform::PosixX8664 => format!("./{}_platform/posix_x86_64.h", middle.file_stem),
         context::Platform::PosixX8664Spectest => format!("./{}_platform/posix_x86_64_spectest.h", middle.file_stem),
@@ -49,7 +48,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     ep_file.write(format!("#include \"{}\"", platform_header));
     ep_file.close()?;
 
-    dummy::init(&mut middle)?;
     dummy::gcc_build(&middle)?;
 
     Ok(())

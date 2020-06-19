@@ -16,7 +16,7 @@ pub fn compile<P: AsRef<std::path::Path>>(
         .arg("--enable")
         .arg("all")
         .arg(middle.file.clone())
-        .arg(middle.wavm_precompiled_wasm.to_str().unwrap());
+        .arg(middle.path_precompiled.to_str().unwrap());
     cmd_wavm.spawn()?.wait()?;
 
     // Init platform based code.

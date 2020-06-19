@@ -17,8 +17,7 @@ fn test_spec_single_test<P: AsRef<std::path::Path>>(
     let mut middle = compile::compile(&wasm_path, config)?;
     aot_generator::generate(&mut middle)?;
 
-    dummy::init(&mut middle)?;
-    let mut dummy_file = code_builder::CodeBuilder::place(&middle.dummy);
+    let mut dummy_file = code_builder::CodeBuilder::place(&middle.path_c);
     dummy_file.write(format!("#include \"{}_glue.h\"", middle.file_stem).as_str());
     dummy_file.write(
         format!(
@@ -206,7 +205,7 @@ fn test_spec_single_test<P: AsRef<std::path::Path>>(
     dummy::gcc_build(&middle)?;
 
     let exit_status = dummy::run(&middle)?;
-    rog::debugln!("{:?} {}", middle.dummy, exit_status);
+    rog::debugln!("{:?} {}", middle.path_c, exit_status);
     assert!(exit_status.success());
     Ok(())
 }

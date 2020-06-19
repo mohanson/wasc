@@ -1,10 +1,5 @@
 use super::context;
 
-pub fn init(middle: &mut context::Middle) -> Result<(), Box<dyn std::error::Error>> {
-    middle.dummy = middle.path_prog.join(middle.file_stem.clone() + ".c");
-    Ok(())
-}
-
 pub fn gcc_build(middle: &context::Middle) -> Result<(), Box<dyn std::error::Error>> {
     let output_bin = middle
         .path_prog
@@ -17,8 +12,8 @@ pub fn gcc_build(middle: &context::Middle) -> Result<(), Box<dyn std::error::Err
         .arg("-w") // Disable all gcc warnings.
         .arg("-o")
         .arg(output_bin)
-        .arg(middle.aot_object.to_str().unwrap())
-        .arg(middle.dummy.to_str().unwrap());
+        .arg(middle.path_object.to_str().unwrap())
+        .arg(middle.path_c.to_str().unwrap());
     match middle.config.platform {
         context::Platform::PosixX8664 => {
             cmd.arg(
