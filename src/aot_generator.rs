@@ -595,12 +595,11 @@ pub fn generate(middle: &mut context::Middle) -> Result<(), Box<dyn std::error::
                 function_type,
                 import_name,
             } => {
-                let name = format!("wavm_{}", import_name);
-                let import_symbol = get_external_name("functionImport", host_function_counter);
-                let signature = emit_function_signature(&function_type, import_symbol.clone());
-                glue_file.write(format!("#define {} {}", name, import_symbol));
+                let extern_name = get_external_name("functionImport", host_function_counter);
+                let signature = emit_function_signature(&function_type, extern_name.clone());
+                glue_file.write(format!("#define wavm_{} {}", import_name, extern_name));
                 glue_file.write(format!("extern {};", signature));
-                function_name_list.push(name);
+                function_name_list.push(format!("wavm_{}", import_name));
                 host_function_counter += 1
             }
         }
@@ -724,9 +723,13 @@ pub fn generate(middle: &mut context::Middle) -> Result<(), Box<dyn std::error::
                     match e.offset {
                         Some(ConstantOperator::I32Const { value }) => {
                             for (j, item) in e.init.iter().enumerate() {
-                                if let wasmparser::ElementItem::Func(func_index) = item {
-                                    table[value as usize + j] =
-                                        format!("((uintptr_t) ({}))", get_external_name("functionDef", *func_index));
+                                match item {
+                                    wasmparser::ElementItem::Func(func_index) => {
+                                        let extern_name = get_external_name("functionDef", *func_index);
+                                        let table_item = format!("((uintptr_t) ({}))", extern_name);
+                                        table[value as usize + j] = table_item;
+                                    }
+                                    wasmparser::ElementItem::Null => panic!("unreachable"),
                                 }
                             }
                         }
@@ -737,11 +740,13 @@ pub fn generate(middle: &mut context::Middle) -> Result<(), Box<dyn std::error::
                                 GlobalInstance::Wasm { global_type: _, value } => match value {
                                     Value::I32(value) => {
                                         for (j, item) in e.init.iter().enumerate() {
-                                            if let wasmparser::ElementItem::Func(func_index) = item {
-                                                table[*value as usize + j] = format!(
-                                                    "((uintptr_t) ({}))",
-                                                    get_external_name("functionDef", *func_index)
-                                                )
+                                            match item {
+                                                wasmparser::ElementItem::Func(func_index) => {
+                                                    let extern_name = get_external_name("functionDef", *func_index);
+                                                    let table_item = format!("((uintptr_t) ({}))", extern_name);
+                                                    table[*value as usize + j] = table_item;
+                                                }
+                                                wasmparser::ElementItem::Null => panic!("unreachable"),
                                             }
                                         }
                                     }
@@ -752,14 +757,17 @@ pub fn generate(middle: &mut context::Middle) -> Result<(), Box<dyn std::error::
                                     import_name,
                                 } => {
                                     for (j, item) in e.init.iter().enumerate() {
-                                        if let wasmparser::ElementItem::Func(func_index) = item {
-                                            space.push(format!(
-                                                "table{}[{} + {}] = ((uintptr_t) ({}));",
-                                                i,
-                                                format!("wavm_{}", import_name),
-                                                j,
-                                                get_external_name("functionDef", *func_index as u32)
-                                            ));
+                                        match item {
+                                            wasmparser::ElementItem::Func(func_index) => {
+                                                space.push(format!(
+                                                    "table{}[{} + {}] = ((uintptr_t) ({}));",
+                                                    i,
+                                                    format!("wavm_{}", import_name),
+                                                    j,
+                                                    get_external_name("functionDef", *func_index as u32)
+                                                ));
+                                            }
+                                            wasmparser::ElementItem::Null => panic!("unreachable"),
                                         }
                                     }
                                 }
@@ -772,10 +780,8 @@ pub fn generate(middle: &mut context::Middle) -> Result<(), Box<dyn std::error::
                 glue_file.write(format!("uintptr_t table{}[{}] = {{", i, table_type.limits.initial));
                 glue_file.write_array(table, 4);
                 glue_file.write("};");
-
                 glue_file.write(format!("uintptr_t* tableOffset{} = table{};", i, i));
                 glue_file.write(format!("#define TABLE{}_DEFINED 1", i));
-
                 glue_file.write(format!("void init_table{}() {{", i));
                 for e in space {
                     glue_file.write(&e);
@@ -794,17 +800,14 @@ pub fn generate(middle: &mut context::Middle) -> Result<(), Box<dyn std::error::
                 element_list,
                 import_name,
             } => {
-                let name = format!("wavm_{}", import_name);
-                let import_symbol = get_external_name("table", i);
-                glue_file.write(format!("#define {}_length {}_length", name, import_symbol));
+                let extern_name = get_external_name("table", i);
+                glue_file.write(format!("#define wavm_{}_length {}_length", import_name, extern_name));
                 glue_file.write(format!("extern uint32_t table{}_length;", i));
-                glue_file.write(format!("#define {} {}", name, import_symbol));
+                glue_file.write(format!("#define wavm_{} {}", import_name, extern_name));
                 glue_file.write(format!("extern uintptr_t table{}[];", i));
                 glue_file.write(format!("uintptr_t* tableOffset{} = table{};", i, i));
                 glue_file.write(format!("#define TABLE{}_DEFINED 1", i));
-
                 glue_file.write(format!("void init_table{}() {{", i));
-
                 for e in element_list {
                     for (j, item) in e.init.iter().enumerate() {
                         let offset: String = match e.offset {
@@ -820,31 +823,30 @@ pub fn generate(middle: &mut context::Middle) -> Result<(), Box<dyn std::error::
                                     GlobalInstance::Host {
                                         global_type: _,
                                         import_name,
-                                    } => import_name.to_string(),
+                                    } => format!("wavm_{}", import_name),
                                 }
                             }
                             _ => panic!("unreachable"),
                         };
-
-                        if let wasmparser::ElementItem::Func(func_index) = item {
-                            glue_file.write(format!(
-                                "table{}[{} + {}] = ((uintptr_t) ({}));",
-                                i,
-                                offset,
-                                j,
-                                get_external_name("functionDef", *func_index)
-                            ));
+                        match item {
+                            wasmparser::ElementItem::Func(func_index) => {
+                                glue_file.write(format!(
+                                    "table{}[{} + {}] = ((uintptr_t) ({}));",
+                                    i,
+                                    offset,
+                                    j,
+                                    get_external_name("functionDef", *func_index)
+                                ));
+                            }
+                            wasmparser::ElementItem::Null => panic!("unreachable"),
                         }
                     }
                 }
-
                 glue_file.write(format!("for (int i = 0; i < table{}_length; i++) {{", i));
-
                 glue_file.write(format!(
                     "table{}[i] = table{}[i] - ((uintptr_t) &tableReferenceBias) - 0x20;",
                     i, i
                 ));
-
                 glue_file.write("}");
                 glue_file.write("}");
                 init_function_list.push(format!("init_table{}", i));
