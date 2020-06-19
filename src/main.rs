@@ -37,7 +37,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut middle = compile::compile(&source, config)?;
     aot_generator::generate(&mut middle)?;
 
-    let ep_path = middle.prog_dir.join(format!("{}.c", middle.file_stem));
+    let ep_path = middle.path_prog.join(format!("{}.c", middle.file_stem));
     let mut ep_file = code_builder::CodeBuilder::place(ep_path);
     let platform_header = match middle.config.platform {
         context::Platform::PosixX8664 => format!("./{}_platform/posix_x86_64.h", middle.file_stem),

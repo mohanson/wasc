@@ -518,7 +518,7 @@ pub fn generate(middle: &mut context::Middle) -> Result<(), Box<dyn std::error::
 
     let file_stem = middle.file_stem.clone();
     // Save precompiled object.
-    let object_path = middle.prog_dir.join(file_stem.clone() + ".o");
+    let object_path = middle.path_prog.join(file_stem.clone() + ".o");
     let mut object_data: Vec<u8> = vec![];
     for e in wasm_module.custom_list {
         if e.name == "wavm.precompiled_object" {
@@ -527,7 +527,7 @@ pub fn generate(middle: &mut context::Middle) -> Result<(), Box<dyn std::error::
     }
     std::fs::write(&object_path, &object_data)?;
 
-    let glue_path = middle.prog_dir.join(file_stem.clone() + "_glue.h");
+    let glue_path = middle.path_prog.join(file_stem.clone() + "_glue.h");
     let mut glue_file = code_builder::CodeBuilder::place(&glue_path);
 
     let header_id = format!("{}_GLUE_H", file_stem.to_uppercase());
