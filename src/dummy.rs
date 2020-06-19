@@ -34,7 +34,14 @@ pub fn gcc_build(middle: &context::Middle) -> Result<(), Box<dyn std::error::Err
                     .join(format!("{}_platform/posix_x86_64_spectest_runtime.S", middle.file_stem)),
             );
         }
-        _ => unimplemented!(),
+        context::Platform::PosixX8664Wasi => {
+            cmd.arg(
+                middle
+                    .prog_dir
+                    .join(format!("{}_platform/posix_x86_64_wasi_runtime.S", middle.file_stem)),
+            );
+        }
+        _ => panic!("unreachable"),
     }
 
     cmd.spawn()?.wait()?;

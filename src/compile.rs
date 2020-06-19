@@ -26,10 +26,10 @@ pub fn compile<P: AsRef<std::path::Path>>(
         context::Platform::PosixX8664 => {
             let path_header = middle.platform_code_path.join("posix_x86_64.h");
             rog::debugln!("create {}", path_header.to_str().unwrap());
-            std::fs::write(&path_header, &middle.config.platform_posix_x86_64_spectest)?;
+            std::fs::write(&path_header, &middle.config.platform_posix_x86_64)?;
             let path_s = middle.platform_code_path.join("posix_x86_64_runtime.S");
             rog::debugln!("create {}", path_s.to_str().unwrap());
-            std::fs::write(&path_s, &middle.config.platform_posix_x86_64_spectest_runtime)?;
+            std::fs::write(&path_s, &middle.config.platform_posix_x86_64_runtime)?;
         }
         context::Platform::PosixX8664Spectest => {
             let path_header = middle.platform_code_path.join("posix_x86_64_spectest.h");

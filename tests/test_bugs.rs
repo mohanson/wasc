@@ -8,7 +8,7 @@ mod misc;
 
 fn test_spec_single_test<P: AsRef<std::path::Path>>(wasm_path: P) -> Result<i32, Box<dyn std::error::Error>> {
     let mut config = wasc::context::Config::default();
-    config.platform = context::Platform::PosixX8664;
+    config.platform = context::Platform::PosixX8664Spectest;
     config.binary_wavm = String::from("./third_party/WAVM/build/bin/wavm");
 
     let mut middle = compile::compile(&wasm_path, config)?;
@@ -17,7 +17,13 @@ fn test_spec_single_test<P: AsRef<std::path::Path>>(wasm_path: P) -> Result<i32,
     dummy::init(&mut middle)?;
     let mut dummy_file = code_builder::CodeBuilder::place(&middle.dummy);
     dummy_file.write(format!("#include \"{}_glue.h\"", middle.file_stem).as_str());
-    dummy_file.write(format!("#include \"./{}_platform/posix_x86_64.h\"", middle.file_stem.clone()).as_str());
+    dummy_file.write(
+        format!(
+            "#include \"./{}_platform/posix_x86_64_spectest.h\"",
+            middle.file_stem.clone()
+        )
+        .as_str(),
+    );
     dummy_file.write("");
     dummy_file.write("int main() {");
     dummy_file.write("wavm_ret_int32_t wavm_ret = wavm_exported_function_main(NULL);");
