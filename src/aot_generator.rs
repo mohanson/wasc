@@ -533,13 +533,13 @@ pub fn generate(middle: &mut context::Middle) -> Result<(), Box<dyn std::error::
     let mut glue_file = code_builder::CodeBuilder::place(&glue_path);
 
     let header_id = format!("{}_GLUE_H", file_stem.to_uppercase());
-    glue_file.write(format!(include_str!("glue.template"), header_id, header_id).as_str());
+    glue_file.write(format!(include_str!("glue.template"), header_id, header_id));
 
     let mut has_main = false;
 
     // Emit type.
     for i in 0..wasm_instance.type_list.len() {
-        glue_file.write(format!("const uint64_t {} = 0;", get_external_name("typeId", i as u32)).as_str());
+        glue_file.write(format!("const uint64_t {} = 0;", get_external_name("typeId", i as u32)));
     }
     // Emit global.
     for i in &wasm_instance.global_addr_list {
@@ -552,18 +552,18 @@ pub fn generate(middle: &mut context::Middle) -> Result<(), Box<dyn std::error::
                 let mutable_string = if global_type.mutable { "" } else { "const " };
                 match value {
                     Value::I32(v) => {
-                        glue_file.write(format!("{}{} {} = {};", mutable_string, type_string, extern_name, v).as_str());
+                        glue_file.write(format!("{}{} {} = {};", mutable_string, type_string, extern_name, v));
                     }
                     Value::I64(v) => {
-                        glue_file.write(format!("{}{} {} = {};", mutable_string, type_string, extern_name, v).as_str());
+                        glue_file.write(format!("{}{} {} = {};", mutable_string, type_string, extern_name, v));
                     }
                     Value::F32(v) => {
                         let f = unsafe { std::mem::transmute::<u32, f32>(*v).to_string() };
-                        glue_file.write(format!("{}{} {} = {};", mutable_string, type_string, extern_name, f).as_str());
+                        glue_file.write(format!("{}{} {} = {};", mutable_string, type_string, extern_name, f));
                     }
                     Value::F64(v) => {
                         let f = unsafe { std::mem::transmute::<u64, f64>(*v).to_string() };
-                        glue_file.write(format!("{}{} {} = {};", mutable_string, type_string, extern_name, f).as_str());
+                        glue_file.write(format!("{}{} {} = {};", mutable_string, type_string, extern_name, f));
                     }
                 }
             }
@@ -573,8 +573,8 @@ pub fn generate(middle: &mut context::Middle) -> Result<(), Box<dyn std::error::
             } => {
                 let type_string = emit_type(global_type.content_type.clone());
                 let wavm_name = format!("wavm_{}", extern_name_host);
-                glue_file.write(format!("#define {} {}", wavm_name, extern_name).as_str());
-                glue_file.write(format!("extern {} {};", type_string, extern_name).as_str());
+                glue_file.write(format!("#define {} {}", wavm_name, extern_name));
+                glue_file.write(format!("extern {} {};", type_string, extern_name));
             }
         }
     }
@@ -587,9 +587,12 @@ pub fn generate(middle: &mut context::Middle) -> Result<(), Box<dyn std::error::
         match function_instance {
             FunctionInstance::WasmFunc { function_type } => {
                 let name = get_external_name("functionDef", wasm_function_counter);
-                glue_file.write(format!("extern {};", emit_function_signature(&function_type, name.clone())).as_str());
+                glue_file.write(format!(
+                    "extern {};",
+                    emit_function_signature(&function_type, name.clone())
+                ));
                 let a = get_external_name("functionDefMutableDatas", wasm_function_counter);
-                glue_file.write(format!("const uint64_t {} = 0;", a).as_str());
+                glue_file.write(format!("const uint64_t {} = 0;", a));
                 wasm_function_counter += 1;
                 function_name_list.push(name);
             }
@@ -600,8 +603,8 @@ pub fn generate(middle: &mut context::Middle) -> Result<(), Box<dyn std::error::
                 let name = format!("wavm_{}", extern_name);
                 let import_symbol = get_external_name("functionImport", host_function_counter);
                 let signature = emit_function_signature(&function_type, import_symbol.clone());
-                glue_file.write(format!("#define {} {}", name, import_symbol).as_str());
-                glue_file.write(format!("extern {};", signature).as_str());
+                glue_file.write(format!("#define {} {}", name, import_symbol));
+                glue_file.write(format!("extern {};", signature));
                 function_name_list.push(name);
                 host_function_counter += 1
             }
@@ -629,27 +632,31 @@ pub fn generate(middle: &mut context::Middle) -> Result<(), Box<dyn std::error::
         let memory_instance = &store.memory_list[i as usize];
         match memory_instance {
             MemoryInstance::Wasm { memory_type, data } => {
-                glue_file.write(format!("uint8_t* memory{};", i).as_str());
+                glue_file.write(format!("uint8_t* memory{};", i));
                 let a = get_external_name("memoryOffset", i as u32);
-                glue_file.write(format!("struct memory_runtime_data {};", a).as_str());
+                glue_file.write(format!("struct memory_runtime_data {};", a));
                 if let Some(x) = memory_type.limits.maximum {
-                    glue_file.write(format!("#define MEMORY{}_MAX_PAGE {}", i, x).as_str());
+                    glue_file.write(format!("#define MEMORY{}_MAX_PAGE {}", i, x));
                 }
                 for (j, e) in data.iter().enumerate() {
-                    glue_file.write(format!("uint8_t memory{}_data{}[{}] = {{", i, j, e.init.len()).as_str());
+                    glue_file.write(format!("uint8_t memory{}_data{}[{}] = {{", i, j, e.init.len()));
                     let array: Vec<String> = e.init.iter().map(|x| format!("0x{:02x}", x)).collect();
                     glue_file.write_array(array, 16);
                     glue_file.write("};");
                 }
 
-                glue_file.write(format!("#define MEMORY{}_DEFINED 1", i).as_str());
-                glue_file.write(format!("void init_memory{}() {{", i).as_str());
-                glue_file.write(format!("memory{} = calloc({}, 1);", i, memory_type.limits.initial * 65536).as_str());
+                glue_file.write(format!("#define MEMORY{}_DEFINED 1", i));
+                glue_file.write(format!("void init_memory{}() {{", i));
+                glue_file.write(format!(
+                    "memory{} = calloc({}, 1);",
+                    i,
+                    memory_type.limits.initial * 65536
+                ));
                 for (j, e) in data.iter().enumerate() {
                     match e.offset {
                         Some(ConstantOperator::I32Const { value }) => {
                             let a = emit_memory_data_wasm(i, j as u32, value as u32, e.init.len() as u32);
-                            glue_file.write(a.as_str());
+                            glue_file.write(a);
                         }
                         Some(ConstantOperator::GlobalGet { global_index }) => {
                             let global_addr = wasm_instance.global_addr_list[global_index as usize];
@@ -658,7 +665,7 @@ pub fn generate(middle: &mut context::Middle) -> Result<(), Box<dyn std::error::
                                 GlobalInstance::Wasm { global_type: _, value } => match value {
                                     Value::I32(value) => {
                                         let a = emit_memory_data_wasm(i, j as u32, *value as u32, e.init.len() as u32);
-                                        glue_file.write(a.as_str());
+                                        glue_file.write(a);
                                     }
                                     _ => panic!("unreachable"),
                                 },
@@ -668,15 +675,15 @@ pub fn generate(middle: &mut context::Middle) -> Result<(), Box<dyn std::error::
                                 } => {
                                     let offset = format!("wavm_{}", extern_name);
                                     let a = emit_memory_data_host(i, j as u32, offset.as_str(), e.init.len() as u32);
-                                    glue_file.write(a.as_str());
+                                    glue_file.write(a);
                                 }
                             }
                         }
                         _ => panic!("unreachable"),
                     }
                 }
-                glue_file.write(format!("memoryOffset{}.base = memory{};", i, i).as_str());
-                glue_file.write(format!("memoryOffset{}.num_pages = {};", i, memory_type.limits.initial).as_str());
+                glue_file.write(format!("memoryOffset{}.base = memory{};", i, i));
+                glue_file.write(format!("memoryOffset{}.num_pages = {};", i, memory_type.limits.initial));
                 glue_file.write("}");
                 init_function_list.push(format!("init_memory{}", i));
             }
@@ -716,7 +723,7 @@ pub fn generate(middle: &mut context::Middle) -> Result<(), Box<dyn std::error::
                 table_type,
                 element_list,
             } => {
-                glue_file.write(format!("uint32_t table{}_length = {};", i, table_type.limits.initial).as_str());
+                glue_file.write(format!("uint32_t table{}_length = {};", i, table_type.limits.initial));
                 let mut table: Vec<String> = vec!["0".into(); table_type.limits.initial as usize];
                 let mut space: Vec<String> = vec![];
                 for e in element_list {
@@ -768,25 +775,22 @@ pub fn generate(middle: &mut context::Middle) -> Result<(), Box<dyn std::error::
                     }
                 }
 
-                glue_file.write(format!("uintptr_t table{}[{}] = {{", i, table_type.limits.initial).as_str());
+                glue_file.write(format!("uintptr_t table{}[{}] = {{", i, table_type.limits.initial));
                 glue_file.write_array(table, 4);
                 glue_file.write("};");
 
-                glue_file.write(format!("uintptr_t* tableOffset{} = table{};", i, i).as_str());
-                glue_file.write(format!("#define TABLE{}_DEFINED 1", i).as_str());
+                glue_file.write(format!("uintptr_t* tableOffset{} = table{};", i, i));
+                glue_file.write(format!("#define TABLE{}_DEFINED 1", i));
 
-                glue_file.write(format!("void init_table{}() {{", i).as_str());
+                glue_file.write(format!("void init_table{}() {{", i));
                 for e in space {
                     glue_file.write(&e);
                 }
-                glue_file.write(format!("for (int i = 0; i < table{}_length; i++) {{", i).as_str());
-                glue_file.write(
-                    format!(
-                        "table{}[i] = table{}[i] - ((uintptr_t) &tableReferenceBias) - 0x20;",
-                        i, i
-                    )
-                    .as_str(),
-                );
+                glue_file.write(format!("for (int i = 0; i < table{}_length; i++) {{", i));
+                glue_file.write(format!(
+                    "table{}[i] = table{}[i] - ((uintptr_t) &tableReferenceBias) - 0x20;",
+                    i, i
+                ));
                 glue_file.write("}");
                 glue_file.write("}");
                 init_function_list.push(format!("init_table{}", i));
@@ -798,14 +802,14 @@ pub fn generate(middle: &mut context::Middle) -> Result<(), Box<dyn std::error::
             } => {
                 let name = format!("wavm_{}", extern_name);
                 let import_symbol = get_external_name("table", i);
-                glue_file.write(format!("#define {}_length {}_length", name, import_symbol).as_str());
-                glue_file.write(format!("extern uint32_t table{}_length;", i).as_str());
-                glue_file.write(format!("#define {} {}", name, import_symbol).as_str());
-                glue_file.write(format!("extern uintptr_t table{}[];", i).as_str());
-                glue_file.write(format!("uintptr_t* tableOffset{} = table{};", i, i).as_str());
-                glue_file.write(format!("#define TABLE{}_DEFINED 1", i).as_str());
+                glue_file.write(format!("#define {}_length {}_length", name, import_symbol));
+                glue_file.write(format!("extern uint32_t table{}_length;", i));
+                glue_file.write(format!("#define {} {}", name, import_symbol));
+                glue_file.write(format!("extern uintptr_t table{}[];", i));
+                glue_file.write(format!("uintptr_t* tableOffset{} = table{};", i, i));
+                glue_file.write(format!("#define TABLE{}_DEFINED 1", i));
 
-                glue_file.write(format!("void init_table{}() {{", i).as_str());
+                glue_file.write(format!("void init_table{}() {{", i));
 
                 for e in element_list {
                     for (j, item) in e.init.iter().enumerate() {
@@ -829,29 +833,23 @@ pub fn generate(middle: &mut context::Middle) -> Result<(), Box<dyn std::error::
                         };
 
                         if let wasmparser::ElementItem::Func(func_index) = item {
-                            glue_file.write(
-                                format!(
-                                    "table{}[{} + {}] = ((uintptr_t) ({}));",
-                                    i,
-                                    offset,
-                                    j,
-                                    get_external_name("functionDef", *func_index)
-                                )
-                                .as_str(),
-                            );
+                            glue_file.write(format!(
+                                "table{}[{} + {}] = ((uintptr_t) ({}));",
+                                i,
+                                offset,
+                                j,
+                                get_external_name("functionDef", *func_index)
+                            ));
                         }
                     }
                 }
 
-                glue_file.write(format!("for (int i = 0; i < table{}_length; i++) {{", i).as_str());
+                glue_file.write(format!("for (int i = 0; i < table{}_length; i++) {{", i));
 
-                glue_file.write(
-                    format!(
-                        "table{}[i] = table{}[i] - ((uintptr_t) &tableReferenceBias) - 0x20;",
-                        i, i
-                    )
-                    .as_str(),
-                );
+                glue_file.write(format!(
+                    "table{}[i] = table{}[i] - ((uintptr_t) &tableReferenceBias) - 0x20;",
+                    i, i
+                ));
 
                 glue_file.write("}");
                 glue_file.write("}");
@@ -863,14 +861,11 @@ pub fn generate(middle: &mut context::Middle) -> Result<(), Box<dyn std::error::
     for e in wasm_module.export_list {
         match e.kind {
             wasmparser::ExternalKind::Function => {
-                glue_file.write(
-                    format!(
-                        "#define wavm_exported_function_{} {}",
-                        cnaming(&e.field),
-                        function_name_list[e.index as usize],
-                    )
-                    .as_str(),
-                );
+                glue_file.write(format!(
+                    "#define wavm_exported_function_{} {}",
+                    cnaming(&e.field),
+                    function_name_list[e.index as usize],
+                ));
 
                 if &e.field == "_start" {
                     has_main = true;
@@ -882,10 +877,10 @@ pub fn generate(middle: &mut context::Middle) -> Result<(), Box<dyn std::error::
 
     glue_file.write("void init() {");
     for e in init_function_list {
-        glue_file.write(format!("{}();", e).as_str());
+        glue_file.write(format!("{}();", e));
     }
     if let Some(function_index) = wasm_module.start {
-        glue_file.write(format!("{}(NULL);", function_name_list[function_index as usize]).as_str());
+        glue_file.write(format!("{}(NULL);", function_name_list[function_index as usize]));
     }
     glue_file.write("}");
 
@@ -896,7 +891,7 @@ pub fn generate(middle: &mut context::Middle) -> Result<(), Box<dyn std::error::
         glue_file.write("}");
     }
 
-    glue_file.write(format!("#endif /* {} */", header_id).as_str());
+    glue_file.write(format!("#endif /* {} */", header_id));
     glue_file.close()?;
 
     middle.aot_object = object_path;

@@ -21,7 +21,8 @@ impl CodeBuilder {
     }
 
     // Function write will add indent and "\n" automatically.
-    pub fn write(&mut self, line: &str) {
+    pub fn write<P: AsRef<str>>(&mut self, line: P) {
+        let line = line.as_ref();
         if line == "}" || line == "};" {
             self.head_whitespace -= 2;
             self.data += &" ".repeat(self.head_whitespace);
@@ -41,10 +42,11 @@ impl CodeBuilder {
     }
 
     // Building human-friendly arrays.
-    pub fn write_array(&mut self, a: Vec<String>, lbreak: u32) {
+    pub fn write_array<P: AsRef<str>>(&mut self, a: Vec<P>, lbreak: u32) {
         let mut l = String::new();
         let mut c: u32 = 0;
         for (i, e) in a.iter().enumerate() {
+            let e = e.as_ref();
             l += e;
             c += 1;
             if i != a.len() - 1 {
