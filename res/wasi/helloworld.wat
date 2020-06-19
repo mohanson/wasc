@@ -5,7 +5,7 @@
   (import "wasi_unstable" "proc_exit" (func $wasi_proc_exit (param i32)))
 
   (memory (export "memory") 1)
-  
+
   ;; The iovec that is passed to fd_write.
   (data (i32.const 8)
     "\10\00\00\00" ;; buf = 16
