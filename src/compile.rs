@@ -21,7 +21,7 @@ pub fn compile<P: AsRef<std::path::Path>>(
 
     // Init platform based code.
     rog::debugln!("create {}", middle.path_platform_code_folder.to_str().unwrap());
-    std::fs::create_dir(&middle.path_platform_code_folder)?;
+    if let Ok(()) = std::fs::create_dir(&middle.path_platform_code_folder) {}
     match middle.config.platform {
         context::Platform::PosixX8664 => {
             rog::debugln!("create {:?}", middle.path_platform_header);
