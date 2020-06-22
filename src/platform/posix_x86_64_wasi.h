@@ -1,9 +1,10 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdint.h>
+#include <unistd.h>
 
-#ifndef WAVM_POSIX_X86_64_SPECTEST_H
-#define WAVM_POSIX_X86_64_SPECTEST_H
+#ifndef WAVM_POSIX_X86_64_WASI_H
+#define WAVM_POSIX_X86_64_WASI_H
 
 #define WAVM_PAGE_SIZE 0x10000
 #ifndef MEMORY0_MAX_PAGE
@@ -58,31 +59,34 @@ void invalidFloatOperationTrap()
   exit(252);
 }
 
-int32_t wavm_spectest_global_i32 = 42;
-float wavm_spectest_global_f32 = 42.0;
-double wavm_spectest_global_f64 = 420;
-
-uint32_t wavm_spectest_table_length = 10;
-uintptr_t wavm_spectest_table[10] = {};
-
-void *wavm_spectest_print_i32(void *dummy, int32_t i)
+wavm_ret_int32_t wavm_wasi_unstable_fd_write(void *dummy, int32_t fd, int32_t address, int32_t num, int32_t written_bytes_address)
 {
-  printf("wavm_spectest_print_i32 %d\n", i);
+  (void)dummy;
+
+  int32_t written_bytes = 0;
+  for (int32_t i = 0; i < num; i++)
+  {
+    uint32_t buffer_address = *((uint32_t *)&memoryOffset0.base[address + i * 8]);
+    uint8_t *buf = &memoryOffset0.base[buffer_address];
+    uint32_t buffer_length = *((uint32_t *)&memoryOffset0.base[address + i * 8 + 4]);
+
+    int32_t written = write(fd, buf, buffer_length);
+    written_bytes += written;
+  }
+  if (written_bytes_address != 0)
+  {
+    *((uint32_t *)&memoryOffset0.base[written_bytes_address]) = written_bytes;
+  }
+  wavm_ret_int32_t ret;
+  ret.dummy = dummy;
+  ret.value = 0;
+  return ret;
 }
 
-void *wavm_exported_function_print32(void *dummy, int32_t i)
+void *wavm_wasi_unstable_proc_exit(void *dummy, int32_t code)
 {
-  printf("wavm_exported_function_print32 %d\n", i);
+  exit(code);
+  return dummy;
 }
 
-void *wavm_exported_function_print64(void *dummy, int64_t i)
-{
-  printf("wavm_exported_function_print64 %ld\n", i);
-}
-
-void *wavm_spectest_print(void *dummy)
-{
-  printf("wavm_spectest_print");
-}
-
-#endif /* WAVM_POSIX_X86_64_SPECTEST_H */
+#endif /* WAVM_POSIX_X86_64_WASI_H */

@@ -17,19 +17,15 @@ fn test_spec_single_test<P: AsRef<std::path::Path>>(
     let mut middle = compile::compile(&wasm_path, config)?;
     aot_generator::generate(&mut middle)?;
 
-    dummy::init(&mut middle)?;
-    let mut dummy_file = code_builder::CodeBuilder::place(&middle.dummy);
-    dummy_file.write(format!("#include \"{}_glue.h\"", middle.file_stem).as_str());
-    dummy_file.write(
-        format!(
-            "#include \"./{}_platform/posix_x86_64_spectest.h\"",
-            middle.file_stem.clone()
-        )
-        .as_str(),
-    );
-    dummy_file.write("");
-    dummy_file.write("int main() {");
-    dummy_file.write("init();");
+    let mut ep_file = code_builder::CodeBuilder::place(&middle.path_c);
+    ep_file.write(format!("#include \"{}_glue.h\"", middle.file_stem).as_str());
+    ep_file.write(format!(
+        "#include \"./{}_platform/posix_x86_64_spectest.h\"",
+        &middle.file_stem
+    ));
+    ep_file.write("");
+    ep_file.write("int main() {");
+    ep_file.write("init();");
     let mut wavm_ret_index = 1;
     let mut uint32_t_index = 1;
     let mut uint64_t_index = 1;
@@ -55,22 +51,24 @@ fn test_spec_single_test<P: AsRef<std::path::Path>>(
                                     args_with_null.push(e["value"].as_str().unwrap().to_string());
                                 }
                                 "f32" => {
-                                    dummy_file.write(
-                                        format!("uint32_t u32_{} = {};", uint32_t_index, e["value"].as_str().unwrap())
-                                            .as_str(),
-                                    );
+                                    ep_file.write(format!(
+                                        "uint32_t u32_{} = {};",
+                                        uint32_t_index,
+                                        e["value"].as_str().unwrap()
+                                    ));
                                     args_with_null.push(format!("*(float *)&u32_{}", uint32_t_index));
                                     uint32_t_index += 1;
                                 }
                                 "f64" => {
-                                    dummy_file.write(
-                                        format!("uint64_t u64_{} = {};", uint64_t_index, e["value"].as_str().unwrap())
-                                            .as_str(),
-                                    );
+                                    ep_file.write(format!(
+                                        "uint64_t u64_{} = {};",
+                                        uint64_t_index,
+                                        e["value"].as_str().unwrap()
+                                    ));
                                     args_with_null.push(format!("*(double *)&u64_{}", uint64_t_index));
                                     uint64_t_index += 1;
                                 }
-                                _ => unimplemented!(),
+                                _ => panic!("unreachable"),
                             }
                         }
 
@@ -82,98 +80,74 @@ fn test_spec_single_test<P: AsRef<std::path::Path>>(
                                 "f64" => "wavm_ret_double",
                                 _ => unimplemented!(),
                             };
-                            dummy_file.write(
-                                format!(
-                                    "{} wavm_ret{} = wavm_exported_function_{}({});",
-                                    rttype,
-                                    wavm_ret_index,
-                                    aot_generator::convert_func_name_to_c_function(field),
-                                    args_with_null.join(",")
-                                )
-                                .as_str(),
-                            );
+                            ep_file.write(format!(
+                                "{} wavm_ret{} = wavm_exported_function_{}({});",
+                                rttype,
+                                wavm_ret_index,
+                                aot_generator::cnaming(field),
+                                args_with_null.join(",")
+                            ));
 
                             match expected[0]["type"].as_str().unwrap() {
                                 "i32" => {
-                                    dummy_file.write(
-                                        format!(
-                                            "if (*(uint32_t *)&wavm_ret{}.value != {}) {{",
-                                            wavm_ret_index,
-                                            expected[0]["value"].as_str().unwrap()
-                                        )
-                                        .as_str(),
-                                    );
+                                    ep_file.write(format!(
+                                        "if (*(uint32_t *)&wavm_ret{}.value != {}) {{",
+                                        wavm_ret_index,
+                                        expected[0]["value"].as_str().unwrap()
+                                    ));
                                 }
                                 "i64" => {
-                                    dummy_file.write(
-                                        format!(
-                                            "if (*(uint64_t *)&wavm_ret{}.value != {}) {{",
-                                            wavm_ret_index,
-                                            expected[0]["value"].as_str().unwrap()
-                                        )
-                                        .as_str(),
-                                    );
+                                    ep_file.write(format!(
+                                        "if (*(uint64_t *)&wavm_ret{}.value != {}) {{",
+                                        wavm_ret_index,
+                                        expected[0]["value"].as_str().unwrap()
+                                    ));
                                 }
                                 "f32" => {
                                     let r_str: &str = expected[0]["value"].as_str().unwrap();
                                     if r_str.starts_with("nan") {
-                                        dummy_file.write(
-                                            format!(
-                                                "if (wavm_ret{}.value == wavm_ret{}.value) {{",
-                                                wavm_ret_index, wavm_ret_index,
-                                            )
-                                            .as_str(),
-                                        );
+                                        ep_file.write(format!(
+                                            "if (wavm_ret{}.value == wavm_ret{}.value) {{",
+                                            wavm_ret_index, wavm_ret_index,
+                                        ));
                                     } else {
-                                        dummy_file.write(
-                                            format!(
-                                                "if (*(uint32_t *)&wavm_ret{}.value != {}) {{",
-                                                wavm_ret_index,
-                                                expected[0]["value"].as_str().unwrap()
-                                            )
-                                            .as_str(),
-                                        );
+                                        ep_file.write(format!(
+                                            "if (*(uint32_t *)&wavm_ret{}.value != {}) {{",
+                                            wavm_ret_index,
+                                            expected[0]["value"].as_str().unwrap()
+                                        ));
                                     }
                                 }
                                 "f64" => {
                                     let r_str: &str = expected[0]["value"].as_str().unwrap();
                                     if r_str.starts_with("nan") {
-                                        dummy_file.write(
-                                            format!(
-                                                "if (wavm_ret{}.value == wavm_ret{}.value) {{",
-                                                wavm_ret_index, wavm_ret_index,
-                                            )
-                                            .as_str(),
-                                        );
+                                        ep_file.write(format!(
+                                            "if (wavm_ret{}.value == wavm_ret{}.value) {{",
+                                            wavm_ret_index, wavm_ret_index,
+                                        ));
                                     } else {
-                                        dummy_file.write(
-                                            format!(
-                                                "if (*(uint64_t *)&wavm_ret{}.value != {}) {{",
-                                                wavm_ret_index,
-                                                expected[0]["value"].as_str().unwrap(),
-                                            )
-                                            .as_str(),
-                                        );
+                                        ep_file.write(format!(
+                                            "if (*(uint64_t *)&wavm_ret{}.value != {}) {{",
+                                            wavm_ret_index,
+                                            expected[0]["value"].as_str().unwrap(),
+                                        ));
                                     }
                                 }
-                                _ => unimplemented!(),
+                                _ => panic!("unreachable"),
                             }
-                            dummy_file.write(format!("return {};", wavm_ret_index).as_str());
-                            dummy_file.write("}");
+                            ep_file.write(format!("return {};", wavm_ret_index));
+                            ep_file.write("}");
                             wavm_ret_index += 1;
                         } else {
-                            dummy_file.write(
-                                format!(
-                                    "wavm_exported_function_{}({});",
-                                    aot_generator::convert_func_name_to_c_function(field),
-                                    args_with_null.join(", ")
-                                )
-                                .as_str(),
-                            );
+                            ep_file.write(format!(
+                                "wavm_exported_function_{}({});",
+                                aot_generator::cnaming(field),
+                                args_with_null.join(", ")
+                            ));
                         }
-                        dummy_file.write("");
+                        ep_file.write("");
                     }
-                    _ => unimplemented!(),
+                    _ => panic!("unreachable"),
                 }
             }
             "assert_trap" => {
@@ -200,13 +174,12 @@ fn test_spec_single_test<P: AsRef<std::path::Path>>(
             _ => unimplemented!(),
         }
     }
-    dummy_file.write("}");
-    dummy_file.close()?;
+    ep_file.write("}");
+    ep_file.close()?;
 
     dummy::gcc_build(&middle)?;
-
     let exit_status = dummy::run(&middle)?;
-    rog::debugln!("{:?} {}", middle.dummy, exit_status);
+    rog::debugln!("{:?} {}", middle.path_c, exit_status);
     assert!(exit_status.success());
     Ok(())
 }

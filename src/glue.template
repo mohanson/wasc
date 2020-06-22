@@ -26,10 +26,10 @@ typedef struct {{
   double value;
 }} wavm_ret_double;
 
-typedef struct memory_runtime_data {{
+typedef struct memory_instance {{
   uint8_t* base;
   uint64_t num_pages;
-}} memory_runtime_data;
+}} memory_instance;
 
 const uint64_t functionDefMutableData = 0;
 const uint64_t biasedInstanceId = 0;
