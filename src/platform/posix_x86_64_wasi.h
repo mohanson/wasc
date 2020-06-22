@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <stdint.h>
 #include <unistd.h>
+#include <string.h>
 
 #ifndef WAVM_POSIX_X86_64_WASI_H
 #define WAVM_POSIX_X86_64_WASI_H
@@ -57,6 +58,46 @@ void divideByZeroOrIntegerOverflowTrap()
 void invalidFloatOperationTrap()
 {
   exit(252);
+}
+
+wavm_ret_int32_t wavm_wasi_unstable_args_sizes_get(void *dummy, int32_t argc_address, int32_t arg_buf_size_address)
+{
+  (void)dummy;
+
+  int32_t num_arg_buffer_bytes = 0;
+  for (int32_t i = 0; i < g_argc; i++)
+  {
+    num_arg_buffer_bytes = num_arg_buffer_bytes + strlen(g_argv[i]) + 1;
+  }
+  *((uint32_t *)&memoryOffset0.base[argc_address]) = g_argc;
+  *((uint32_t *)&memoryOffset0.base[arg_buf_size_address]) = num_arg_buffer_bytes;
+
+  wavm_ret_int32_t ret;
+  ret.dummy = dummy;
+  ret.value = 0;
+  return ret;
+}
+
+wavm_ret_int32_t wavm_wasi_unstable_args_get(void *dummy, int32_t argv_address, int32_t arg_buf_address)
+{
+  (void)dummy;
+
+  int32_t next_arg_buf_address = arg_buf_address;
+  for (int32_t i = 0; i < g_argc; ++i)
+  {
+    char *arg = g_argv[i];
+    int32_t num_arg_bytes = strlen(arg) + 1;
+    if (num_arg_bytes > 0)
+    {
+      memcpy(&memoryOffset0.base[next_arg_buf_address], arg, num_arg_bytes);
+    }
+    *((uint32_t *)&memoryOffset0.base[argv_address + i * 4]) = next_arg_buf_address;
+    next_arg_buf_address += num_arg_bytes;
+  }
+  wavm_ret_int32_t ret;
+  ret.dummy = dummy;
+  ret.value = 0;
+  return ret;
 }
 
 wavm_ret_int32_t wavm_wasi_unstable_fd_write(void *dummy, int32_t fd, int32_t address, int32_t num, int32_t written_bytes_address)

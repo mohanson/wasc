@@ -880,7 +880,11 @@ pub fn generate(middle: &mut context::Middle) -> Result<(), Box<dyn std::error::
     glue_file.write("}");
     // Emit main function.
     if has_main {
-        glue_file.write("int main() {");
+        glue_file.write("int32_t g_argc;");
+        glue_file.write("char **g_argv;");
+        glue_file.write("int main(int argc, char *argv[]) {");
+        glue_file.write("g_argc = argc;");
+        glue_file.write("g_argv = argv;");
         glue_file.write("init();");
         glue_file.write("wavm_exported_function__start(NULL);");
         glue_file.write("return -1;");
