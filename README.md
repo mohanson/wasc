@@ -4,6 +4,8 @@
 
 Inspired by xuejie's [article](https://xuejie.space/2020_03_03_introduction_to_ckb_script_programming_performant_wasm/), and completed the subsequent work.
 
+**It is still in the early development stage, so the code and documentation may be changed arbitrarily.**
+
 # Build and test
 
 WASC uses [WAVM](https://github.com/WAVM/WAVM) and [LLVM-9](https://llvm.org/) to compile WebAssembly code to machine code. It has no runtime, which means that the compilation result is just a binary file that can be run separately.
