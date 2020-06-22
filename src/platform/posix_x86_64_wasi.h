@@ -87,12 +87,51 @@ wavm_ret_int32_t wavm_wasi_unstable_args_get(void *dummy, int32_t argv_address, 
   {
     char *arg = g_argv[i];
     int32_t num_arg_bytes = strlen(arg) + 1;
-    if (num_arg_bytes > 0)
-    {
-      memcpy(&memoryOffset0.base[next_arg_buf_address], arg, num_arg_bytes);
-    }
+    memcpy(&memoryOffset0.base[next_arg_buf_address], arg, num_arg_bytes);
     *((uint32_t *)&memoryOffset0.base[argv_address + i * 4]) = next_arg_buf_address;
     next_arg_buf_address += num_arg_bytes;
+  }
+  wavm_ret_int32_t ret;
+  ret.dummy = dummy;
+  ret.value = 0;
+  return ret;
+}
+
+extern char **environ;
+
+wavm_ret_int32_t wavm_wasi_unstable_environ_sizes_get(void *dummy, int32_t env_count_address, int32_t env_buf_size_address)
+{
+  (void)dummy;
+
+  int32_t num_env_buffer_bytes = 0;
+  int32_t envc = 0;
+  for (char **ep = environ; *ep != NULL; ep++)
+  {
+    envc++;
+    num_env_buffer_bytes = num_env_buffer_bytes + strlen(*ep) + 1;
+  }
+  *((uint32_t *)&memoryOffset0.base[env_count_address]) = envc;
+  *((uint32_t *)&memoryOffset0.base[env_buf_size_address]) = num_env_buffer_bytes;
+  wavm_ret_int32_t ret;
+  ret.dummy = dummy;
+  ret.value = 0;
+  return ret;
+}
+
+wavm_ret_int32_t wavm_wasi_unstable_environ_get(void *dummy, int32_t env_address, int32_t env_buf_address)
+{
+  (void)dummy;
+
+  int32_t next_env_buf_address = env_buf_address;
+  int32_t i = 0;
+  for (char **ep = environ; *ep != NULL; ep++)
+  {
+    char *env = *ep;
+    int32_t num_env_bytes = strlen(env) + 1;
+    memcpy(&memoryOffset0.base[next_env_buf_address], env, num_env_bytes);
+    *((uint32_t *)&memoryOffset0.base[env_address + i * 4]) = next_env_buf_address;
+    next_env_buf_address += num_env_bytes;
+    ++i;
   }
   wavm_ret_int32_t ret;
   ret.dummy = dummy;
