@@ -22,6 +22,9 @@
 #ifdef MEMORY0_DEFINED
 int32_t wavm_intrinsic_memory_grow(void *dummy, int32_t grow_by)
 {
+#ifdef DEBUG
+  printf("wavm_intrinsic_memory_grow\n");
+#endif
   if (grow_by == 0)
   {
     return memoryOffset0.num_pages;
@@ -43,27 +46,42 @@ int32_t wavm_intrinsic_memory_grow(void *dummy, int32_t grow_by)
 #else
 int32_t wavm_intrinsic_memory_grow(void *dummy, int32_t grow_by)
 {
+#ifdef DEBUG
+  printf("wavm_intrinsic_memory_grow\n");
+#endif
   return -1;
 }
 #endif
 
 void callIndirectFail()
 {
+#ifdef DEBUG
+  printf("callIndirectFail\n");
+#endif
   exit(255);
 }
 
 void unreachableTrap()
 {
+#ifdef DEBUG
+  printf("unreachableTrap\n");
+#endif
   exit(254);
 }
 
 void divideByZeroOrIntegerOverflowTrap()
 {
+#ifdef DEBUG
+  printf("divideByZeroOrIntegerOverflowTrap\n");
+#endif
   exit(253);
 }
 
 void invalidFloatOperationTrap()
 {
+#ifdef DEBUG
+  printf("wavm_wasi_unstable_args_get\n");
+#endif
   exit(252);
 }
 
@@ -515,7 +533,7 @@ wavm_ret_int32_t pack_errno(void *dummy, int32_t value)
 wavm_ret_int32_t wavm_wasi_unstable_args_sizes_get(void *dummy, int32_t argc_address, int32_t arg_buf_size_address)
 {
   (void)dummy;
-#ifdef DEBUG:
+#ifdef DEBUG
   printf("wavm_wasi_unstable_args_sizes_get\n");
 #endif
   int32_t num_arg_buffer_bytes = 0;
@@ -531,7 +549,7 @@ wavm_ret_int32_t wavm_wasi_unstable_args_sizes_get(void *dummy, int32_t argc_add
 wavm_ret_int32_t wavm_wasi_unstable_args_get(void *dummy, int32_t argv_address, int32_t arg_buf_address)
 {
   (void)dummy;
-#ifdef DEBUG:
+#ifdef DEBUG
   printf("wavm_wasi_unstable_args_get\n");
 #endif
   int32_t next_arg_buf_address = arg_buf_address;
@@ -551,7 +569,7 @@ extern char **environ;
 wavm_ret_int32_t wavm_wasi_unstable_environ_sizes_get(void *dummy, int32_t env_count_address, int32_t env_buf_size_address)
 {
   (void)dummy;
-#ifdef DEBUG:
+#ifdef DEBUG
   printf("wavm_wasi_unstable_environ_sizes_get\n");
 #endif
   int32_t num_env_buffer_bytes = 0;
@@ -569,7 +587,7 @@ wavm_ret_int32_t wavm_wasi_unstable_environ_sizes_get(void *dummy, int32_t env_c
 wavm_ret_int32_t wavm_wasi_unstable_environ_get(void *dummy, int32_t env_address, int32_t env_buf_address)
 {
   (void)dummy;
-#ifdef DEBUG:
+#ifdef DEBUG
   printf("wavm_wasi_unstable_environ_get\n");
 #endif
   int32_t next_env_buf_address = env_buf_address;
@@ -589,7 +607,7 @@ wavm_ret_int32_t wavm_wasi_unstable_environ_get(void *dummy, int32_t env_address
 wavm_ret_int32_t wavm_wasi_unstable_clock_res_get(void *dummy, uint32_t clock_id, uint32_t resolution_address)
 {
   (void)dummy;
-#ifdef DEBUG:
+#ifdef DEBUG
   printf("wavm_wasi_unstable_clock_res_get\n");
 #endif
   struct timespec tp;
@@ -604,7 +622,7 @@ wavm_ret_int32_t wavm_wasi_unstable_clock_res_get(void *dummy, uint32_t clock_id
 wavm_ret_int32_t wavm_wasi_unstable_clock_time_get(void *dummy, uint32_t clock_id, uint64_t precision, uint32_t time_address)
 {
   (void)dummy;
-#ifdef DEBUG:
+#ifdef DEBUG
   printf("wavm_wasi_unstable_clock_time_get\n");
 #endif
   struct timespec tp;
@@ -622,7 +640,7 @@ void *wavm_wasi_unstable_fd_allocate(void *dummy) {}
 wavm_ret_int32_t wavm_wasi_unstable_fd_close(void *dummy, int32_t fd)
 {
   (void)dummy;
-#ifdef DEBUG:
+#ifdef DEBUG
   printf("wavm_wasi_unstable_fd_close\n");
 #endif
   int32_t r = close(fd);
@@ -638,7 +656,7 @@ void *wavm_wasi_unstable_fd_datasync(void *dummy) {}
 wavm_ret_int32_t wavm_wasi_unstable_fd_fdstat_get(void *dummy, int32_t fd, int32_t fdstat_address)
 {
   (void)dummy;
-#ifdef DEBUG:
+#ifdef DEBUG
   printf("wavm_wasi_unstable_fd_fdstat_get\n");
 #endif
   struct stat fd_status;
@@ -721,7 +739,7 @@ void *wavm_wasi_unstable_fd_renumber(void *dummy) {}
 wavm_ret_int32_t wavm_wasi_unstable_fd_seek(void *dummy, int32_t fd, int64_t offset, int32_t whence, int32_t new_offset_address)
 {
   (void)dummy;
-#ifdef DEBUG:
+#ifdef DEBUG
   printf("wavm_wasi_unstable_fd_seek\n");
 #endif
   off_t result = lseek(fd, (off_t)offset, whence);
@@ -742,7 +760,7 @@ void *wavm_wasi_unstable_fd_tell(void *dummy) {}
 wavm_ret_int32_t wavm_wasi_unstable_fd_write(void *dummy, int32_t fd, int32_t address, int32_t num, int32_t written_bytes_address)
 {
   (void)dummy;
-#ifdef DEBUG:
+#ifdef DEBUG
   printf("wavm_wasi_unstable_fd_write\n");
 #endif
   int32_t written_bytes = 0;
@@ -776,7 +794,7 @@ void *wavm_wasi_unstable_path_unlink_file(void *dummy) {}
 void *wavm_wasi_unstable_poll_oneoff(void *dummy) {}
 void *wavm_wasi_unstable_proc_exit(void *dummy, int32_t code)
 {
-#ifdef DEBUG:
+#ifdef DEBUG
   printf("wavm_wasi_unstable_proc_exit\n");
 #endif
   exit(code);
