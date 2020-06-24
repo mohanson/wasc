@@ -322,7 +322,10 @@ wavm_ret_int32_t wavm_wasi_unstable_fd_close(void *dummy, int32_t fd)
 
 void *wavm_wasi_unstable_fd_datasync(void *dummy) {}
 
-void *wavm_wasi_unstable_fd_fdstat_get(void *dummy) {}
+wavm_ret_int32_t wavm_wasi_unstable_fd_fdstat_get(void *dummy, int32_t fd, int32_t fdstat_address)
+{
+  return pack_errno(dummy, 0);
+}
 
 void *wavm_wasi_unstable_fd_fdstat_set_flags(void *dummy) {}
 void *wavm_wasi_unstable_fd_fdstat_set_rights(void *dummy) {}
