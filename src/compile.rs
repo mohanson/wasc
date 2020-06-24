@@ -17,37 +17,39 @@ pub fn compile<P: AsRef<std::path::Path>>(
         .arg("all")
         .arg(middle.file.clone())
         .arg(middle.path_precompiled.to_str().unwrap());
-    cmd_wavm.spawn()?.wait()?;
-
+    let exit_status = cmd_wavm.spawn()?.wait()?;
+    if !exit_status.success() {
+        std::process::exit(exit_status.code().unwrap());
+    }
     // Init platform based code.
     rog::debugln!("create {}", middle.path_platform_code_folder.to_str().unwrap());
     if let Ok(()) = std::fs::create_dir(&middle.path_platform_code_folder) {}
     match middle.config.platform {
         context::Platform::PosixX8664 => {
-            rog::debugln!("create {:?}", middle.path_platform_header);
+            rog::debugln!("create {}", middle.path_platform_header.to_str().unwrap());
             std::fs::write(&middle.path_platform_header, &middle.config.platform_posix_x86_64)?;
-            rog::debugln!("create {:?}", middle.path_platform_s);
+            rog::debugln!("create {}", middle.path_platform_s.to_str().unwrap());
             std::fs::write(
                 &middle.path_platform_header,
                 &middle.config.platform_posix_x86_64_runtime,
             )?;
         }
         context::Platform::PosixX8664Spectest => {
-            rog::debugln!("create {:?}", middle.path_platform_header);
+            rog::debugln!("create {}", middle.path_platform_header.to_str().unwrap());
             std::fs::write(
                 &middle.path_platform_header,
                 &middle.config.platform_posix_x86_64_spectest,
             )?;
-            rog::debugln!("create {:?}", middle.path_platform_s);
+            rog::debugln!("create {}", middle.path_platform_s.to_str().unwrap());
             std::fs::write(
                 &middle.path_platform_s,
                 &middle.config.platform_posix_x86_64_spectest_runtime,
             )?;
         }
         context::Platform::PosixX8664Wasi => {
-            rog::debugln!("create {:?}", middle.path_platform_header);
+            rog::debugln!("create {}", middle.path_platform_header.to_str().unwrap());
             std::fs::write(&middle.path_platform_header, &middle.config.platform_posix_x86_64_wasi)?;
-            rog::debugln!("create {:?}", middle.path_platform_s);
+            rog::debugln!("create {}", middle.path_platform_s.to_str().unwrap());
             std::fs::write(
                 &middle.path_platform_s,
                 &middle.config.platform_posix_x86_64_wasi_runtime,

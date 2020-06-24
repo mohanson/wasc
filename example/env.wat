@@ -5,25 +5,25 @@
   (type (;3;) (func (result i32)))
   (type (;4;) (func (param i32) (result i32)))
   (type (;5;) (func (param i32 i32 i32) (result i32)))
-  (import "wasi_unstable" "proc_exit" (func $__wasi_proc_exit (type 0)))
-  (import "wasi_unstable" "environ_sizes_get" (func $__wasi_environ_sizes_get (type 1)))
-  (import "wasi_unstable" "environ_get" (func $__wasi_environ_get (type 1)))
-  (func $__wasm_call_ctors (type 2))
-  (func $_start (type 2)
+  (import "wasi_unstable" "proc_exit" (func (;0;) (type 0)))
+  (import "wasi_unstable" "environ_sizes_get" (func (;1;) (type 1)))
+  (import "wasi_unstable" "environ_get" (func (;2;) (type 1)))
+  (func (;3;) (type 2))
+  (func (;4;) (type 2)
     (local i32)
-    call $__wasm_call_ctors
-    call $__original_main
+    call 3
+    call 5
     local.set 0
-    call $__prepare_for_exit
+    call 8
     block  ;; label = @1
       local.get 0
       i32.eqz
       br_if 0 (;@1;)
       local.get 0
-      call $__wasi_proc_exit
+      call 0
       unreachable
     end)
-  (func $__original_main (type 3) (result i32)
+  (func (;5;) (type 3) (result i32)
     (local i32 i32 i32 i32 i32 i32 i32 i32 i32 i32 i32 i32 i32 i32 i32 i32 i32 i32 i32 i32 i32)
     global.get 0
     local.set 0
@@ -43,7 +43,7 @@
     local.get 3
     i32.store offset=12
     local.get 4
-    call $getenv
+    call 18
     local.set 5
     local.get 2
     local.get 5
@@ -84,7 +84,7 @@
       local.set 14
       local.get 13
       local.get 14
-      call $strcmp
+      call 23
       local.set 15
       block  ;; label = @2
         local.get 15
@@ -116,18 +116,18 @@
     global.set 0
     local.get 18
     return)
-  (func $_Exit (type 0) (param i32)
+  (func (;6;) (type 0) (param i32)
     local.get 0
-    call $__wasi_proc_exit
+    call 0
     unreachable)
-  (func $dummy (type 2))
-  (func $__prepare_for_exit (type 2)
-    call $dummy
-    call $dummy)
-  (func $abort (type 2)
+  (func (;7;) (type 2))
+  (func (;8;) (type 2)
+    call 7
+    call 7)
+  (func (;9;) (type 2)
     unreachable
     unreachable)
-  (func $sbrk (type 4) (param i32) (result i32)
+  (func (;10;) (type 4) (param i32) (result i32)
     block  ;; label = @1
       local.get 0
       br_if 0 (;@1;)
@@ -165,12 +165,12 @@
       i32.shl
       return
     end
-    call $abort
+    call 9
     unreachable)
-  (func $malloc (type 4) (param i32) (result i32)
+  (func (;11;) (type 4) (param i32) (result i32)
     local.get 0
-    call $dlmalloc)
-  (func $dlmalloc (type 4) (param i32) (result i32)
+    call 12)
+  (func (;12;) (type 4) (param i32) (result i32)
     (local i32 i32 i32 i32 i32 i32 i32 i32 i32 i32 i32)
     global.get 0
     i32.const 16
@@ -1310,7 +1310,7 @@
                               end
                             end
                             i32.const 0
-                            call $sbrk
+                            call 10
                             local.tee 5
                             i32.const -1
                             i32.eq
@@ -1370,7 +1370,7 @@
                               br_if 6 (;@7;)
                             end
                             local.get 2
-                            call $sbrk
+                            call 10
                             local.tee 0
                             local.get 5
                             i32.ne
@@ -1387,7 +1387,7 @@
                           i32.gt_u
                           br_if 4 (;@7;)
                           local.get 2
-                          call $sbrk
+                          call 10
                           local.tee 5
                           local.get 0
                           i32.load
@@ -1433,7 +1433,7 @@
                           br_if 6 (;@5;)
                           block  ;; label = @12
                             local.get 0
-                            call $sbrk
+                            call 10
                             i32.const -1
                             i32.eq
                             br_if 0 (;@12;)
@@ -1446,7 +1446,7 @@
                           i32.const 0
                           local.get 2
                           i32.sub
-                          call $sbrk
+                          call 10
                           drop
                           br 4 (;@7;)
                         end
@@ -1481,10 +1481,10 @@
               i32.gt_u
               br_if 1 (;@4;)
               local.get 8
-              call $sbrk
+              call 10
               local.tee 5
               i32.const 0
-              call $sbrk
+              call 10
               local.tee 0
               i32.ge_u
               br_if 1 (;@4;)
@@ -3361,10 +3361,10 @@
     i32.add
     global.set 0
     local.get 0)
-  (func $free (type 0) (param i32)
+  (func (;13;) (type 0) (param i32)
     local.get 0
-    call $dlfree)
-  (func $dlfree (type 0) (param i32)
+    call 14)
+  (func (;14;) (type 0) (param i32)
     (local i32 i32 i32 i32 i32 i32 i32)
     block  ;; label = @1
       local.get 0
@@ -4269,7 +4269,7 @@
       i32.const -1
       i32.store offset=1072
     end)
-  (func $calloc (type 1) (param i32 i32) (result i32)
+  (func (;15;) (type 1) (param i32 i32) (result i32)
     (local i32 i64)
     block  ;; label = @1
       block  ;; label = @2
@@ -4306,7 +4306,7 @@
     end
     block  ;; label = @1
       local.get 2
-      call $dlmalloc
+      call 12
       local.tee 0
       i32.eqz
       br_if 0 (;@1;)
@@ -4321,20 +4321,20 @@
       local.get 0
       i32.const 0
       local.get 2
-      call $memset
+      call 22
       drop
     end
     local.get 0)
-  (func $__wasilibc_ensure_environ (type 2)
+  (func (;16;) (type 2)
     block  ;; label = @1
       i32.const 0
       i32.load offset=1032
       i32.const -1
       i32.ne
       br_if 0 (;@1;)
-      call $__wasilibc_initialize_environ
+      call 17
     end)
-  (func $__wasilibc_initialize_environ (type 2)
+  (func (;17;) (type 2)
     (local i32 i32 i32 i32)
     global.get 0
     i32.const 16
@@ -4350,7 +4350,7 @@
           local.get 0
           i32.const 8
           i32.add
-          call $__wasi_environ_sizes_get
+          call 1
           br_if 0 (;@3;)
           block  ;; label = @4
             local.get 0
@@ -4373,34 +4373,34 @@
               br_if 0 (;@5;)
               local.get 0
               i32.load offset=8
-              call $malloc
+              call 11
               local.tee 3
               i32.eqz
               br_if 0 (;@5;)
               local.get 2
               i32.const 4
-              call $calloc
+              call 15
               local.tee 1
               br_if 1 (;@4;)
               local.get 3
-              call $free
+              call 13
             end
             i32.const 70
-            call $_Exit
+            call 6
             unreachable
           end
           local.get 1
           local.get 3
-          call $__wasi_environ_get
+          call 2
           i32.eqz
           br_if 1 (;@2;)
           local.get 3
-          call $free
+          call 13
           local.get 1
-          call $free
+          call 13
         end
         i32.const 71
-        call $_Exit
+        call 6
         unreachable
       end
       i32.const 0
@@ -4411,15 +4411,15 @@
     i32.const 16
     i32.add
     global.set 0)
-  (func $getenv (type 4) (param i32) (result i32)
+  (func (;18;) (type 4) (param i32) (result i32)
     (local i32 i32 i32 i32)
-    call $__wasilibc_ensure_environ
+    call 16
     i32.const 0
     local.set 1
     block  ;; label = @1
       local.get 0
       i32.const 61
-      call $__strchrnul
+      call 19
       local.tee 2
       local.get 0
       i32.sub
@@ -4449,7 +4449,7 @@
             local.get 0
             local.get 2
             local.get 3
-            call $strncmp
+            call 21
             br_if 0 (;@4;)
             local.get 2
             local.get 3
@@ -4478,7 +4478,7 @@
       local.set 1
     end
     local.get 1)
-  (func $__strchrnul (type 1) (param i32 i32) (result i32)
+  (func (;19;) (type 1) (param i32 i32) (result i32)
     (local i32 i32)
     block  ;; label = @1
       local.get 1
@@ -4592,9 +4592,9 @@
     end
     local.get 0
     local.get 0
-    call $strlen
+    call 20
     i32.add)
-  (func $strlen (type 4) (param i32) (result i32)
+  (func (;20;) (type 4) (param i32) (result i32)
     (local i32 i32 i32)
     local.get 0
     local.set 1
@@ -4693,7 +4693,7 @@
     local.get 3
     local.get 0
     i32.sub)
-  (func $strncmp (type 5) (param i32 i32 i32) (result i32)
+  (func (;21;) (type 5) (param i32 i32 i32) (result i32)
     (local i32 i32 i32)
     block  ;; label = @1
       local.get 2
@@ -4770,7 +4770,7 @@
     local.get 1
     i32.load8_u
     i32.sub)
-  (func $memset (type 5) (param i32 i32 i32) (result i32)
+  (func (;22;) (type 5) (param i32 i32 i32) (result i32)
     (local i32 i32 i32 i64)
     block  ;; label = @1
       local.get 2
@@ -4965,7 +4965,7 @@
       end
     end
     local.get 0)
-  (func $strcmp (type 1) (param i32 i32) (result i32)
+  (func (;23;) (type 1) (param i32 i32) (result i32)
     (local i32 i32)
     local.get 1
     i32.load8_u
@@ -5024,6 +5024,6 @@
   (memory (;0;) 2)
   (global (;0;) (mut i32) (i32.const 67088))
   (export "memory" (memory 0))
-  (export "_start" (func $_start))
+  (export "_start" (func 4))
   (data (;0;) (i32.const 1024) "FOO\00BAR\00")
   (data (;1;) (i32.const 1032) "\ff\ff\ff\ff"))
