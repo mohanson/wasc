@@ -724,7 +724,7 @@ pub fn generate(middle: &mut context::Middle) -> Result<(), Box<dyn std::error::
                             for (j, item) in e.init.iter().enumerate() {
                                 match item {
                                     wasmparser::ElementItem::Func(func_index) => {
-                                        let extern_name = get_external_name("functionDef", *func_index);
+                                        let extern_name = &function_name_list[*func_index as usize];
                                         let table_item = format!("((uintptr_t) ({}))", extern_name);
                                         table[value as usize + j] = table_item;
                                     }
@@ -741,7 +741,7 @@ pub fn generate(middle: &mut context::Middle) -> Result<(), Box<dyn std::error::
                                         for (j, item) in e.init.iter().enumerate() {
                                             match item {
                                                 wasmparser::ElementItem::Func(func_index) => {
-                                                    let extern_name = get_external_name("functionDef", *func_index);
+                                                    let extern_name = &function_name_list[*func_index as usize];
                                                     let table_item = format!("((uintptr_t) ({}))", extern_name);
                                                     table[*value as usize + j] = table_item;
                                                 }
@@ -763,7 +763,7 @@ pub fn generate(middle: &mut context::Middle) -> Result<(), Box<dyn std::error::
                                                     i,
                                                     format!("wavm_{}", import_name),
                                                     j,
-                                                    get_external_name("functionDef", *func_index as u32)
+                                                    function_name_list[*func_index as usize],
                                                 ));
                                             }
                                             wasmparser::ElementItem::Null => panic!("unreachable"),
