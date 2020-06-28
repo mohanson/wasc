@@ -430,8 +430,6 @@ typedef struct __wasi_subscription_t
   } u;
 } __wasi_subscription_t;
 
-#define __WASI_IOV_MAX 1024
-
 // Inspried by https://github.com/kanaka/wac/blob/master/wasi.c#L32
 typedef struct Preopen
 {
@@ -795,6 +793,15 @@ wavm_ret_int32_t wavm_wasi_unstable_fd_fdstat_set_flags(void *dummy, int32_t fd,
 #ifdef DEBUG
   printf("wavm_wasi_unstable_fd_fdstat_set_flags fd=%d flags=%d\n", fd, flags);
 #endif
+  int fd_flags = ((flags & __WASI_FDFLAG_APPEND) ? O_APPEND : 0) |
+                 ((flags & __WASI_FDFLAG_DSYNC) ? O_DSYNC : 0) |
+                 ((flags & __WASI_FDFLAG_NONBLOCK) ? O_NONBLOCK : 0) |
+                 ((flags & __WASI_FDFLAG_RSYNC) ? O_RSYNC : 0) |
+                 ((flags & __WASI_FDFLAG_SYNC) ? O_SYNC : 0);
+  if (fcntl(fd, F_SETFL, fd_flags) != 0)
+  {
+    return pack_errno(dummy, as_wasi_errno(errno));
+  }
   return pack_errno(dummy, 0);
 }
 
@@ -847,9 +854,9 @@ wavm_ret_int32_t wavm_wasi_unstable_fd_read(void *dummy, int32_t fd, int32_t iov
   struct iovec *wasi_iov = &memoryOffset0.base[iovs_address];
   for (int32_t i = 0; i < num_iovs; i++)
   {
-    uint32_t buffer_address = *((uint32_t *)&memoryOffset0.base[wasi_iov[i].iov_base]);
+    uint32_t buffer_address = (uint32_t)wasi_iov[i].iov_base;
     uint8_t *buf = &memoryOffset0.base[buffer_address];
-    uint32_t buffer_length = *((uint32_t *)&memoryOffset0.base[wasi_iov[i].iov_len]);
+    uint32_t buffer_length = (uint32_t)wasi_iov[i].iov_len;
     int32_t n = read(fd, buf, buffer_length);
     read_bytes += n;
   }
