@@ -355,7 +355,8 @@ typedef struct __wasi_event_t
   __wasi_userdata_t userdata;
   __wasi_errno_t error;
   __wasi_eventtype_t type;
-  union __wasi_event_u {
+  union __wasi_event_u
+  {
     struct __wasi_event_u_fd_readwrite_t
     {
       __wasi_filesize_t nbytes;
@@ -367,7 +368,8 @@ typedef struct __wasi_event_t
 typedef struct __wasi_prestat_t
 {
   __wasi_preopentype_t pr_type;
-  union __wasi_prestat_u {
+  union __wasi_prestat_u
+  {
     struct __wasi_prestat_u_dir_t
     {
       __wasi_size_t pr_name_len;
@@ -411,7 +413,8 @@ typedef struct __wasi_subscription_t
 {
   __wasi_userdata_t userdata;
   __wasi_eventtype_t type;
-  union __wasi_subscription_u {
+  union __wasi_subscription_u
+  {
     struct __wasi_subscription_u_clock_t
     {
       __wasi_clockid_t clock_id;
@@ -432,72 +435,109 @@ __wasi_errno_t as_wasi_errno(int error)
 {
   switch (error)
   {
-  case ESPIPE:
-    return __WASI_ESPIPE;
-  case EIO:
-    return __WASI_EIO;
-  case EINTR:
-    return __WASI_EINTR;
-  case EISDIR:
-    return __WASI_EISDIR;
-  case EFAULT:
-    return __WASI_EFAULT;
-  case EFBIG:
-    return __WASI_EFBIG;
+
   case EPERM:
     return __WASI_EPERM;
-  case EOVERFLOW:
-    return __WASI_EOVERFLOW;
-  case EMFILE:
-    return __WASI_EMFILE;
-  case ENOTDIR:
-    return __WASI_ENOTDIR;
-  case EACCES:
-    return __WASI_EACCES;
-  case EEXIST:
-    return __WASI_EEXIST;
-  case ENAMETOOLONG:
-    return __WASI_ENAMETOOLONG;
-  case ENFILE:
-    return __WASI_ENFILE;
+    break;
   case ENOENT:
     return __WASI_ENOENT;
-  case ENOSPC:
-    return __WASI_ENOSPC;
-  case EROFS:
-    return __WASI_EPERM;
-  case ENOMEM:
-    return __WASI_ENOMEM;
-  case EDQUOT:
-    return __WASI_EDQUOT;
-  case ELOOP:
-    return __WASI_ELOOP;
-  case EAGAIN:
-    return __WASI_EAGAIN;
-  case EINPROGRESS:
-    return __WASI_EINPROGRESS;
-  case ENOSR:
-    return __WASI_ENOMEM;
+    break;
+  case ESRCH:
+    return __WASI_ESRCH;
+    break;
+  case EINTR:
+    return __WASI_EINTR;
+    break;
+  case EIO:
+    return __WASI_EIO;
+    break;
   case ENXIO:
     return __WASI_ENXIO;
-  case ETXTBSY:
-    return __WASI_EACCES;
-  case EBUSY:
-    return __WASI_EBUSY;
-  case ENOTEMPTY:
-    return __WASI_ENOTEMPTY;
-  case EMLINK:
-    return __WASI_EMLINK;
-  case ENOTSUP:
-    return __WASI_ENOTSUP;
-  case EINVAL:
-    return __WASI_EINVAL;
+    break;
+  case E2BIG:
+    return __WASI_E2BIG;
+    break;
+  case ENOEXEC:
+    return __WASI_ENOEXEC;
+    break;
   case EBADF:
     return __WASI_EBADF;
+    break;
+  case ECHILD:
+    return __WASI_ECHILD;
+    break;
+  case EAGAIN:
+    return __WASI_EAGAIN;
+    break;
+  case ENOMEM:
+    return __WASI_ENOMEM;
+    break;
+  case EACCES:
+    return __WASI_EACCES;
+    break;
+  case EFAULT:
+    return __WASI_EFAULT;
+    break;
+  case EBUSY:
+    return __WASI_EBUSY;
+    break;
+  case EEXIST:
+    return __WASI_EEXIST;
+    break;
+  case EXDEV:
+    return __WASI_EXDEV;
+    break;
+  case ENODEV:
+    return __WASI_ENODEV;
+    break;
+  case ENOTDIR:
+    return __WASI_ENOTDIR;
+    break;
+  case EISDIR:
+    return __WASI_EISDIR;
+    break;
+  case EINVAL:
+    return __WASI_EINVAL;
+    break;
+  case ENFILE:
+    return __WASI_ENFILE;
+    break;
+  case EMFILE:
+    return __WASI_EMFILE;
+    break;
+  case ENOTTY:
+    return __WASI_ENOTTY;
+    break;
+  case ETXTBSY:
+    return __WASI_ETXTBSY;
+    break;
+  case EFBIG:
+    return __WASI_EFBIG;
+    break;
+  case ENOSPC:
+    return __WASI_ENOSPC;
+    break;
+  case ESPIPE:
+    return __WASI_ESPIPE;
+    break;
+  case EROFS:
+    return __WASI_EROFS;
+    break;
+  case EMLINK:
+    return __WASI_EMLINK;
+    break;
+  case EPIPE:
+    return __WASI_EPIPE;
+    break;
+  case EDOM:
+    return __WASI_EDOM;
+    break;
+  case ERANGE:
+    return __WASI_ERANGE;
+    break;
   default:
-    printf("unknown errno %d", error);
-    exit(251);
-  };
+    return errno;
+  }
 }
 
 __wasi_filetype_t as_wasi_file_type(mode_t mode)
@@ -604,33 +644,33 @@ wavm_ret_int32_t wavm_wasi_unstable_environ_get(void *dummy, int32_t env_address
   return pack_errno(dummy, 0);
 }
 
-wavm_ret_int32_t wavm_wasi_unstable_clock_res_get(void *dummy, uint32_t clock_id, uint32_t resolution_address)
+wavm_ret_int32_t wavm_wasi_unstable_clock_res_get(void *dummy, int32_t clock_id, int32_t resolution_address)
 {
   (void)dummy;
 #ifdef DEBUG
   printf("wavm_wasi_unstable_clock_res_get\n");
 #endif
   struct timespec tp;
-  if (!clock_getres(clock_id, &tp))
+  if (clock_getres(clock_id, &tp))
   {
     return pack_errno(dummy, __WASI_EINVAL);
   }
-  *((uint64_t *)&memoryOffset0.base[resolution_address]) = tp.tv_nsec;
+  *((uint64_t *)&memoryOffset0.base[resolution_address]) = tp.tv_sec * 1000000000 + tp.tv_nsec;
   return pack_errno(dummy, 0);
 }
 
-wavm_ret_int32_t wavm_wasi_unstable_clock_time_get(void *dummy, uint32_t clock_id, uint64_t precision, uint32_t time_address)
+wavm_ret_int32_t wavm_wasi_unstable_clock_time_get(void *dummy, int32_t clock_id, int64_t precision, int32_t time_address)
 {
   (void)dummy;
 #ifdef DEBUG
   printf("wavm_wasi_unstable_clock_time_get\n");
 #endif
   struct timespec tp;
-  if (!clock_gettime(clock_id, &tp))
+  if (clock_gettime(clock_id, &tp))
   {
     return pack_errno(dummy, __WASI_EINVAL);
   }
-  *((uint64_t *)&memoryOffset0.base[time_address]) = tp.tv_nsec;
+  *((uint64_t *)&memoryOffset0.base[time_address]) = tp.tv_sec * 1000000000 + tp.tv_nsec;
   return pack_errno(dummy, 0);
 }
 
