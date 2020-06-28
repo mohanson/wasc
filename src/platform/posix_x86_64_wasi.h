@@ -49,7 +49,7 @@ int32_t wavm_intrinsic_memory_grow(void *dummy, int32_t grow_by)
 #ifdef DEBUG
   printf("wavm_intrinsic_memory_grow\n");
 #endif
-  return -1;
+  return 1;
 }
 #endif
 
@@ -58,7 +58,7 @@ void callIndirectFail()
 #ifdef DEBUG
   printf("callIndirectFail\n");
 #endif
-  exit(255);
+  exit(1);
 }
 
 void unreachableTrap()
@@ -66,7 +66,7 @@ void unreachableTrap()
 #ifdef DEBUG
   printf("unreachableTrap\n");
 #endif
-  exit(254);
+  exit(1);
 }
 
 void divideByZeroOrIntegerOverflowTrap()
@@ -74,7 +74,7 @@ void divideByZeroOrIntegerOverflowTrap()
 #ifdef DEBUG
   printf("divideByZeroOrIntegerOverflowTrap\n");
 #endif
-  exit(253);
+  exit(1);
 }
 
 void invalidFloatOperationTrap()
@@ -82,7 +82,7 @@ void invalidFloatOperationTrap()
 #ifdef DEBUG
   printf("wavm_wasi_unstable_args_get\n");
 #endif
-  exit(252);
+  exit(1);
 }
 
 // WASI syscall API definitions
@@ -431,6 +431,69 @@ typedef struct __wasi_subscription_t
 
 #define __WASI_IOV_MAX 1024
 
+// Inspried by https://github.com/kanaka/wac/blob/master/wasi.c#L32
+typedef struct Preopen
+{
+  char *path;
+  int32_t path_len;
+} Preopen;
+
+#define PREOPEN_CNT 7
+Preopen preopen[PREOPEN_CNT] = {
+    {
+        .path = "<stdin>",
+        .path_len = 7,
+    },
+    {
+        .path = "<stdout>",
+        .path_len = 8,
+    },
+    {
+        .path = "<stderr>",
+        .path_len = 8,
+    },
+    {
+        .path = "./",
+        .path_len = 2,
+    },
+    {
+        .path = "../",
+        .path_len = 3,
+    },
+    {
+        .path = "/",
+        .path_len = 1,
+    },
+    {
+        .path = "/tmp",
+        .path_len = 4,
+    },
+};
+
+void init_wasi()
+{
+  for (int fd = 3; fd < PREOPEN_CNT; fd++)
+  {
+    if (fcntl(fd, F_GETFD, 0) >= 0)
+    {
+      close(fd);
+    }
+  }
+  for (int fd = 3; fd < PREOPEN_CNT; fd++)
+  {
+    int tfd = open(preopen[fd].path, O_RDONLY);
+    if (tfd < 0)
+    {
+      printf("opening '%s': %s\n", "./", strerror(errno));
+      exit(1);
+    }
+    if (tfd != fd)
+    {
+      printf("fd %d could not be freed up before preopen\n", fd);
+    }
+  }
+}
+
 __wasi_errno_t as_wasi_errno(int error)
 {
   switch (error)
@@ -697,7 +760,7 @@ wavm_ret_int32_t wavm_wasi_unstable_fd_fdstat_get(void *dummy, int32_t fd, int32
 {
   (void)dummy;
 #ifdef DEBUG
-  printf("wavm_wasi_unstable_fd_fdstat_get\n");
+  printf("wavm_wasi_unstable_fd_fdstat_get fd=%d\n", fd);
 #endif
   struct stat fd_status;
   if (fstat(fd, &fd_status) != 0)
@@ -769,8 +832,37 @@ void *wavm_wasi_unstable_fd_filestat_get(void *dummy) {}
 void *wavm_wasi_unstable_fd_filestat_set_size(void *dummy) {}
 void *wavm_wasi_unstable_fd_filestat_set_times(void *dummy) {}
 void *wavm_wasi_unstable_fd_pread(void *dummy) {}
-void *wavm_wasi_unstable_fd_prestat_get(void *dummy) {}
-void *wavm_wasi_unstable_fd_prestat_dir_name(void *dummy) {}
+
+wavm_ret_int32_t wavm_wasi_unstable_fd_prestat_get(void *dummy, int32_t fd, int32_t prestat_address)
+{
+  (void)dummy;
+#ifdef DEBUG
+  printf("wavm_wasi_unstable_fd_prestat_get fd=%d\n", fd);
+#endif
+  if (fd < 3 || fd >= PREOPEN_CNT)
+  {
+    return pack_errno(dummy, __WASI_EBADF);
+  }
+  *(uint32_t *)&memoryOffset0.base[prestat_address] = __WASI_PREOPENTYPE_DIR;
+  *(uint32_t *)&memoryOffset0.base[prestat_address + 4] = preopen[fd].path_len;
+  return pack_errno(dummy, 0);
+}
+
+wavm_ret_int32_t wavm_wasi_unstable_fd_prestat_dir_name(void *dummy, int32_t fd, int32_t buffer_address, int32_t buffer_length)
+{
+  (void)dummy;
+#ifdef DEBUG
+  printf("wavm_wasi_unstable_fd_prestat_dir_name fd=%d\n", fd);
+#endif
+  if (fd < 3 || fd >= PREOPEN_CNT)
+  {
+    return pack_errno(dummy, __WASI_EBADF);
+  }
+  int32_t l = preopen[fd].path_len <= buffer_length ? preopen[fd].path_len : buffer_length;
+  memcpy((char *)&memoryOffset0.base[buffer_address], preopen[fd].path, l);
+  return pack_errno(dummy, 0);
+}
+
 void *wavm_wasi_unstable_fd_pwrite(void *dummy) {}
 void *wavm_wasi_unstable_fd_read(void *dummy) {}
 void *wavm_wasi_unstable_fd_readdir(void *dummy) {}
@@ -801,7 +893,7 @@ wavm_ret_int32_t wavm_wasi_unstable_fd_write(void *dummy, int32_t fd, int32_t ad
 {
   (void)dummy;
 #ifdef DEBUG
-  printf("wavm_wasi_unstable_fd_write\n");
+  printf("wavm_wasi_unstable_fd_write fd=%d\n", fd);
 #endif
   int32_t written_bytes = 0;
   for (int32_t i = 0; i < num; i++)
@@ -824,7 +916,62 @@ void *wavm_wasi_unstable_path_create_directory(void *dummy) {}
 void *wavm_wasi_unstable_path_filestat_get(void *dummy) {}
 void *wavm_wasi_unstable_path_filestat_set_times(void *dummy) {}
 void *wavm_wasi_unstable_path_link(void *dummy) {}
-void *wavm_wasi_unstable_path_open(void *dummy) {}
+
+wavm_ret_int32_t wavm_wasi_unstable_path_open(void *dummy, int32_t dirfd, int32_t dirflags, int32_t path_address,
+                                              int32_t num_path_bytes, int32_t open_flags, int64_t requested_rights,
+                                              int64_t requested_inheriting_rights, int32_t fd_flags, int32_t fd_address)
+{
+  (void)dummy;
+  char *path = (char *)&memoryOffset0.base[path_address];
+  int32_t *fd = (int32_t *)&memoryOffset0.base[fd_address];
+#ifdef DEBUG
+  printf("wavm_wasi_unstable_path_open path=%s dirflags=%d open_flags=%d requested_rights=%ld requested_inheriting_rights=%ld fd_flags=%d\n",
+         path, dirflags, open_flags, requested_rights, requested_inheriting_rights, fd_flags);
+#endif
+  int flags = ((open_flags & __WASI_O_CREAT) ? O_CREAT : 0) |
+              ((open_flags & __WASI_O_DIRECTORY) ? O_DIRECTORY : 0) |
+              ((open_flags & __WASI_O_EXCL) ? O_EXCL : 0) |
+              ((open_flags & __WASI_O_TRUNC) ? O_TRUNC : 0) |
+              ((fd_flags & __WASI_FDFLAG_APPEND) ? O_APPEND : 0) |
+              ((fd_flags & __WASI_FDFLAG_DSYNC) ? O_DSYNC : 0) |
+              ((fd_flags & __WASI_FDFLAG_NONBLOCK) ? O_NONBLOCK : 0) |
+              ((fd_flags & __WASI_FDFLAG_RSYNC) ? O_RSYNC : 0) |
+              ((fd_flags & __WASI_FDFLAG_SYNC) ? O_SYNC : 0);
+  if ((requested_rights & __WASI_RIGHT_FD_READ) &&
+      (requested_rights & __WASI_RIGHT_FD_WRITE))
+  {
+    flags |= O_RDWR;
+  }
+  else if ((requested_rights & __WASI_RIGHT_FD_WRITE))
+  {
+    flags |= O_WRONLY;
+  }
+  else if ((requested_rights & __WASI_RIGHT_FD_READ))
+  {
+    flags |= O_RDONLY;
+  }
+  // flags = O_WRONLY | O_TRUNC | O_CREAT;
+  int mode = 0644;
+  int host_fd = openat(dirfd, path, flags, mode);
+  if (host_fd < 0)
+  {
+    return pack_errno(dummy, as_wasi_errno(errno));
+  }
+
+  int32_t a = write(host_fd, "dingdingding", 12);
+  if (a == -1)
+  {
+    printf("?????\n");
+  }
+  else
+  {
+    printf("!!!!!\n");
+  }
+
+  *((uint32_t *)&memoryOffset0.base[fd_address]) = host_fd;
+  return pack_errno(dummy, 0);
+}
+
 void *wavm_wasi_unstable_path_readlink(void *dummy) {}
 void *wavm_wasi_unstable_path_remove_directory(void *dummy) {}
 void *wavm_wasi_unstable_path_rename(void *dummy) {}
@@ -835,7 +982,7 @@ void *wavm_wasi_unstable_poll_oneoff(void *dummy) {}
 void *wavm_wasi_unstable_proc_exit(void *dummy, int32_t code)
 {
 #ifdef DEBUG
-  printf("wavm_wasi_unstable_proc_exit\n");
+  printf("wavm_wasi_unstable_proc_exit code=%d\n", code);
 #endif
   exit(code);
   return dummy;
