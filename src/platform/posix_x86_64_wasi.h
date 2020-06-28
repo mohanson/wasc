@@ -762,66 +762,28 @@ wavm_ret_int32_t wavm_wasi_unstable_fd_fdstat_get(void *dummy, int32_t fd, int32
 #ifdef DEBUG
   printf("wavm_wasi_unstable_fd_fdstat_get fd=%d\n", fd);
 #endif
-  struct stat fd_status;
-  if (fstat(fd, &fd_status) != 0)
+  struct stat fd_stat;
+  struct __wasi_fdstat_t fdstat;
+  int fl = fcntl(fd, F_GETFL);
+  if (fl < 0)
   {
     return pack_errno(dummy, as_wasi_errno(errno));
   }
-  int32_t fd_flags = fcntl(fd, F_GETFL);
-  if (fd_flags < 0)
-  {
-    return pack_errno(dummy, as_wasi_errno(errno));
-  }
-
-  int32_t append = fd_flags & O_APPEND;
-  int32_t nonBlocking = fd_flags & O_NONBLOCK;
-
-  __wasi_fdstat_t fdstat;
-  fdstat.fs_filetype = as_wasi_file_type(fd_status.st_mode);
-  fdstat.fs_flags = 0;
-  if (append)
-  {
-    fdstat.fs_flags |= __WASI_FDFLAG_APPEND;
-  }
-  if (nonBlocking)
-  {
-    fdstat.fs_flags |= __WASI_FDFLAG_NONBLOCK;
-  }
-  if (fd_flags & O_SYNC)
-  {
-#ifdef O_RSYNC
-    if (fd_flags & O_RSYNC)
-    {
-      fdstat.fs_flags |= __WASI_FDFLAG_SYNC | __WASI_FDFLAG_RSYNC;
-    }
-    else
-    {
-      fdstat.fs_flags |= __WASI_FDFLAG_SYNC;
-    }
-#else
-    fdstat.fs_flags |= __WASI_FDFLAG_SYNC;
-#endif
-  }
-  else if (fd_flags & O_DSYNC)
-  {
-#ifdef O_RSYNC
-    if (fd_flags & O_RSYNC)
-    {
-      fdstat.fs_flags |= __WASI_FDFLAG_DSYNC | __WASI_FDFLAG_RSYNC;
-    }
-    else
-    {
-      fdstat.fs_flags |= __WASI_FDFLAG_DSYNC;
-    }
-#else
-    fdstat.fs_flags |= __WASI_FDFLAG_DSYNC;
-#endif
-  }
-  else
-  {
-  }
-  fdstat.fs_rights_base = 0;
-  fdstat.fs_rights_inheriting = 0;
+  fstat(fd, &fd_stat);
+  int mode = fd_stat.st_mode;
+  fdstat.fs_filetype = (S_ISBLK(mode) ? __WASI_FILETYPE_BLOCK_DEVICE : 0) |
+                       (S_ISCHR(mode) ? __WASI_FILETYPE_CHARACTER_DEVICE : 0) |
+                       (S_ISDIR(mode) ? __WASI_FILETYPE_DIRECTORY : 0) |
+                       (S_ISREG(mode) ? __WASI_FILETYPE_REGULAR_FILE : 0) |
+                       (S_ISSOCK(mode) ? __WASI_FILETYPE_SOCKET_STREAM : 0) |
+                       (S_ISLNK(mode) ? __WASI_FILETYPE_SYMBOLIC_LINK : 0);
+  fdstat.fs_flags = ((fl & O_APPEND) ? __WASI_FDFLAG_APPEND : 0) |
+                    ((fl & O_DSYNC) ? __WASI_FDFLAG_DSYNC : 0) |
+                    ((fl & O_NONBLOCK) ? __WASI_FDFLAG_NONBLOCK : 0) |
+                    ((fl & O_RSYNC) ? __WASI_FDFLAG_RSYNC : 0) |
+                    ((fl & O_SYNC) ? __WASI_FDFLAG_SYNC : 0);
+  fdstat.fs_rights_base = (uint64_t)-1;       // all rights
+  fdstat.fs_rights_inheriting = (uint64_t)-1; // all rights
   *((__wasi_fdstat_t *)&memoryOffset0.base[fdstat_address]) = fdstat;
   return pack_errno(dummy, 0);
 }
@@ -950,24 +912,12 @@ wavm_ret_int32_t wavm_wasi_unstable_path_open(void *dummy, int32_t dirfd, int32_
   {
     flags |= O_RDONLY;
   }
-  // flags = O_WRONLY | O_TRUNC | O_CREAT;
   int mode = 0644;
   int host_fd = openat(dirfd, path, flags, mode);
   if (host_fd < 0)
   {
     return pack_errno(dummy, as_wasi_errno(errno));
   }
-
-  int32_t a = write(host_fd, "dingdingding", 12);
-  if (a == -1)
-  {
-    printf("?????\n");
-  }
-  else
-  {
-    printf("!!!!!\n");
-  }
-
   *((uint32_t *)&memoryOffset0.base[fd_address]) = host_fd;
   return pack_errno(dummy, 0);
 }
