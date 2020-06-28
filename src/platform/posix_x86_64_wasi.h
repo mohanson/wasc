@@ -8,6 +8,7 @@
 #include <time.h>
 #include <sys/stat.h>
 #include <fcntl.h>
+#include <sys/uio.h>
 
 #ifndef WAVM_POSIX_X86_64_WASI_H
 #define WAVM_POSIX_X86_64_WASI_H
@@ -788,7 +789,15 @@ wavm_ret_int32_t wavm_wasi_unstable_fd_fdstat_get(void *dummy, int32_t fd, int32
   return pack_errno(dummy, 0);
 }
 
-void *wavm_wasi_unstable_fd_fdstat_set_flags(void *dummy) {}
+wavm_ret_int32_t wavm_wasi_unstable_fd_fdstat_set_flags(void *dummy, int32_t fd, int32_t flags)
+{
+  (void)dummy;
+#ifdef DEBUG
+  printf("wavm_wasi_unstable_fd_fdstat_set_flags fd=%d flags=%d\n", fd, flags);
+#endif
+  return pack_errno(dummy, 0);
+}
+
 void *wavm_wasi_unstable_fd_fdstat_set_rights(void *dummy) {}
 void *wavm_wasi_unstable_fd_filestat_get(void *dummy) {}
 void *wavm_wasi_unstable_fd_filestat_set_size(void *dummy) {}
@@ -826,7 +835,28 @@ wavm_ret_int32_t wavm_wasi_unstable_fd_prestat_dir_name(void *dummy, int32_t fd,
 }
 
 void *wavm_wasi_unstable_fd_pwrite(void *dummy) {}
-void *wavm_wasi_unstable_fd_read(void *dummy) {}
+
+wavm_ret_int32_t wavm_wasi_unstable_fd_read(void *dummy, int32_t fd, int32_t iovs_address, int32_t num_iovs, int32_t num_bytes_read_address)
+{
+  (void)dummy;
+#ifdef DEBUG
+  printf("wavm_wasi_unstable_fd_read fd=%d iovs_address=%d num_iovs=%d num_bytes_read_address=%d\n",
+         fd, iovs_address, num_iovs, num_bytes_read_address);
+#endif
+  int32_t read_bytes = 0;
+  struct iovec *wasi_iov = &memoryOffset0.base[iovs_address];
+  for (int32_t i = 0; i < num_iovs; i++)
+  {
+    uint32_t buffer_address = *((uint32_t *)&memoryOffset0.base[wasi_iov[i].iov_base]);
+    uint8_t *buf = &memoryOffset0.base[buffer_address];
+    uint32_t buffer_length = *((uint32_t *)&memoryOffset0.base[wasi_iov[i].iov_len]);
+    int32_t n = read(fd, buf, buffer_length);
+    read_bytes += n;
+  }
+  *((uint32_t *)&memoryOffset0.base[num_bytes_read_address]) = read_bytes;
+  return pack_errno(dummy, 0);
+}
+
 void *wavm_wasi_unstable_fd_readdir(void *dummy) {}
 void *wavm_wasi_unstable_fd_renumber(void *dummy) {}
 
