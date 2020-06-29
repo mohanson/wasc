@@ -893,7 +893,22 @@ wavm_ret_int32_t wavm_wasi_unstable_fd_filestat_set_times(void *dummy, int32_t f
   return pack_errno(dummy, 0);
 }
 
-void *wavm_wasi_unstable_fd_pread(void *dummy) {}
+wavm_ret_int32_t wavm_wasi_unstable_fd_pread(void *dummy, int32_t fd, int32_t iovs_address, int32_t num_iovs, int64_t offset, int32_t num_bytes_read_address)
+{
+  (void)dummy;
+#ifdef DEBUG
+  printf("wavm_wasi_unstable_fd_pread fd=%d iovs_address=%d num_iovs=%d num_bytes_read_address=%d\n",
+         fd, iovs_address, num_iovs, num_bytes_read_address);
+#endif
+  struct iovec *iovs = copy_iov_to_host(iovs_address, num_iovs);
+  size_t ret = preadv(fd, iovs, num_iovs, offset);
+  if (ret < 0)
+  {
+    return pack_errno(dummy, as_wasi_errno(errno));
+  }
+  *((uint32_t *)&memoryOffset0.base[num_bytes_read_address]) = ret;
+  return pack_errno(dummy, 0);
+}
 
 wavm_ret_int32_t wavm_wasi_unstable_fd_prestat_get(void *dummy, int32_t fd, int32_t prestat_address)
 {
@@ -925,7 +940,22 @@ wavm_ret_int32_t wavm_wasi_unstable_fd_prestat_dir_name(void *dummy, int32_t fd,
   return pack_errno(dummy, 0);
 }
 
-void *wavm_wasi_unstable_fd_pwrite(void *dummy) {}
+wavm_ret_int32_t wavm_wasi_unstable_fd_pwrite(void *dummy, int32_t fd, int32_t iovs_address, int32_t num_iovs,
+                                              int64_t offset, int32_t num_bytes_written_address)
+{
+  (void)dummy;
+#ifdef DEBUG
+  printf("wavm_wasi_unstable_fd_pwrite fd=%d num_iovs=%d\n", fd, num_iovs);
+#endif
+  struct iovec *iovs = copy_iov_to_host(iovs_address, num_iovs);
+  ssize_t ret = pwritev(fd, iovs, num_iovs, offset);
+  if (ret < 0)
+  {
+    return pack_errno(dummy, as_wasi_errno(errno));
+  }
+  *((uint32_t *)&memoryOffset0.base[num_bytes_written_address]) = ret;
+  return pack_errno(dummy, 0);
+}
 
 wavm_ret_int32_t wavm_wasi_unstable_fd_read(void *dummy, int32_t fd, int32_t iovs_address, int32_t num_iovs, int32_t num_bytes_read_address)
 {
@@ -961,15 +991,11 @@ wavm_ret_int32_t wavm_wasi_unstable_fd_seek(void *dummy, int32_t fd, int64_t off
 {
   (void)dummy;
 #ifdef DEBUG
-  printf("wavm_wasi_unstable_fd_seek\n");
+  printf("wavm_wasi_unstable_fd_seek fd=%d offset=%ld whence=%d\n", fd, offset, whence);
 #endif
-  int result = lseek(fd, (off_t)offset, whence);
-  if (result == -1)
+  int64_t result = lseek(fd, (off_t)offset, whence);
+  if (result < 0)
   {
-    if (errno == EINVAL)
-    {
-      return pack_errno(dummy, __WASI_EINVAL);
-    }
     return pack_errno(dummy, as_wasi_errno(errno));
   }
   *((uint64_t *)&memoryOffset0.base[new_offset_address]) = result;
