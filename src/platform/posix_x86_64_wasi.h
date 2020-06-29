@@ -493,6 +493,29 @@ void init_wasi()
   }
 }
 
+#define MAX_IOV 128
+
+struct iovec host_iov[MAX_IOV];
+
+struct iovec *copy_iov_to_host(uint32_t iov_offset, uint32_t iovs_len)
+{
+  if (iovs_len > MAX_IOV)
+  {
+    printf("copy_iov_to_host called with iovs_len > 128\n");
+    exit(1);
+  }
+  struct iovec *wasi_iov = &memoryOffset0.base[iov_offset];
+  for (int32_t i = 0; i < iovs_len; i++)
+  {
+    uint32_t buffer_address = *((uint32_t *)&memoryOffset0.base[iov_offset + i * 8]);
+    uint8_t *buf = &memoryOffset0.base[buffer_address];
+    uint32_t buffer_length = *((uint32_t *)&memoryOffset0.base[iov_offset + i * 8 + 4]);
+    host_iov[i].iov_base = buf;
+    host_iov[i].iov_len = buffer_length;
+  }
+  return host_iov;
+}
+
 __wasi_errno_t as_wasi_errno(int error)
 {
   switch (error)
@@ -864,17 +887,13 @@ wavm_ret_int32_t wavm_wasi_unstable_fd_read(void *dummy, int32_t fd, int32_t iov
   printf("wavm_wasi_unstable_fd_read fd=%d iovs_address=%d num_iovs=%d num_bytes_read_address=%d\n",
          fd, iovs_address, num_iovs, num_bytes_read_address);
 #endif
-  int32_t read_bytes = 0;
-  struct iovec *wasi_iov = &memoryOffset0.base[iovs_address];
-  for (int32_t i = 0; i < num_iovs; i++)
+  struct iovec *iovs = copy_iov_to_host(iovs_address, num_iovs);
+  size_t ret = readv(fd, iovs, num_iovs);
+  if (ret < 0)
   {
-    uint32_t buffer_address = (uint32_t)wasi_iov[i].iov_base;
-    uint8_t *buf = &memoryOffset0.base[buffer_address];
-    uint32_t buffer_length = (uint32_t)wasi_iov[i].iov_len;
-    int32_t n = read(fd, buf, buffer_length);
-    read_bytes += n;
+    return pack_errno(dummy, as_wasi_errno(errno));
   }
-  *((uint32_t *)&memoryOffset0.base[num_bytes_read_address]) = read_bytes;
+  *((uint32_t *)&memoryOffset0.base[num_bytes_read_address]) = ret;
   return pack_errno(dummy, 0);
 }
 
@@ -902,26 +921,21 @@ wavm_ret_int32_t wavm_wasi_unstable_fd_seek(void *dummy, int32_t fd, int64_t off
 
 void *wavm_wasi_unstable_fd_sync(void *dummy) {}
 void *wavm_wasi_unstable_fd_tell(void *dummy) {}
-wavm_ret_int32_t wavm_wasi_unstable_fd_write(void *dummy, int32_t fd, int32_t address, int32_t num, int32_t written_bytes_address)
+
+wavm_ret_int32_t wavm_wasi_unstable_fd_write(void *dummy, int32_t fd, int32_t iovs_address, int32_t num_iovs,
+                                             int32_t num_bytes_written_address)
 {
   (void)dummy;
 #ifdef DEBUG
-  printf("wavm_wasi_unstable_fd_write fd=%d\n", fd);
+  printf("wavm_wasi_unstable_fd_write fd=%d num_iovs=%d\n", fd, num_iovs);
 #endif
-  int32_t written_bytes = 0;
-  for (int32_t i = 0; i < num; i++)
+  struct iovec *iovs = copy_iov_to_host(iovs_address, num_iovs);
+  ssize_t ret = writev(fd, iovs, num_iovs);
+  if (ret < 0)
   {
-    uint32_t buffer_address = *((uint32_t *)&memoryOffset0.base[address + i * 8]);
-    uint8_t *buf = &memoryOffset0.base[buffer_address];
-    uint32_t buffer_length = *((uint32_t *)&memoryOffset0.base[address + i * 8 + 4]);
-
-    int32_t written = write(fd, buf, buffer_length);
-    written_bytes += written;
+    return pack_errno(dummy, as_wasi_errno(errno));
   }
-  if (written_bytes_address != 0)
-  {
-    *((uint32_t *)&memoryOffset0.base[written_bytes_address]) = written_bytes;
-  }
+  *((uint32_t *)&memoryOffset0.base[num_bytes_written_address]) = ret;
   return pack_errno(dummy, 0);
 }
 
