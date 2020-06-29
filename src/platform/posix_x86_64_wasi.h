@@ -945,7 +945,17 @@ wavm_ret_int32_t wavm_wasi_unstable_fd_read(void *dummy, int32_t fd, int32_t iov
 }
 
 void *wavm_wasi_unstable_fd_readdir(void *dummy) {}
-void *wavm_wasi_unstable_fd_renumber(void *dummy) {}
+
+wavm_ret_int32_t wavm_wasi_unstable_fd_renumber(void *dummy, int32_t from_fd, int32_t to_fd)
+{
+  (void)dummy;
+#ifdef DEBUG
+  printf("wavm_wasi_unstable_fd_renumber from_fd=%d to_fd=%d\n", from_fd, to_fd);
+#endif
+  close(to_fd);
+  fcntl(from_fd, F_DUPFD);
+  return pack_errno(dummy, 0);
+}
 
 wavm_ret_int32_t wavm_wasi_unstable_fd_seek(void *dummy, int32_t fd, int64_t offset, int32_t whence, int32_t new_offset_address)
 {
