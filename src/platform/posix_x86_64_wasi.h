@@ -1,19 +1,21 @@
+#include <dirent.h>
+#include <fcntl.h>
 #include <errno.h>
-#include <stdio.h>
-#include <stdlib.h>
 #include <stddef.h>
 #include <stdint.h>
-#include <unistd.h>
+#include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
-#include <time.h>
 #include <sys/stat.h>
-#include <fcntl.h>
+#include <sys/types.h>
 #include <sys/uio.h>
+#include <time.h>
+#include <unistd.h>
 
 #ifndef WAVM_POSIX_X86_64_WASI_H
 #define WAVM_POSIX_X86_64_WASI_H
 
-#define DEBUG 1
+#define DEBUG
 
 #define WAVM_PAGE_SIZE 0x10000
 #ifndef MEMORY0_MAX_PAGE
@@ -627,21 +629,20 @@ __wasi_errno_t as_wasi_errno(int error)
 
 __wasi_filetype_t as_wasi_file_type(mode_t mode)
 {
-  switch (mode & S_IFMT)
+  switch (mode)
   {
-  case S_IFBLK:
+  case DT_BLK:
     return __WASI_FILETYPE_BLOCK_DEVICE;
-  case S_IFCHR:
+  case DT_CHR:
     return __WASI_FILETYPE_CHARACTER_DEVICE;
-  case S_IFIFO:
-    return __WASI_FILETYPE_UNKNOWN;
-  case S_IFREG:
-    return __WASI_FILETYPE_REGULAR_FILE;
-  case S_IFDIR:
+  case DT_DIR:
     return __WASI_FILETYPE_DIRECTORY;
-  case S_IFLNK:
+  case DT_FIFO:
+    return __WASI_FILETYPE_UNKNOWN;
+  case DT_LNK:
     return __WASI_FILETYPE_SYMBOLIC_LINK;
-  case S_IFSOCK:
+  case DT_REG:
+    return __WASI_FILETYPE_REGULAR_FILE;
   default:
     return __WASI_FILETYPE_UNKNOWN;
   };
@@ -974,7 +975,53 @@ wavm_ret_int32_t wavm_wasi_unstable_fd_read(void *dummy, int32_t fd, int32_t iov
   return pack_errno(dummy, 0);
 }
 
-void *wavm_wasi_unstable_fd_readdir(void *dummy) {}
+wavm_ret_int32_t wavm_wasi_unstable_fd_readdir(void *dummy, int32_t dir_fd, int32_t buffer_address,
+                                               int32_t num_buffer_bytes, int64_t first_cookie,
+                                               int32_t out_num_buffer_bytes_used_address)
+{
+  (void)dummy;
+#ifdef DEBUG
+  printf("wavm_wasi_unstable_fd_readdir dir_fd=%d buffer_address=%d num_buffer_bytes=%d first_cookie=%ld\n",
+         dir_fd, buffer_address, num_buffer_bytes, first_cookie);
+#endif
+  DIR *dir = fdopendir(dir_fd);
+  if (!dir)
+  {
+    return pack_errno(dummy, as_wasi_errno(errno));
+  }
+  rewinddir(dir);
+  seekdir(dir, first_cookie);
+
+  struct dirent *dirp;
+  __wasi_dirent_t wasi_dirent;
+  uint32_t num_buffer_bytes_used = 0;
+  while (1)
+  {
+    dirp = readdir(dir);
+    if (dirp == NULL)
+    {
+      break;
+    }
+
+    uint32_t cap_using = sizeof(wasi_dirent) + strlen((*dirp).d_name);
+    if (num_buffer_bytes_used + cap_using > num_buffer_bytes)
+    {
+      break;
+    }
+    wasi_dirent.d_next = num_buffer_bytes_used + cap_using;
+    wasi_dirent.d_ino = (*dirp).d_ino;
+    wasi_dirent.d_namlen = strlen((*dirp).d_name);
+    wasi_dirent.d_type = as_wasi_file_type((*dirp).d_type);
+
+    memcpy(&memoryOffset0.base[buffer_address + num_buffer_bytes_used], &wasi_dirent, sizeof(wasi_dirent));
+    memcpy(&memoryOffset0.base[buffer_address + num_buffer_bytes_used + sizeof(wasi_dirent)], (*dirp).d_name, wasi_dirent.d_namlen);
+
+    num_buffer_bytes_used += cap_using;
+  }
+  closedir(dir);
+  *((uint32_t *)&memoryOffset0.base[out_num_buffer_bytes_used_address]) = num_buffer_bytes_used;
+  return pack_errno(dummy, 0);
+}
 
 wavm_ret_int32_t wavm_wasi_unstable_fd_renumber(void *dummy, int32_t from_fd, int32_t to_fd)
 {
