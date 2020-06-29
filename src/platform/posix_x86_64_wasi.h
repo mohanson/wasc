@@ -807,7 +807,21 @@ wavm_ret_int32_t wavm_wasi_unstable_fd_fdstat_set_flags(void *dummy, int32_t fd,
 
 void *wavm_wasi_unstable_fd_fdstat_set_rights(void *dummy) {}
 void *wavm_wasi_unstable_fd_filestat_get(void *dummy) {}
-void *wavm_wasi_unstable_fd_filestat_set_size(void *dummy) {}
+
+wavm_ret_int32_t wavm_wasi_unstable_fd_filestat_set_size(void *dummy, int32_t fd, int64_t num_bytes)
+{
+  (void)dummy;
+#ifdef DEBUG
+  printf("wavm_wasi_unstable_fd_filestat_set_size fd=%d num_bytes=%ld\n", fd, num_bytes);
+#endif
+  int result = ftruncate(fd, (off_t)num_bytes);
+  if (result != 0)
+  {
+    return pack_errno(dummy, as_wasi_errno(errno));
+  }
+  return pack_errno(dummy, 0);
+}
+
 void *wavm_wasi_unstable_fd_filestat_set_times(void *dummy) {}
 void *wavm_wasi_unstable_fd_pread(void *dummy) {}
 
@@ -873,7 +887,7 @@ wavm_ret_int32_t wavm_wasi_unstable_fd_seek(void *dummy, int32_t fd, int64_t off
 #ifdef DEBUG
   printf("wavm_wasi_unstable_fd_seek\n");
 #endif
-  off_t result = lseek(fd, (off_t)offset, whence);
+  int result = lseek(fd, (off_t)offset, whence);
   if (result == -1)
   {
     if (errno == EINVAL)
