@@ -845,7 +845,54 @@ wavm_ret_int32_t wavm_wasi_unstable_fd_filestat_set_size(void *dummy, int32_t fd
   return pack_errno(dummy, 0);
 }
 
-void *wavm_wasi_unstable_fd_filestat_set_times(void *dummy) {}
+wavm_ret_int32_t wavm_wasi_unstable_fd_filestat_set_times(void *dummy, int32_t fd, int64_t last_access_time64, int64_t last_write_time64, int32_t flags)
+{
+  (void)dummy;
+#ifdef DEBUG
+  printf("wavm_wasi_unstable_fd_filestat_set_times fd=%d last_access_time64=%ld last_write_time64=%ld flags=%d\n",
+         fd, last_access_time64, last_write_time64, flags);
+#endif
+  struct timespec tp;
+  if (clock_gettime(CLOCK_REALTIME, &tp))
+  {
+    return pack_errno(dummy, __WASI_EINVAL);
+  }
+
+  struct timespec timespecs[2];
+  if (flags & __WASI_FILESTAT_SET_ATIM)
+  {
+    timespecs[0].tv_sec = last_access_time64 / 1000000000;
+    timespecs[0].tv_nsec = last_access_time64 % 1000000000;
+  }
+  else if (flags & __WASI_FILESTAT_SET_ATIM_NOW)
+  {
+    timespecs[0] = tp;
+  }
+  else
+  {
+    timespecs[0].tv_nsec = UTIME_OMIT;
+  }
+
+  if (flags & __WASI_FILESTAT_SET_MTIM)
+  {
+    timespecs[1].tv_sec = last_write_time64 / 1000000000;
+    timespecs[1].tv_nsec = last_write_time64 % 1000000000;
+  }
+  else if (flags & __WASI_FILESTAT_SET_MTIM_NOW)
+  {
+    timespecs[1] = tp;
+  }
+  else
+  {
+    timespecs[1].tv_nsec = UTIME_OMIT;
+  }
+  if (futimens(fd, timespecs) != 0)
+  {
+    return pack_errno(dummy, as_wasi_errno(errno));
+  }
+  return pack_errno(dummy, 0);
+}
+
 void *wavm_wasi_unstable_fd_pread(void *dummy) {}
 
 wavm_ret_int32_t wavm_wasi_unstable_fd_prestat_get(void *dummy, int32_t fd, int32_t prestat_address)
