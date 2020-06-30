@@ -26,7 +26,7 @@
 int32_t wavm_intrinsic_memory_grow(void *dummy, int32_t grow_by)
 {
 #ifdef DEBUG
-  printf("wavm_intrinsic_memory_grow\n");
+  printf("wavm_intrinsic_memory_grow grow_by=%d\n", grow_by);
 #endif
   if (grow_by == 0)
   {
@@ -50,7 +50,7 @@ int32_t wavm_intrinsic_memory_grow(void *dummy, int32_t grow_by)
 int32_t wavm_intrinsic_memory_grow(void *dummy, int32_t grow_by)
 {
 #ifdef DEBUG
-  printf("wavm_intrinsic_memory_grow\n");
+  printf("wavm_intrinsic_memory_grow grow_by=%d\n", grow_by);
 #endif
   return 1;
 }
@@ -767,7 +767,7 @@ wavm_ret_int32_t wavm_wasi_unstable_fd_close(void *dummy, int32_t fd)
 {
   (void)dummy;
 #ifdef DEBUG
-  printf("wavm_wasi_unstable_fd_close\n");
+  printf("wavm_wasi_unstable_fd_close fd=%d\n", fd);
 #endif
   int32_t r = close(fd);
   if (r != 0)
@@ -984,12 +984,43 @@ wavm_ret_int32_t wavm_wasi_unstable_fd_readdir(void *dummy, int32_t dir_fd, int3
   printf("wavm_wasi_unstable_fd_readdir dir_fd=%d buffer_address=%d num_buffer_bytes=%d first_cookie=%ld\n",
          dir_fd, buffer_address, num_buffer_bytes, first_cookie);
 #endif
+  // DIR *dir = fdopendir(dir_fd);
+  // if (!dir)
+  // {
+  //   return pack_errno(dummy, as_wasi_errno(errno));
+  // }
+  // seekdir(dir, first_cookie);
+
+  // struct dirent *dirp;
+  // __wasi_dirent_t wasi_dirent;
+  // uint32_t num_buffer_bytes_used = 0;
+  // dirp = readdir(dir);
+  // if (dirp == NULL) {
+  //   *((uint32_t *)&memoryOffset0.base[out_num_buffer_bytes_used_address]) = num_buffer_bytes_used;
+  //     return pack_errno(dummy, 0);
+  // }
+  // uint32_t cap_using = sizeof(wasi_dirent) + strlen((*dirp).d_name);
+
+  // wasi_dirent.d_next = telldir(dir);
+  // wasi_dirent.d_ino = (*dirp).d_ino;
+  // wasi_dirent.d_namlen = strlen((*dirp).d_name);
+  // wasi_dirent.d_type = as_wasi_file_type((*dirp).d_type);
+
+  // printf("d_next=%ld\n", wasi_dirent.d_next);
+
+  // memcpy(&memoryOffset0.base[buffer_address + num_buffer_bytes_used], &wasi_dirent, sizeof(wasi_dirent));
+  // num_buffer_bytes_used += sizeof(wasi_dirent);
+  // memcpy(&memoryOffset0.base[buffer_address + num_buffer_bytes_used], (*dirp).d_name, wasi_dirent.d_namlen);
+  // num_buffer_bytes_used += wasi_dirent.d_namlen;
+
+  // *((uint32_t *)&memoryOffset0.base[out_num_buffer_bytes_used_address]) = num_buffer_bytes_used;
+  // return pack_errno(dummy, 0);
+
   DIR *dir = fdopendir(dir_fd);
   if (!dir)
   {
     return pack_errno(dummy, as_wasi_errno(errno));
   }
-  rewinddir(dir);
   seekdir(dir, first_cookie);
 
   struct dirent *dirp;
@@ -1008,17 +1039,16 @@ wavm_ret_int32_t wavm_wasi_unstable_fd_readdir(void *dummy, int32_t dir_fd, int3
     {
       break;
     }
-    wasi_dirent.d_next = num_buffer_bytes_used + cap_using;
+    wasi_dirent.d_next = telldir(dir);
     wasi_dirent.d_ino = (*dirp).d_ino;
     wasi_dirent.d_namlen = strlen((*dirp).d_name);
     wasi_dirent.d_type = as_wasi_file_type((*dirp).d_type);
 
     memcpy(&memoryOffset0.base[buffer_address + num_buffer_bytes_used], &wasi_dirent, sizeof(wasi_dirent));
-    memcpy(&memoryOffset0.base[buffer_address + num_buffer_bytes_used + sizeof(wasi_dirent)], (*dirp).d_name, wasi_dirent.d_namlen);
-
-    num_buffer_bytes_used += cap_using;
+    num_buffer_bytes_used += sizeof(wasi_dirent);
+    memcpy(&memoryOffset0.base[buffer_address + num_buffer_bytes_used], (*dirp).d_name, wasi_dirent.d_namlen);
+    num_buffer_bytes_used += wasi_dirent.d_namlen;
   }
-  closedir(dir);
   *((uint32_t *)&memoryOffset0.base[out_num_buffer_bytes_used_address]) = num_buffer_bytes_used;
   return pack_errno(dummy, 0);
 }
