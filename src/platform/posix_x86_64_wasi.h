@@ -1184,12 +1184,26 @@ void *wavm_wasi_unstable_proc_exit(void *dummy, int32_t code)
 #ifdef DEBUG
   printf("wavm_wasi_unstable_proc_exit code=%d\n", code);
 #endif
+  (void)dummy;
   exit(code);
   return dummy;
 }
 void *wavm_wasi_unstable_proc_raise(void *dummy) {}
 void *wavm_wasi_unstable_sched_yield(void *dummy) {}
-void *wavm_wasi_unstable_random_get(void *dummy) {}
+
+wavm_ret_int32_t wavm_wasi_unstable_random_get(void *dummy, int32_t buffer_address, int32_t num_buffer_bytes)
+{
+#ifdef DEBUG
+  printf("wavm_wasi_unstable_random_get buffer_address=%d num_buffer_bytes=%d\n", buffer_address, num_buffer_bytes);
+#endif
+  (void)dummy;
+  for (int32_t i = 0; i < num_buffer_bytes; i++)
+  {
+    memoryOffset0.base[buffer_address + i] = rand() % 256;
+  }
+  return pack_errno(dummy, 0);
+}
+
 void *wavm_wasi_unstable_sock_recv(void *dummy) {}
 void *wavm_wasi_unstable_sock_send(void *dummy) {}
 void *wavm_wasi_unstable_sock_shutdown(void *dummy) {}
