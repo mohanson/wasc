@@ -1052,7 +1052,19 @@ wavm_ret_int32_t wavm_wasi_unstable_fd_write(void *dummy, int32_t fd, int32_t io
   return pack_errno(dummy, 0);
 }
 
-void *wavm_wasi_unstable_path_create_directory(void *dummy) {}
+wavm_ret_int32_t wavm_wasi_unstable_path_create_directory(void *dummy, int32_t dir_fd, int32_t path_address, int32_t num_path_bytes)
+{
+  (void)dummy;
+#ifdef DEBUG
+  printf("wavm_wasi_unstable_path_create_directory dir_fd=%d path_name=%s\n", dir_fd, (char *)&memoryOffset0.base[path_address]);
+#endif
+  if (mkdirat(dir_fd, (char *)&memoryOffset0.base[path_address], 0666) != 0)
+  {
+    return pack_errno(dummy, as_wasi_errno(errno));
+  }
+  return pack_errno(dummy, 0);
+}
+
 void *wavm_wasi_unstable_path_filestat_get(void *dummy) {}
 void *wavm_wasi_unstable_path_filestat_set_times(void *dummy) {}
 void *wavm_wasi_unstable_path_link(void *dummy) {}
