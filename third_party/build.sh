@@ -10,3 +10,10 @@ if [ ! -d "WAVM" ]; then
     cmake --build .
     cd $TOP
 fi
+
+if [ ! -d "wasi-sdk-11.0" ]; then
+    wget https://github.com/WebAssembly/wasi-sdk/releases/download/wasi-sdk-11/wasi-sdk-11.0-linux.tar.gz
+    tar xvf wasi-sdk-11.0-linux.tar.gz
+    ln -s wasi-sdk-11.0 wasi-sdk
+    rm wasi-sdk-11.0-linux.tar.gz
+fi

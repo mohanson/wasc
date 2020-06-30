@@ -724,7 +724,7 @@ pub fn generate(middle: &mut context::Middle) -> Result<(), Box<dyn std::error::
                             for (j, item) in e.init.iter().enumerate() {
                                 match item {
                                     wasmparser::ElementItem::Func(func_index) => {
-                                        let extern_name = get_external_name("functionDef", *func_index);
+                                        let extern_name = &function_name_list[*func_index as usize];
                                         let table_item = format!("((uintptr_t) ({}))", extern_name);
                                         table[value as usize + j] = table_item;
                                     }
@@ -741,7 +741,7 @@ pub fn generate(middle: &mut context::Middle) -> Result<(), Box<dyn std::error::
                                         for (j, item) in e.init.iter().enumerate() {
                                             match item {
                                                 wasmparser::ElementItem::Func(func_index) => {
-                                                    let extern_name = get_external_name("functionDef", *func_index);
+                                                    let extern_name = &function_name_list[*func_index as usize];
                                                     let table_item = format!("((uintptr_t) ({}))", extern_name);
                                                     table[*value as usize + j] = table_item;
                                                 }
@@ -763,7 +763,7 @@ pub fn generate(middle: &mut context::Middle) -> Result<(), Box<dyn std::error::
                                                     i,
                                                     format!("wavm_{}", import_name),
                                                     j,
-                                                    get_external_name("functionDef", *func_index as u32)
+                                                    function_name_list[*func_index as usize],
                                                 ));
                                             }
                                             wasmparser::ElementItem::Null => panic!("unreachable"),
@@ -880,10 +880,15 @@ pub fn generate(middle: &mut context::Middle) -> Result<(), Box<dyn std::error::
     glue_file.write("}");
     // Emit main function.
     if has_main {
-        glue_file.write("int main() {");
+        glue_file.write("int32_t g_argc;");
+        glue_file.write("char **g_argv;");
+        glue_file.write("int main(int argc, char *argv[]) {");
+        glue_file.write("g_argc = argc;");
+        glue_file.write("g_argv = argv;");
         glue_file.write("init();");
+        glue_file.write("init_wasi();");
         glue_file.write("wavm_exported_function__start(NULL);");
-        glue_file.write("return -1;");
+        glue_file.write("return 0;");
         glue_file.write("}");
     }
     glue_file.write(format!("#endif /* {} */", header_id));

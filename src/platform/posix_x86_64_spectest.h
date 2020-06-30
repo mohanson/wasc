@@ -34,28 +34,28 @@ int32_t wavm_intrinsic_memory_grow(void *dummy, int32_t grow_by)
 #else
 int32_t wavm_intrinsic_memory_grow(void *dummy, int32_t grow_by)
 {
-  return -1;
+  return 1;
 }
 #endif
 
 void callIndirectFail()
 {
-  exit(255);
+  exit(1);
 }
 
 void unreachableTrap()
 {
-  exit(254);
+  exit(1);
 }
 
 void divideByZeroOrIntegerOverflowTrap()
 {
-  exit(253);
+  exit(1);
 }
 
 void invalidFloatOperationTrap()
 {
-  exit(252);
+  exit(1);
 }
 
 int32_t wavm_spectest_global_i32 = 42;
