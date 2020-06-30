@@ -621,6 +621,38 @@ __wasi_filetype_t as_wasi_file_type(mode_t mode)
   };
 }
 
+__wasi_filetype_t get_filetype_from_mode(mode_t mode)
+{
+  switch (mode & S_IFMT)
+  {
+  case S_IFBLK:
+    return __WASI_FILETYPE_BLOCK_DEVICE;
+  case S_IFCHR:
+    return __WASI_FILETYPE_CHARACTER_DEVICE;
+  case S_IFIFO:
+    return __WASI_FILETYPE_UNKNOWN;
+  case S_IFREG:
+    return __WASI_FILETYPE_REGULAR_FILE;
+  case S_IFDIR:
+    return __WASI_FILETYPE_DIRECTORY;
+  case S_IFLNK:
+    return __WASI_FILETYPE_SYMBOLIC_LINK;
+  case S_IFSOCK:
+  default:
+    __WASI_FILETYPE_UNKNOWN;
+  };
+}
+
+int32_t as_posix_lookupflags(__wasi_lookupflags_t lookup_flags)
+{
+  int32_t f = 0;
+  if ((lookup_flags & __WASI_LOOKUP_SYMLINK_FOLLOW) == 0)
+  {
+    f |= AT_SYMLINK_NOFOLLOW;
+  }
+  return f;
+}
+
 wavm_ret_int32_t pack_errno(void *dummy, int32_t value)
 {
   wavm_ret_int32_t ret;
@@ -817,7 +849,30 @@ wavm_ret_int32_t wavm_wasi_unstable_fd_fdstat_set_flags(void *dummy, int32_t fd,
 }
 
 void *wavm_wasi_unstable_fd_fdstat_set_rights(void *dummy) {}
-void *wavm_wasi_unstable_fd_filestat_get(void *dummy) {}
+
+wavm_ret_int32_t wavm_wasi_unstable_fd_filestat_get(void *dummy, int32_t fd, int32_t filestat_address)
+{
+  (void)dummy;
+#ifdef DEBUG
+  printf("wavm_wasi_unstable_fd_filestat_get fd=%d\n", fd);
+#endif
+  struct stat filestat;
+  if (fstat(fd, &filestat))
+  {
+    return pack_errno(dummy, as_wasi_errno(errno));
+  }
+  __wasi_filestat_t wasi_filestat;
+  wasi_filestat.st_dev = filestat.st_dev;
+  wasi_filestat.st_ino = filestat.st_ino;
+  wasi_filestat.st_filetype = get_filetype_from_mode(filestat.st_mode);
+  wasi_filestat.st_nlink = filestat.st_nlink;
+  wasi_filestat.st_size = filestat.st_size;
+  wasi_filestat.st_atim = (__wasi_timestamp_t)filestat.st_atim.tv_nsec;
+  wasi_filestat.st_mtim = (__wasi_timestamp_t)filestat.st_mtim.tv_nsec;
+  wasi_filestat.st_ctim = (__wasi_timestamp_t)filestat.st_ctim.tv_nsec;
+  *((__wasi_filestat_t *)&memoryOffset0.base[filestat_address]) = wasi_filestat;
+  return pack_errno(dummy, 0);
+}
 
 wavm_ret_int32_t wavm_wasi_unstable_fd_filestat_set_size(void *dummy, int32_t fd, int64_t num_bytes)
 {
@@ -1067,7 +1122,30 @@ wavm_ret_int32_t wavm_wasi_unstable_path_create_directory(void *dummy, int32_t d
   return pack_errno(dummy, 0);
 }
 
-void *wavm_wasi_unstable_path_filestat_get(void *dummy) {}
+wavm_ret_int32_t wavm_wasi_unstable_path_filestat_get(void *dummy, int32_t dir_fd, int32_t lookup_flags, int32_t path_address, int32_t num_path_bytes, int32_t filestat_address)
+{
+  (void)dummy;
+#ifdef DEBUG
+  printf("wavm_wasi_unstable_path_filestat_get dir_fd=%d path_name=%s lookup_flags=%d\n", dir_fd, (char *)&memoryOffset0.base[path_address], lookup_flags);
+#endif
+  struct stat filestat;
+  if (fstatat(dir_fd, (char *)&memoryOffset0.base[path_address], &filestat, as_posix_lookupflags(lookup_flags)) != 0)
+  {
+    printf("%s\n", strerror(errno));
+    return pack_errno(dummy, as_wasi_errno(errno));
+  }
+  __wasi_filestat_t wasi_filestat;
+  wasi_filestat.st_dev = filestat.st_dev;
+  wasi_filestat.st_ino = filestat.st_ino;
+  wasi_filestat.st_filetype = get_filetype_from_mode(filestat.st_mode);
+  wasi_filestat.st_nlink = filestat.st_nlink;
+  wasi_filestat.st_size = filestat.st_size;
+  wasi_filestat.st_atim = (__wasi_timestamp_t)filestat.st_atim.tv_nsec;
+  wasi_filestat.st_mtim = (__wasi_timestamp_t)filestat.st_mtim.tv_nsec;
+  wasi_filestat.st_ctim = (__wasi_timestamp_t)filestat.st_ctim.tv_nsec;
+  *((__wasi_filestat_t *)&memoryOffset0.base[filestat_address]) = wasi_filestat;
+  return pack_errno(dummy, 0);
+}
 
 wavm_ret_int32_t wavm_wasi_unstable_path_filestat_set_times(void *dummy, int32_t dir_fd, int32_t lookup_flags,
                                                             int32_t path_address, int32_t num_path_bytes,
