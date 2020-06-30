@@ -471,6 +471,11 @@ Preopen preopen[PREOPEN_CNT] = {
     },
 };
 
+#define STDIO_RIGHTS __WASI_RIGHT_FD_READ | __WASI_RIGHT_FD_FDSTAT_SET_FLAGS | __WASI_RIGHT_FD_WRITE | __WASI_RIGHT_FD_FILESTAT_GET | __WASI_RIGHT_POLL_FD_READWRITE
+#define REGULAR_FILE_RIGHTS __WASI_RIGHT_FD_DATASYNC | __WASI_RIGHT_FD_READ | __WASI_RIGHT_FD_SEEK | __WASI_RIGHT_FD_FDSTAT_SET_FLAGS | __WASI_RIGHT_FD_SYNC | __WASI_RIGHT_FD_TELL | __WASI_RIGHT_FD_WRITE | __WASI_RIGHT_FD_ADVISE | __WASI_RIGHT_FD_ALLOCATE | __WASI_RIGHT_FD_FILESTAT_GET | __WASI_RIGHT_FD_FILESTAT_SET_SIZE | __WASI_RIGHT_FD_FILESTAT_SET_TIMES | __WASI_RIGHT_POLL_FD_READWRITE
+#define DIRECTORY_RIGHTS __WASI_RIGHT_FD_FDSTAT_SET_FLAGS | __WASI_RIGHT_FD_SYNC | __WASI_RIGHT_FD_ADVISE | __WASI_RIGHT_PATH_CREATE_DIRECTORY | __WASI_RIGHT_PATH_CREATE_FILE | __WASI_RIGHT_PATH_LINK_SOURCE | __WASI_RIGHT_PATH_LINK_TARGET | __WASI_RIGHT_PATH_OPEN | __WASI_RIGHT_FD_READDIR | __WASI_RIGHT_PATH_READLINK | __WASI_RIGHT_PATH_RENAME_SOURCE | __WASI_RIGHT_PATH_RENAME_TARGET | __WASI_RIGHT_PATH_FILESTAT_GET | __WASI_RIGHT_PATH_FILESTAT_SET_SIZE | __WASI_RIGHT_PATH_FILESTAT_SET_TIMES | __WASI_RIGHT_FD_FILESTAT_GET | __WASI_RIGHT_FD_FILESTAT_SET_TIMES | __WASI_RIGHT_PATH_SYMLINK | __WASI_RIGHT_PATH_UNLINK_FILE | __WASI_RIGHT_PATH_REMOVE_DIRECTORY | __WASI_RIGHT_POLL_FD_READWRITE
+#define INHERITING_DIRECTORY_RIGHTS DIRECTORY_RIGHTS | REGULAR_FILE_RIGHTS
+
 void init_wasi()
 {
   for (int fd = 3; fd < PREOPEN_CNT; fd++)
@@ -522,106 +527,72 @@ __wasi_errno_t as_wasi_errno(int error)
 {
   switch (error)
   {
-
   case EPERM:
     return __WASI_EPERM;
-    break;
   case ENOENT:
     return __WASI_ENOENT;
-    break;
   case ESRCH:
     return __WASI_ESRCH;
-    break;
   case EINTR:
     return __WASI_EINTR;
-    break;
   case EIO:
     return __WASI_EIO;
-    break;
   case ENXIO:
     return __WASI_ENXIO;
-    break;
   case E2BIG:
     return __WASI_E2BIG;
-    break;
   case ENOEXEC:
     return __WASI_ENOEXEC;
-    break;
   case EBADF:
     return __WASI_EBADF;
-    break;
   case ECHILD:
     return __WASI_ECHILD;
-    break;
   case EAGAIN:
     return __WASI_EAGAIN;
-    break;
   case ENOMEM:
     return __WASI_ENOMEM;
-    break;
   case EACCES:
     return __WASI_EACCES;
-    break;
   case EFAULT:
     return __WASI_EFAULT;
-    break;
   case EBUSY:
     return __WASI_EBUSY;
-    break;
   case EEXIST:
     return __WASI_EEXIST;
-    break;
   case EXDEV:
     return __WASI_EXDEV;
-    break;
   case ENODEV:
     return __WASI_ENODEV;
-    break;
   case ENOTDIR:
     return __WASI_ENOTDIR;
-    break;
   case EISDIR:
     return __WASI_EISDIR;
-    break;
   case EINVAL:
     return __WASI_EINVAL;
-    break;
   case ENFILE:
     return __WASI_ENFILE;
-    break;
   case EMFILE:
     return __WASI_EMFILE;
-    break;
   case ENOTTY:
     return __WASI_ENOTTY;
-    break;
   case ETXTBSY:
     return __WASI_ETXTBSY;
-    break;
   case EFBIG:
     return __WASI_EFBIG;
-    break;
   case ENOSPC:
     return __WASI_ENOSPC;
-    break;
   case ESPIPE:
     return __WASI_ESPIPE;
-    break;
   case EROFS:
     return __WASI_EROFS;
-    break;
   case EMLINK:
     return __WASI_EMLINK;
-    break;
   case EPIPE:
     return __WASI_EPIPE;
-    break;
   case EDOM:
     return __WASI_EDOM;
-    break;
   case ERANGE:
     return __WASI_ERANGE;
-    break;
   default:
     return errno;
   }
@@ -779,6 +750,7 @@ wavm_ret_int32_t wavm_wasi_unstable_fd_close(void *dummy, int32_t fd)
 
 void *wavm_wasi_unstable_fd_datasync(void *dummy) {}
 
+// There is a bug here, when the directory is very large, only a part will be displayed.
 wavm_ret_int32_t wavm_wasi_unstable_fd_fdstat_get(void *dummy, int32_t fd, int32_t fdstat_address)
 {
   (void)dummy;
@@ -805,8 +777,21 @@ wavm_ret_int32_t wavm_wasi_unstable_fd_fdstat_get(void *dummy, int32_t fd, int32
                     ((fl & O_NONBLOCK) ? __WASI_FDFLAG_NONBLOCK : 0) |
                     ((fl & O_RSYNC) ? __WASI_FDFLAG_RSYNC : 0) |
                     ((fl & O_SYNC) ? __WASI_FDFLAG_SYNC : 0);
-  fdstat.fs_rights_base = (uint64_t)-1;       // all rights
-  fdstat.fs_rights_inheriting = (uint64_t)-1; // all rights
+  if (fd < 3)
+  {
+    fdstat.fs_rights_base = STDIO_RIGHTS;
+    fdstat.fs_rights_inheriting = 0;
+  }
+  else if (S_ISREG(mode))
+  {
+    fdstat.fs_rights_base = REGULAR_FILE_RIGHTS;
+    fdstat.fs_rights_inheriting = REGULAR_FILE_RIGHTS;
+  }
+  else
+  {
+    fdstat.fs_rights_base = DIRECTORY_RIGHTS;
+    fdstat.fs_rights_inheriting = INHERITING_DIRECTORY_RIGHTS;
+  }
   *((__wasi_fdstat_t *)&memoryOffset0.base[fdstat_address]) = fdstat;
   return pack_errno(dummy, 0);
 }
@@ -984,38 +969,6 @@ wavm_ret_int32_t wavm_wasi_unstable_fd_readdir(void *dummy, int32_t dir_fd, int3
   printf("wavm_wasi_unstable_fd_readdir dir_fd=%d buffer_address=%d num_buffer_bytes=%d first_cookie=%ld\n",
          dir_fd, buffer_address, num_buffer_bytes, first_cookie);
 #endif
-  // DIR *dir = fdopendir(dir_fd);
-  // if (!dir)
-  // {
-  //   return pack_errno(dummy, as_wasi_errno(errno));
-  // }
-  // seekdir(dir, first_cookie);
-
-  // struct dirent *dirp;
-  // __wasi_dirent_t wasi_dirent;
-  // uint32_t num_buffer_bytes_used = 0;
-  // dirp = readdir(dir);
-  // if (dirp == NULL) {
-  //   *((uint32_t *)&memoryOffset0.base[out_num_buffer_bytes_used_address]) = num_buffer_bytes_used;
-  //     return pack_errno(dummy, 0);
-  // }
-  // uint32_t cap_using = sizeof(wasi_dirent) + strlen((*dirp).d_name);
-
-  // wasi_dirent.d_next = telldir(dir);
-  // wasi_dirent.d_ino = (*dirp).d_ino;
-  // wasi_dirent.d_namlen = strlen((*dirp).d_name);
-  // wasi_dirent.d_type = as_wasi_file_type((*dirp).d_type);
-
-  // printf("d_next=%ld\n", wasi_dirent.d_next);
-
-  // memcpy(&memoryOffset0.base[buffer_address + num_buffer_bytes_used], &wasi_dirent, sizeof(wasi_dirent));
-  // num_buffer_bytes_used += sizeof(wasi_dirent);
-  // memcpy(&memoryOffset0.base[buffer_address + num_buffer_bytes_used], (*dirp).d_name, wasi_dirent.d_namlen);
-  // num_buffer_bytes_used += wasi_dirent.d_namlen;
-
-  // *((uint32_t *)&memoryOffset0.base[out_num_buffer_bytes_used_address]) = num_buffer_bytes_used;
-  // return pack_errno(dummy, 0);
-
   DIR *dir = fdopendir(dir_fd);
   if (!dir)
   {
