@@ -1093,6 +1093,7 @@ wavm_ret_int32_t wavm_wasi_unstable_fd_write(void *dummy, int32_t fd, int32_t io
   ssize_t ret = writev(fd, iovs, num_iovs);
   if (ret < 0)
   {
+    printf("!!!!!!!!");
     return pack_errno(dummy, as_wasi_errno(errno));
   }
   *((uint32_t *)&memoryOffset0.base[num_bytes_written_address]) = ret;
