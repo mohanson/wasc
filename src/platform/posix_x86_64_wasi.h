@@ -1066,7 +1066,61 @@ wavm_ret_int32_t wavm_wasi_unstable_path_create_directory(void *dummy, int32_t d
 }
 
 void *wavm_wasi_unstable_path_filestat_get(void *dummy) {}
-void *wavm_wasi_unstable_path_filestat_set_times(void *dummy) {}
+
+wavm_ret_int32_t wavm_wasi_unstable_path_filestat_set_times(void *dummy, int32_t dir_fd, int32_t lookup_flags,
+                                                            int32_t path_address, int32_t num_path_bytes,
+                                                            int64_t last_access_time64, int64_t last_write_time64,
+                                                            int32_t flags)
+{
+  (void)dummy;
+#ifdef DEBUG
+  printf("wavm_wasi_unstable_path_filestat_set_times\n");
+#endif
+  int mode = 0644;
+  int host_fd = openat(dir_fd, (char *)&memoryOffset0.base[path_address], flags, mode);
+  if (host_fd < 0)
+  {
+    return pack_errno(dummy, as_wasi_errno(errno));
+  }
+  struct timespec tp;
+  if (clock_gettime(CLOCK_REALTIME, &tp))
+  {
+    return pack_errno(dummy, __WASI_EINVAL);
+  }
+  struct timespec timespecs[2];
+  if (flags & __WASI_FILESTAT_SET_ATIM)
+  {
+    timespecs[0].tv_sec = last_access_time64 / 1000000000;
+    timespecs[0].tv_nsec = last_access_time64 % 1000000000;
+  }
+  else if (flags & __WASI_FILESTAT_SET_ATIM_NOW)
+  {
+    timespecs[0] = tp;
+  }
+  else
+  {
+    timespecs[0].tv_nsec = UTIME_OMIT;
+  }
+  if (flags & __WASI_FILESTAT_SET_MTIM)
+  {
+    timespecs[1].tv_sec = last_write_time64 / 1000000000;
+    timespecs[1].tv_nsec = last_write_time64 % 1000000000;
+  }
+  else if (flags & __WASI_FILESTAT_SET_MTIM_NOW)
+  {
+    timespecs[1] = tp;
+  }
+  else
+  {
+    timespecs[1].tv_nsec = UTIME_OMIT;
+  }
+  if (futimens(host_fd, timespecs) != 0)
+  {
+    return pack_errno(dummy, as_wasi_errno(errno));
+  }
+  return pack_errno(dummy, 0);
+}
+
 void *wavm_wasi_unstable_path_link(void *dummy) {}
 
 wavm_ret_int32_t wavm_wasi_unstable_path_open(void *dummy, int32_t dirfd, int32_t dirflags, int32_t path_address,
