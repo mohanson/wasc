@@ -1076,12 +1076,6 @@ wavm_ret_int32_t wavm_wasi_unstable_path_filestat_set_times(void *dummy, int32_t
 #ifdef DEBUG
   printf("wavm_wasi_unstable_path_filestat_set_times\n");
 #endif
-  int mode = 0644;
-  int host_fd = openat(dir_fd, (char *)&memoryOffset0.base[path_address], flags, mode);
-  if (host_fd < 0)
-  {
-    return pack_errno(dummy, as_wasi_errno(errno));
-  }
   struct timespec tp;
   if (clock_gettime(CLOCK_REALTIME, &tp))
   {
@@ -1114,11 +1108,23 @@ wavm_ret_int32_t wavm_wasi_unstable_path_filestat_set_times(void *dummy, int32_t
   {
     timespecs[1].tv_nsec = UTIME_OMIT;
   }
-  if (futimens(host_fd, timespecs) != 0)
+
+  int mode = 0644;
+  int host_fd = openat(dir_fd, (char *)&memoryOffset0.base[path_address], flags, mode);
+  if (host_fd < 0)
   {
     return pack_errno(dummy, as_wasi_errno(errno));
   }
-  return pack_errno(dummy, 0);
+  if (futimens(host_fd, timespecs) != 0)
+  {
+    close(host_fd);
+    return pack_errno(dummy, as_wasi_errno(errno));
+  }
+  else
+  {
+    close(host_fd);
+    return pack_errno(dummy, 0);
+  }
 }
 
 void *wavm_wasi_unstable_path_link(void *dummy) {}
