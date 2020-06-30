@@ -1191,7 +1191,19 @@ wavm_ret_int32_t wavm_wasi_unstable_path_remove_directory(void *dummy, int32_t d
 
 void *wavm_wasi_unstable_path_rename(void *dummy) {}
 void *wavm_wasi_unstable_path_symlink(void *dummy) {}
-void *wavm_wasi_unstable_path_unlink_file(void *dummy) {}
+
+wavm_ret_int32_t wavm_wasi_unstable_path_unlink_file(void *dummy, int32_t dir_fd, int32_t path_address, int32_t num_path_bytes)
+{
+#ifdef DEBUG
+  printf("wavm_wasi_unstable_path_unlink_file path_name=%s\n", (char *)&memoryOffset0.base[path_address]);
+#endif
+  (void)dummy;
+  if (unlinkat(dir_fd, (char *)&memoryOffset0.base[path_address], 0) != 0)
+  {
+    return pack_errno(dummy, as_wasi_errno(errno));
+  }
+  return pack_errno(dummy, 0);
+}
 
 void *wavm_wasi_unstable_poll_oneoff(void *dummy) {}
 void *wavm_wasi_unstable_proc_exit(void *dummy, int32_t code)
