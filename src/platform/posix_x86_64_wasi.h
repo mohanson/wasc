@@ -1112,8 +1112,11 @@ wavm_ret_int32_t wavm_wasi_unstable_fd_write(void *dummy, int32_t fd, int32_t io
 wavm_ret_int32_t wavm_wasi_unstable_path_create_directory(void *dummy, int32_t dir_fd, int32_t path_address, int32_t num_path_bytes)
 {
   (void)dummy;
+  char path[256];
+  memcpy(path, &memoryOffset0.base[path_address], num_path_bytes);
+  path[num_path_bytes] = '\0';
 #ifdef DEBUG
-  printf("wavm_wasi_unstable_path_create_directory dir_fd=%d path_name=%s\n", dir_fd, (char *)&memoryOffset0.base[path_address]);
+  printf("wavm_wasi_unstable_path_create_directory dir_fd=%d path_name=%s\n", dir_fd, path);
 #endif
   if (mkdirat(dir_fd, (char *)&memoryOffset0.base[path_address], 0666) != 0)
   {
@@ -1125,11 +1128,14 @@ wavm_ret_int32_t wavm_wasi_unstable_path_create_directory(void *dummy, int32_t d
 wavm_ret_int32_t wavm_wasi_unstable_path_filestat_get(void *dummy, int32_t dir_fd, int32_t lookup_flags, int32_t path_address, int32_t num_path_bytes, int32_t filestat_address)
 {
   (void)dummy;
+  char path[256];
+  memcpy(path, &memoryOffset0.base[path_address], num_path_bytes);
+  path[num_path_bytes] = '\0';
 #ifdef DEBUG
-  printf("wavm_wasi_unstable_path_filestat_get dir_fd=%d path_name=%s lookup_flags=%d\n", dir_fd, (char *)&memoryOffset0.base[path_address], lookup_flags);
+  printf("wavm_wasi_unstable_path_filestat_get dir_fd=%d path_name=%s lookup_flags=%d\n", dir_fd, path, lookup_flags);
 #endif
   struct stat filestat;
-  if (fstatat(dir_fd, (char *)&memoryOffset0.base[path_address], &filestat, as_posix_lookupflags(lookup_flags)) != 0)
+  if (fstatat(dir_fd, path, &filestat, as_posix_lookupflags(lookup_flags)) != 0)
   {
     printf("%s\n", strerror(errno));
     return pack_errno(dummy, as_wasi_errno(errno));
@@ -1153,8 +1159,11 @@ wavm_ret_int32_t wavm_wasi_unstable_path_filestat_set_times(void *dummy, int32_t
                                                             int32_t flags)
 {
   (void)dummy;
+  char path[256];
+  memcpy(path, &memoryOffset0.base[path_address], num_path_bytes);
+  path[num_path_bytes] = '\0';
 #ifdef DEBUG
-  printf("wavm_wasi_unstable_path_filestat_set_times\n");
+  printf("wavm_wasi_unstable_path_filestat_set_times path=%s\n", path);
 #endif
   struct timespec tp;
   if (clock_gettime(CLOCK_REALTIME, &tp))
@@ -1190,7 +1199,7 @@ wavm_ret_int32_t wavm_wasi_unstable_path_filestat_set_times(void *dummy, int32_t
   }
 
   int mode = 0644;
-  int host_fd = openat(dir_fd, (char *)&memoryOffset0.base[path_address], flags, mode);
+  int host_fd = openat(dir_fd, path, flags, mode);
   if (host_fd < 0)
   {
     return pack_errno(dummy, as_wasi_errno(errno));
@@ -1214,8 +1223,9 @@ wavm_ret_int32_t wavm_wasi_unstable_path_open(void *dummy, int32_t dirfd, int32_
                                               int64_t requested_inheriting_rights, int32_t fd_flags, int32_t fd_address)
 {
   (void)dummy;
-  char *path = (char *)&memoryOffset0.base[path_address];
-  int32_t *fd = (int32_t *)&memoryOffset0.base[fd_address];
+  char path[256];
+  memcpy(path, &memoryOffset0.base[path_address], num_path_bytes);
+  path[num_path_bytes] = '\0';
 #ifdef DEBUG
   printf("wavm_wasi_unstable_path_open path=%s dirflags=%d open_flags=%d requested_rights=%ld requested_inheriting_rights=%ld fd_flags=%d\n",
          path, dirflags, open_flags, requested_rights, requested_inheriting_rights, fd_flags);
@@ -1256,11 +1266,14 @@ void *wavm_wasi_unstable_path_readlink(void *dummy) {}
 
 wavm_ret_int32_t wavm_wasi_unstable_path_remove_directory(void *dummy, int32_t dir_fd, int32_t path_address, int32_t num_path_bytes)
 {
-#ifdef DEBUG
-  printf("wavm_wasi_unstable_path_remove_directory path_name=%s\n", (char *)&memoryOffset0.base[path_address]);
-#endif
   (void)dummy;
-  if (unlinkat(dir_fd, (char *)&memoryOffset0.base[path_address], AT_REMOVEDIR) != 0)
+  char path[256];
+  memcpy(path, &memoryOffset0.base[path_address], num_path_bytes);
+  path[num_path_bytes] = '\0';
+#ifdef DEBUG
+  printf("wavm_wasi_unstable_path_remove_directory path_name=%s\n", path);
+#endif
+  if (unlinkat(dir_fd, path, AT_REMOVEDIR) != 0)
   {
     return pack_errno(dummy, as_wasi_errno(errno));
   }
@@ -1272,11 +1285,14 @@ void *wavm_wasi_unstable_path_symlink(void *dummy) {}
 
 wavm_ret_int32_t wavm_wasi_unstable_path_unlink_file(void *dummy, int32_t dir_fd, int32_t path_address, int32_t num_path_bytes)
 {
-#ifdef DEBUG
-  printf("wavm_wasi_unstable_path_unlink_file path_name=%s\n", (char *)&memoryOffset0.base[path_address]);
-#endif
   (void)dummy;
-  if (unlinkat(dir_fd, (char *)&memoryOffset0.base[path_address], 0) != 0)
+  char path[256];
+  memcpy(path, &memoryOffset0.base[path_address], num_path_bytes);
+  path[num_path_bytes] = '\0';
+#ifdef DEBUG
+  printf("wavm_wasi_unstable_path_unlink_file path_name=%s\n", path);
+#endif
+  if (unlinkat(dir_fd, path, 0) != 0)
   {
     return pack_errno(dummy, as_wasi_errno(errno));
   }
