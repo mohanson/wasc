@@ -9,6 +9,9 @@ pub fn compile<P: AsRef<std::path::Path>>(
     middle.init_config(config);
     middle.init_file(path);
 
+    rog::debugln!("create {}", middle.path_prog.to_str().unwrap());
+    if let Ok(()) = std::fs::create_dir(&middle.path_prog) {}
+
     // Get wavm precompiled module.
     let mut cmd_wavm = std::process::Command::new(&middle.config.binary_wavm);
     cmd_wavm
@@ -48,7 +51,10 @@ pub fn compile<P: AsRef<std::path::Path>>(
         }
         context::Platform::PosixX8664Wasi => {
             rog::debugln!("create {}", middle.path_platform_header.to_str().unwrap());
-            std::fs::write(&middle.path_platform_header, &middle.config.platform_posix_x86_64_wasi_h)?;
+            std::fs::write(
+                &middle.path_platform_header,
+                &middle.config.platform_posix_x86_64_wasi_h,
+            )?;
             rog::debugln!("create {}", middle.path_platform_s.to_str().unwrap());
             std::fs::write(
                 &middle.path_platform_s,

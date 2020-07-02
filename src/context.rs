@@ -76,11 +76,8 @@ impl Middle {
         self.current_dir = std::env::current_dir().unwrap();
         self.file = p.as_ref().to_path_buf();
         self.file_stem = self.file.file_stem().unwrap().to_str().unwrap().to_string();
-        self.path_prog = self.file.parent().unwrap().to_path_buf();
-        if self.path_prog.parent() == None {
-            self.path_prog = std::path::PathBuf::from("./");
-        }
-        self.path_platform_code_folder = self.path_prog.join(self.file_stem.clone() + "_platform");
+        self.path_prog = self.file.with_file_name(format!("{}_build", self.file_stem));
+        self.path_platform_code_folder = self.path_prog.join("platform");
         match self.config.platform {
             Platform::PosixX8664 => {
                 self.path_platform_header = self.path_platform_code_folder.join("posix_x86_64.h");
@@ -95,8 +92,6 @@ impl Middle {
                 self.path_platform_s = self.path_platform_code_folder.join("posix_x86_64_wasi_runtime.S");
             }
             Platform::Unknown => {
-                // Must specify the target platform in advance, from environment variables, or command line parameters,
-                // or guess.
                 panic!("unreachable");
             }
         }

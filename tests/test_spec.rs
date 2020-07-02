@@ -19,10 +19,7 @@ fn test_spec_single_test<P: AsRef<std::path::Path>>(
 
     let mut ep_file = code_builder::CodeBuilder::place(&middle.path_c);
     ep_file.write(format!("#include \"{}_glue.h\"", middle.file_stem).as_str());
-    ep_file.write(format!(
-        "#include \"./{}_platform/posix_x86_64_spectest.h\"",
-        &middle.file_stem
-    ));
+    ep_file.write("#include \"platform/posix_x86_64_spectest.h\"");
     ep_file.write("");
     ep_file.write("int main() {");
     ep_file.write("init();");

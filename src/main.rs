@@ -56,9 +56,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let mut ep_file = code_builder::CodeBuilder::place(&middle.path_c);
     let platform_header = match middle.config.platform {
-        context::Platform::PosixX8664 => format!("./{}_platform/posix_x86_64.h", middle.file_stem),
-        context::Platform::PosixX8664Spectest => format!("./{}_platform/posix_x86_64_spectest.h", middle.file_stem),
-        context::Platform::PosixX8664Wasi => format!("./{}_platform/posix_x86_64_wasi.h", middle.file_stem),
+        context::Platform::PosixX8664 => "platform/posix_x86_64.h",
+        context::Platform::PosixX8664Spectest => "platform/posix_x86_64_spectest.h",
+        context::Platform::PosixX8664Wasi => "platform/posix_x86_64_wasi.h",
         context::Platform::Unknown => panic!("unreachable"),
     };
     ep_file.write(format!("#include \"{}_glue.h\"", middle.file_stem).as_str());

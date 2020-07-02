@@ -19,21 +19,21 @@ pub fn gcc_build(middle: &context::Middle) -> Result<(), Box<dyn std::error::Err
             cmd.arg(
                 middle
                     .path_prog
-                    .join(format!("{}_platform/posix_x86_64_runtime.S", middle.file_stem)),
+                    .join("platform/posix_x86_64_runtime.S"),
             );
         }
         context::Platform::PosixX8664Spectest => {
             cmd.arg(
                 middle
                     .path_prog
-                    .join(format!("{}_platform/posix_x86_64_spectest_runtime.S", middle.file_stem)),
+                    .join("platform/posix_x86_64_spectest_runtime.S"),
             );
         }
         context::Platform::PosixX8664Wasi => {
             cmd.arg(
                 middle
                     .path_prog
-                    .join(format!("{}_platform/posix_x86_64_wasi_runtime.S", middle.file_stem)),
+                    .join("platform/posix_x86_64_wasi_runtime.S"),
             );
         }
         _ => panic!("unreachable"),
