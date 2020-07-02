@@ -87,7 +87,6 @@ void invalidFloatOperationTrap()
   exit(1);
 }
 
-// Inspried by https://github.com/kanaka/wac/blob/master/wasi.c#L32
 typedef struct Preopen
 {
   char *path;
