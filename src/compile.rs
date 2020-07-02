@@ -1,3 +1,4 @@
+use super::aot_generator;
 use super::context;
 
 // The main entry function for wasc compiler. It is expected that it will be a complete set of compilation work.
@@ -79,6 +80,8 @@ pub fn compile<P: AsRef<std::path::Path>>(
             panic!("unreachable");
         }
     }
+
+    aot_generator::generate(&mut middle)?;
 
     Ok(middle)
 }

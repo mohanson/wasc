@@ -1,10 +1,21 @@
-use wasc::aot_generator;
 use wasc::code_builder;
 use wasc::compile;
 use wasc::context;
 use wasc::dummy;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
+    // Usage of wasc:
+    //
+    // wasc
+    //     -p --platform [PLATFORM]
+    //     --wasm [WAVM binary]
+    //     -v --verbose
+    //     source [WASM/WA(S)T source file]
+    //
+    // PLATFORM:
+    //   posix_x86_64
+    //   posix_x86_64_spectest
+    //   posix_x86_64_wasi
     let mut fl_source = String::from("");
     let mut fl_platform = String::from("");
     let mut fl_wavm = String::from("wavm");
@@ -55,8 +66,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     };
     config.binary_wavm = fl_wavm;
 
-    let mut middle = compile::compile(&fl_source, config)?;
-    aot_generator::generate(&mut middle)?;
+    let middle = compile::compile(&fl_source, config)?;
 
     let mut ep_file = code_builder::CodeBuilder::place(&middle.path_c);
     let platform_header = match middle.config.platform {

@@ -14,8 +14,7 @@ fn test_spec_single_test<P: AsRef<std::path::Path>>(
     config.platform = context::Platform::PosixX8664Spectest;
     config.binary_wavm = "./third_party/WAVM/build/bin/wavm".to_string();
 
-    let mut middle = compile::compile(&wasm_path, config)?;
-    aot_generator::generate(&mut middle)?;
+    let middle = compile::compile(&wasm_path, config)?;
 
     let mut ep_file = code_builder::CodeBuilder::place(&middle.path_c);
     ep_file.write(format!("#include \"{}_glue.h\"", middle.file_stem).as_str());

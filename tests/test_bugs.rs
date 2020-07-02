@@ -1,4 +1,3 @@
-use wasc::aot_generator;
 use wasc::code_builder;
 use wasc::compile;
 use wasc::context;
@@ -10,10 +9,7 @@ fn test_spec_single_test<P: AsRef<std::path::Path>>(wasm_path: P) -> Result<i32,
     let mut config = wasc::context::Config::default();
     config.platform = context::Platform::PosixX8664Spectest;
     config.binary_wavm = String::from("./third_party/WAVM/build/bin/wavm");
-
-    let mut middle = compile::compile(&wasm_path, config)?;
-    aot_generator::generate(&mut middle)?;
-
+    let middle = compile::compile(&wasm_path, config)?;
     let mut dummy_file = code_builder::CodeBuilder::place(&middle.path_c);
     dummy_file.write(format!("#include \"{}_glue.h\"", middle.file_stem).as_str());
     dummy_file.write("#include \"platform/posix_x86_64_spectest.h\"");
