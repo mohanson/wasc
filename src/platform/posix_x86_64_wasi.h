@@ -12,17 +12,24 @@
 #include <time.h>
 #include <unistd.h>
 
+#include "common/wavm.h"
+
 #ifndef WAVM_POSIX_X86_64_WASI_H
 #define WAVM_POSIX_X86_64_WASI_H
 
 #define DEBUG
+
+extern int32_t g_argc;
+extern char **g_argv;
 
 #define WAVM_PAGE_SIZE 0x10000
 #ifndef MEMORY0_MAX_PAGE
 #define MEMORY0_MAX_PAGE 65536
 #endif /* MEMORY0_MAX_PAGE */
 
-#ifdef MEMORY0_DEFINED
+extern memory_instance memoryOffset0;
+extern uint8_t *memory0;
+
 int32_t wavm_intrinsic_memory_grow(void *dummy, int32_t grow_by)
 {
 #ifdef DEBUG
@@ -40,21 +47,12 @@ int32_t wavm_intrinsic_memory_grow(void *dummy, int32_t grow_by)
   }
   size_t old_size = old_pages * WAVM_PAGE_SIZE;
   size_t new_size = new_pages * WAVM_PAGE_SIZE;
-  memory0 = realloc(memory0, new_size);
+  memory0 = (uint8_t *)realloc(memory0, new_size);
   memset(memory0 + old_size, 0, new_size - old_size);
   memoryOffset0.base = memory0;
   memoryOffset0.num_pages = new_pages;
   return old_pages;
 }
-#else
-int32_t wavm_intrinsic_memory_grow(void *dummy, int32_t grow_by)
-{
-#ifdef DEBUG
-  printf("wavm_intrinsic_memory_grow grow_by=%d\n", grow_by);
-#endif
-  return 1;
-}
-#endif
 
 void callIndirectFail()
 {
@@ -83,7 +81,7 @@ void divideByZeroOrIntegerOverflowTrap()
 void invalidFloatOperationTrap()
 {
 #ifdef DEBUG
-  printf("wavm_wasi_unstable_args_get\n");
+  printf("invalidFloatOperationTrap\n");
 #endif
   exit(1);
 }
@@ -511,7 +509,7 @@ struct iovec *copy_iov_to_host(uint32_t iov_offset, uint32_t iovs_len)
     printf("copy_iov_to_host called with iovs_len > 128\n");
     exit(1);
   }
-  struct iovec *wasi_iov = &memoryOffset0.base[iov_offset];
+  struct iovec *wasi_iov = (struct iovec *)&memoryOffset0.base[iov_offset];
   for (int32_t i = 0; i < iovs_len; i++)
   {
     uint32_t buffer_address = *((uint32_t *)&memoryOffset0.base[iov_offset + i * 8]);

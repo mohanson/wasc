@@ -16,25 +16,13 @@ pub fn gcc_build(middle: &context::Middle) -> Result<(), Box<dyn std::error::Err
         .arg(middle.path_c.to_str().unwrap());
     match middle.config.platform {
         context::Platform::PosixX8664 => {
-            cmd.arg(
-                middle
-                    .path_prog
-                    .join("platform/posix_x86_64_runtime.S"),
-            );
+            cmd.arg(middle.path_prog.join("platform/posix_x86_64_runtime.S"));
         }
         context::Platform::PosixX8664Spectest => {
-            cmd.arg(
-                middle
-                    .path_prog
-                    .join("platform/posix_x86_64_spectest_runtime.S"),
-            );
+            cmd.arg(middle.path_prog.join("platform/posix_x86_64_spectest_runtime.S"));
         }
         context::Platform::PosixX8664Wasi => {
-            cmd.arg(
-                middle
-                    .path_prog
-                    .join("platform/posix_x86_64_wasi_runtime.S"),
-            );
+            cmd.arg(middle.path_prog.join("platform/posix_x86_64_wasi_runtime.S"));
         }
         _ => panic!("unreachable"),
     }

@@ -29,6 +29,13 @@ pub fn compile<P: AsRef<std::path::Path>>(
     // Init platform based code.
     rog::debugln!("create {}", middle.path_platform_code_folder.to_str().unwrap());
     if let Ok(()) = std::fs::create_dir(&middle.path_platform_code_folder) {}
+    rog::debugln!("create {}", middle.path_platform_common_code_folder.to_str().unwrap());
+    if let Ok(()) = std::fs::create_dir(&middle.path_platform_common_code_folder) {}
+    rog::debugln!("create {}", &middle.path_platform_common_wavm_h.to_str().unwrap());
+    std::fs::write(
+        &middle.path_platform_common_wavm_h,
+        &middle.config.platform_common_wavm_h,
+    )?;
     match middle.config.platform {
         context::Platform::PosixX8664 => {
             rog::debugln!("create {}", middle.path_platform_header.to_str().unwrap());
