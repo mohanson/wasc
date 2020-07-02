@@ -12,18 +12,24 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let mut source = String::from("");
     let mut platform = String::from("");
+    let mut wavm = String::from("wavm");
     {
         let mut ap = argparse::ArgumentParser::new();
         ap.set_description("WASC: WebAssembly native compilter");
         ap.refer(&mut source)
             .add_argument("source", argparse::Store, "WASM/WA(S)T source file");
-        ap.refer(&mut platform)
-            .add_option(&["-p", "--platform"], argparse::Store, "");
+        ap.refer(&mut platform).add_option(
+            &["-p", "--platform"],
+            argparse::Store,
+            "posix_x86_64 posix_x86_64_spectest posix_x86_64_wasi",
+        );
+        ap.refer(&mut wavm)
+            .add_option(&["--wavm"], argparse::Store, "WAVM binary");
         ap.parse_args_or_exit();
     }
     if source.is_empty() {
         rog::println!("wasc: missing file operand");
-        std::process::exit(0);
+        std::process::exit(1);
     }
 
     let mut config = context::Config::default();
@@ -31,9 +37,20 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         "posix_x86_64" => context::Platform::PosixX8664,
         "posix_x86_64_spectest" => context::Platform::PosixX8664Spectest,
         "posix_x86_64_wasi" => context::Platform::PosixX8664Wasi,
-        _ => context::Platform::PosixX8664Wasi,
+        "" => {
+            if cfg!(unix) {
+                context::Platform::PosixX8664Wasi
+            } else {
+                context::Platform::Unknown
+            }
+        }
+        x => {
+            rog::println!("wasc: unknown platform {}", x);
+            std::process::exit(1);
+        }
     };
-    config.binary_wavm = String::from("/src/wasc/third_party/WAVM/build/bin/wavm");
+    config.binary_wavm = wavm;
+
     let mut middle = compile::compile(&source, config)?;
     aot_generator::generate(&mut middle)?;
 
