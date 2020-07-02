@@ -14,12 +14,12 @@ pub struct Config {
     pub binary_wavm: String,
     // Platfrom flag and their files.
     pub platform: Platform,
-    pub platform_posix_x86_64: &'static str,
-    pub platform_posix_x86_64_runtime: &'static str,
-    pub platform_posix_x86_64_spectest: &'static str,
-    pub platform_posix_x86_64_spectest_runtime: &'static str,
-    pub platform_posix_x86_64_wasi: &'static str,
-    pub platform_posix_x86_64_wasi_runtime: &'static str,
+    pub platform_posix_x86_64_h: &'static str,
+    pub platform_posix_x86_64_runtime_s: &'static str,
+    pub platform_posix_x86_64_spectest_h: &'static str,
+    pub platform_posix_x86_64_spectest_runtime_s: &'static str,
+    pub platform_posix_x86_64_wasi_h: &'static str,
+    pub platform_posix_x86_64_wasi_runtime_s: &'static str,
 }
 
 impl Default for Config {
@@ -28,12 +28,12 @@ impl Default for Config {
             binary_cc: String::from("gcc"),
             binary_wavm: String::from("wavm"),
             platform: Platform::Unknown,
-            platform_posix_x86_64: include_str!("./platform/posix_x86_64.h"),
-            platform_posix_x86_64_runtime: include_str!("./platform/posix_x86_64_runtime.S"),
-            platform_posix_x86_64_spectest: include_str!("./platform/posix_x86_64_spectest.h"),
-            platform_posix_x86_64_spectest_runtime: include_str!("./platform/posix_x86_64_spectest_runtime.S"),
-            platform_posix_x86_64_wasi: include_str!("./platform/posix_x86_64_wasi.h"),
-            platform_posix_x86_64_wasi_runtime: include_str!("./platform/posix_x86_64_wasi_runtime.S"),
+            platform_posix_x86_64_h: include_str!("./platform/posix_x86_64.h"),
+            platform_posix_x86_64_runtime_s: include_str!("./platform/posix_x86_64_runtime.S"),
+            platform_posix_x86_64_spectest_h: include_str!("./platform/posix_x86_64_spectest.h"),
+            platform_posix_x86_64_spectest_runtime_s: include_str!("./platform/posix_x86_64_spectest_runtime.S"),
+            platform_posix_x86_64_wasi_h: include_str!("./platform/posix_x86_64_wasi.h"),
+            platform_posix_x86_64_wasi_runtime_s: include_str!("./platform/posix_x86_64_wasi_runtime.S"),
         }
     }
 }

@@ -27,32 +27,32 @@ pub fn compile<P: AsRef<std::path::Path>>(
     match middle.config.platform {
         context::Platform::PosixX8664 => {
             rog::debugln!("create {}", middle.path_platform_header.to_str().unwrap());
-            std::fs::write(&middle.path_platform_header, &middle.config.platform_posix_x86_64)?;
+            std::fs::write(&middle.path_platform_header, &middle.config.platform_posix_x86_64_h)?;
             rog::debugln!("create {}", middle.path_platform_s.to_str().unwrap());
             std::fs::write(
                 &middle.path_platform_header,
-                &middle.config.platform_posix_x86_64_runtime,
+                &middle.config.platform_posix_x86_64_runtime_s,
             )?;
         }
         context::Platform::PosixX8664Spectest => {
             rog::debugln!("create {}", middle.path_platform_header.to_str().unwrap());
             std::fs::write(
                 &middle.path_platform_header,
-                &middle.config.platform_posix_x86_64_spectest,
+                &middle.config.platform_posix_x86_64_spectest_h,
             )?;
             rog::debugln!("create {}", middle.path_platform_s.to_str().unwrap());
             std::fs::write(
                 &middle.path_platform_s,
-                &middle.config.platform_posix_x86_64_spectest_runtime,
+                &middle.config.platform_posix_x86_64_spectest_runtime_s,
             )?;
         }
         context::Platform::PosixX8664Wasi => {
             rog::debugln!("create {}", middle.path_platform_header.to_str().unwrap());
-            std::fs::write(&middle.path_platform_header, &middle.config.platform_posix_x86_64_wasi)?;
+            std::fs::write(&middle.path_platform_header, &middle.config.platform_posix_x86_64_wasi_h)?;
             rog::debugln!("create {}", middle.path_platform_s.to_str().unwrap());
             std::fs::write(
                 &middle.path_platform_s,
-                &middle.config.platform_posix_x86_64_wasi_runtime,
+                &middle.config.platform_posix_x86_64_wasi_runtime_s,
             )?;
         }
         context::Platform::Unknown => {
