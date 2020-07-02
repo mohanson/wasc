@@ -69,6 +69,11 @@ pub fn compile<P: AsRef<std::path::Path>>(
                 &middle.path_platform_s,
                 &middle.config.platform_posix_x86_64_wasi_runtime_s,
             )?;
+            rog::debugln!("create {}", &middle.path_platform_common_wasi_h.to_str().unwrap());
+            std::fs::write(
+                &middle.path_platform_common_wasi_h,
+                &middle.config.platform_common_wasi_h,
+            )?;
         }
         context::Platform::Unknown => {
             panic!("unreachable");

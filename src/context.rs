@@ -21,6 +21,7 @@ pub struct Config {
     pub platform_posix_x86_64_wasi_h: &'static str,
     pub platform_posix_x86_64_wasi_runtime_s: &'static str,
     pub platform_common_wavm_h: &'static str,
+    pub platform_common_wasi_h: &'static str,
 }
 
 impl Default for Config {
@@ -36,6 +37,7 @@ impl Default for Config {
             platform_posix_x86_64_wasi_h: include_str!("./platform/posix_x86_64_wasi.h"),
             platform_posix_x86_64_wasi_runtime_s: include_str!("./platform/posix_x86_64_wasi_runtime.S"),
             platform_common_wavm_h: include_str!("./platform/common/wavm.h"),
+            platform_common_wasi_h: include_str!("./platform/common/wasi.h"),
         }
     }
 }
@@ -61,6 +63,7 @@ pub struct Middle {
     pub path_platform_code_folder: std::path::PathBuf,        // xx_build/platform
     pub path_platform_common_code_folder: std::path::PathBuf, // xx_build/platform/common
     pub path_platform_common_wavm_h: std::path::PathBuf,      // xx_build/platform/common/wavm.h
+    pub path_platform_common_wasi_h: std::path::PathBuf,      // xx_build/platform/common/wasi.h
     pub path_platform_header: std::path::PathBuf,             // xx_build/platform/xx.h
     pub path_platform_s: std::path::PathBuf,                  // xx_build/platform/xx_runtime.s
     pub path_object: std::path::PathBuf,                      // xx_build/xx.o
@@ -105,5 +108,6 @@ impl Middle {
         self.path_c = self.path_prog.join(self.file_stem.clone() + ".c");
         self.path_precompiled = self.path_prog.join(self.file_stem.clone() + "_precompiled.wasm");
         self.path_platform_common_wavm_h = self.path_platform_common_code_folder.join("wavm.h");
+        self.path_platform_common_wasi_h = self.path_platform_common_code_folder.join("wasi.h");
     }
 }
