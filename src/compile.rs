@@ -1,6 +1,7 @@
 use super::context;
 
 // The main entry function for wasc compiler. It is expected that it will be a complete set of compilation work.
+// TODO: only a small part is realized.
 pub fn compile<P: AsRef<std::path::Path>>(
     path: P,
     config: context::Config,
@@ -20,7 +21,7 @@ pub fn compile<P: AsRef<std::path::Path>>(
         .arg("all")
         .arg(middle.file.clone())
         .arg(middle.path_precompiled.to_str().unwrap());
-    rog::println!("$ {:?}", cmd_wavm);
+    rog::debugln!("$ {:?}", cmd_wavm);
     let exit_status = cmd_wavm.spawn()?.wait()?;
     if !exit_status.success() {
         std::process::exit(exit_status.code().unwrap());
