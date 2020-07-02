@@ -1,6 +1,6 @@
 use super::context;
 
-pub fn gcc_build(middle: &context::Middle) -> Result<(), Box<dyn std::error::Error>> {
+pub fn build(middle: &context::Middle) -> Result<(), Box<dyn std::error::Error>> {
     let output_bin = middle
         .path_prog
         .join(middle.file_stem.clone())
@@ -29,10 +29,4 @@ pub fn gcc_build(middle: &context::Middle) -> Result<(), Box<dyn std::error::Err
 
     cmd.spawn()?.wait()?;
     Ok(())
-}
-
-pub fn run(middle: &context::Middle) -> Result<std::process::ExitStatus, Box<dyn std::error::Error>> {
-    let mut cmd = std::process::Command::new(middle.path_prog.join(middle.file_stem.clone()).to_str().unwrap());
-    rog::debugln!("{:?}", cmd);
-    Ok(cmd.spawn()?.wait()?)
 }

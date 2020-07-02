@@ -81,6 +81,7 @@ pub fn compile<P: AsRef<std::path::Path>>(
         }
     }
 
+    // AOT generator
     aot_generator::generate(&mut middle)?;
 
     Ok(middle)

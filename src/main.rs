@@ -1,7 +1,7 @@
 use wasc::code_builder;
 use wasc::compile;
 use wasc::context;
-use wasc::dummy;
+use wasc::gcc;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Usage of wasc:
@@ -79,7 +79,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     ep_file.write(format!("#include \"{}\"", platform_header));
     ep_file.close()?;
 
-    dummy::gcc_build(&middle)?;
+    gcc::build(&middle)?;
 
     Ok(())
 }

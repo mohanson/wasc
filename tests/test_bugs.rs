@@ -1,7 +1,7 @@
 use wasc::code_builder;
 use wasc::compile;
 use wasc::context;
-use wasc::dummy;
+use wasc::gcc;
 
 mod misc;
 
@@ -20,9 +20,10 @@ fn test_spec_single_test<P: AsRef<std::path::Path>>(wasm_path: P) -> Result<i32,
     dummy_file.write("}");
     dummy_file.close()?;
 
-    dummy::gcc_build(&middle)?;
+    gcc::build(&middle)?;
 
-    let exit_status = dummy::run(&middle)?;
+    let mut cmd = std::process::Command::new(middle.path_prog.join(middle.file_stem.clone()).to_str().unwrap());
+    let exit_status = cmd.spawn()?.wait()?;
     rog::debugln!("{:?} {}", wasm_path.as_ref(), exit_status);
     Ok(exit_status.code().unwrap())
 }
