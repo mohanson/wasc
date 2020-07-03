@@ -18,7 +18,7 @@
 #ifndef WAVM_POSIX_X86_64_WASI_H
 #define WAVM_POSIX_X86_64_WASI_H
 
-#define DEBUG
+// #define DEBUG
 
 extern int32_t g_argc;
 extern char **g_argv;
@@ -87,6 +87,24 @@ void invalidFloatOperationTrap()
   exit(1);
 }
 
+#define STDIO_RIGHTS (__WASI_RIGHT_FD_READ | __WASI_RIGHT_FD_FDSTAT_SET_FLAGS | __WASI_RIGHT_FD_WRITE | \
+                      __WASI_RIGHT_FD_FILESTAT_GET | __WASI_RIGHT_POLL_FD_READWRITE)
+#define REGULAR_FILE_RIGHTS (__WASI_RIGHT_FD_DATASYNC | __WASI_RIGHT_FD_READ | __WASI_RIGHT_FD_SEEK |         \
+                             __WASI_RIGHT_FD_FDSTAT_SET_FLAGS | __WASI_RIGHT_FD_SYNC | __WASI_RIGHT_FD_TELL | \
+                             __WASI_RIGHT_FD_WRITE | __WASI_RIGHT_FD_ADVISE | __WASI_RIGHT_FD_ALLOCATE |      \
+                             __WASI_RIGHT_FD_FILESTAT_GET | __WASI_RIGHT_FD_FILESTAT_SET_SIZE |               \
+                             __WASI_RIGHT_FD_FILESTAT_SET_TIMES | __WASI_RIGHT_POLL_FD_READWRITE)
+#define DIRECTORY_RIGHTS (__WASI_RIGHT_FD_FDSTAT_SET_FLAGS | __WASI_RIGHT_FD_SYNC | __WASI_RIGHT_FD_ADVISE |       \
+                          __WASI_RIGHT_PATH_CREATE_DIRECTORY | __WASI_RIGHT_PATH_CREATE_FILE |                     \
+                          __WASI_RIGHT_PATH_LINK_SOURCE | __WASI_RIGHT_PATH_LINK_TARGET | __WASI_RIGHT_PATH_OPEN | \
+                          __WASI_RIGHT_FD_READDIR | __WASI_RIGHT_PATH_READLINK | __WASI_RIGHT_PATH_RENAME_SOURCE | \
+                          __WASI_RIGHT_PATH_RENAME_TARGET | __WASI_RIGHT_PATH_FILESTAT_GET |                       \
+                          __WASI_RIGHT_PATH_FILESTAT_SET_SIZE | __WASI_RIGHT_PATH_FILESTAT_SET_TIMES |             \
+                          __WASI_RIGHT_FD_FILESTAT_GET | __WASI_RIGHT_FD_FILESTAT_SET_TIMES |                      \
+                          __WASI_RIGHT_PATH_SYMLINK | __WASI_RIGHT_PATH_UNLINK_FILE |                              \
+                          __WASI_RIGHT_PATH_REMOVE_DIRECTORY | __WASI_RIGHT_POLL_FD_READWRITE)
+#define INHERITING_DIRECTORY_RIGHTS (DIRECTORY_RIGHTS | REGULAR_FILE_RIGHTS)
+
 typedef struct Preopen
 {
   char *path;
@@ -125,11 +143,6 @@ Preopen preopen[PREOPEN_CNT] = {
     },
 };
 
-#define STDIO_RIGHTS __WASI_RIGHT_FD_READ | __WASI_RIGHT_FD_FDSTAT_SET_FLAGS | __WASI_RIGHT_FD_WRITE | __WASI_RIGHT_FD_FILESTAT_GET | __WASI_RIGHT_POLL_FD_READWRITE
-#define REGULAR_FILE_RIGHTS __WASI_RIGHT_FD_DATASYNC | __WASI_RIGHT_FD_READ | __WASI_RIGHT_FD_SEEK | __WASI_RIGHT_FD_FDSTAT_SET_FLAGS | __WASI_RIGHT_FD_SYNC | __WASI_RIGHT_FD_TELL | __WASI_RIGHT_FD_WRITE | __WASI_RIGHT_FD_ADVISE | __WASI_RIGHT_FD_ALLOCATE | __WASI_RIGHT_FD_FILESTAT_GET | __WASI_RIGHT_FD_FILESTAT_SET_SIZE | __WASI_RIGHT_FD_FILESTAT_SET_TIMES | __WASI_RIGHT_POLL_FD_READWRITE
-#define DIRECTORY_RIGHTS __WASI_RIGHT_FD_FDSTAT_SET_FLAGS | __WASI_RIGHT_FD_SYNC | __WASI_RIGHT_FD_ADVISE | __WASI_RIGHT_PATH_CREATE_DIRECTORY | __WASI_RIGHT_PATH_CREATE_FILE | __WASI_RIGHT_PATH_LINK_SOURCE | __WASI_RIGHT_PATH_LINK_TARGET | __WASI_RIGHT_PATH_OPEN | __WASI_RIGHT_FD_READDIR | __WASI_RIGHT_PATH_READLINK | __WASI_RIGHT_PATH_RENAME_SOURCE | __WASI_RIGHT_PATH_RENAME_TARGET | __WASI_RIGHT_PATH_FILESTAT_GET | __WASI_RIGHT_PATH_FILESTAT_SET_SIZE | __WASI_RIGHT_PATH_FILESTAT_SET_TIMES | __WASI_RIGHT_FD_FILESTAT_GET | __WASI_RIGHT_FD_FILESTAT_SET_TIMES | __WASI_RIGHT_PATH_SYMLINK | __WASI_RIGHT_PATH_UNLINK_FILE | __WASI_RIGHT_PATH_REMOVE_DIRECTORY | __WASI_RIGHT_POLL_FD_READWRITE
-#define INHERITING_DIRECTORY_RIGHTS DIRECTORY_RIGHTS | REGULAR_FILE_RIGHTS
-
 void init_wasi()
 {
   for (int fd = 3; fd < PREOPEN_CNT; fd++)
@@ -150,6 +163,7 @@ void init_wasi()
     if (tfd != fd)
     {
       printf("fd %d could not be freed up before preopen\n", fd);
+      exit(1);
     }
   }
 }
@@ -209,6 +223,8 @@ __wasi_errno_t as_wasi_errno(int error)
     return __WASI_EACCES;
   case EFAULT:
     return __WASI_EFAULT;
+  case ENOTBLK:
+    return __WASI_FDFLAG_NONBLOCK;
   case EBUSY:
     return __WASI_EBUSY;
   case EEXIST:
@@ -250,7 +266,8 @@ __wasi_errno_t as_wasi_errno(int error)
   case ENOTEMPTY:
     return __WASI_ENOTEMPTY;
   default:
-    return errno;
+    printf("unhandled posix errno=%d %s\n", errno, strerror(errno));
+    exit(1);
   }
 }
 
