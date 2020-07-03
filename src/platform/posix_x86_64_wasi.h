@@ -391,6 +391,15 @@ __wasi_fdflags_t conv_host_flag_2_wasi_flag(int32_t flag)
          ((flag & O_SYNC) ? __WASI_FDFLAG_SYNC : 0);
 }
 
+int32_t conv_wasi_flag_2_host_flag(__wasi_fdflags_t flag)
+{
+  return ((flag & __WASI_FDFLAG_APPEND) ? O_APPEND : 0) |
+         ((flag & __WASI_FDFLAG_DSYNC) ? O_DSYNC : 0) |
+         ((flag & __WASI_FDFLAG_NONBLOCK) ? O_NONBLOCK : 0) |
+         ((flag & __WASI_FDFLAG_RSYNC) ? O_RSYNC : 0) |
+         ((flag & __WASI_FDFLAG_SYNC) ? O_SYNC : 0);
+}
+
 __wasi_filetype_t as_wasi_file_type(mode_t mode)
 {
   switch (mode)
@@ -607,12 +616,8 @@ wavm_ret_int32_t wavm_wasi_unstable_fd_fdstat_set_flags(void *dummy, int32_t fd,
 #ifdef DEBUG
   printf("wavm_wasi_unstable_fd_fdstat_set_flags fd=%d flags=%d\n", fd, flags);
 #endif
-  int fd_flags = ((flags & __WASI_FDFLAG_APPEND) ? O_APPEND : 0) |
-                 ((flags & __WASI_FDFLAG_DSYNC) ? O_DSYNC : 0) |
-                 ((flags & __WASI_FDFLAG_NONBLOCK) ? O_NONBLOCK : 0) |
-                 ((flags & __WASI_FDFLAG_RSYNC) ? O_RSYNC : 0) |
-                 ((flags & __WASI_FDFLAG_SYNC) ? O_SYNC : 0);
-  if (fcntl(fd, F_SETFL, fd_flags) != 0)
+  int32_t flag = conv_wasi_flag_2_host_flag(flags);
+  if (fcntl(fd, F_SETFL, flag) != 0)
   {
     return pack_errno(dummy, conv_host_errno_2_wasi_errno(errno));
   }
