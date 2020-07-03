@@ -18,7 +18,7 @@
 #ifndef WAVM_POSIX_X86_64_WASI_H
 #define WAVM_POSIX_X86_64_WASI_H
 
-#define DEBUG_O
+#define DEBUG_
 
 extern int32_t g_argc;
 extern char **g_argv;
@@ -140,6 +140,45 @@ Preopen preopen[PREOPEN_CNT] = {
     {
         .path = "/tmp",
         .path_len = 4,
+    },
+};
+
+#define FD_RIGHTS_CNT 1024
+
+typedef struct Fdrights
+{
+  __wasi_rights_t base;
+  __wasi_rights_t inheriting;
+} Fdrights;
+
+Fdrights fdrights[FD_RIGHTS_CNT] = {
+    {
+        .base = STDIO_RIGHTS,
+        .inheriting = 0,
+    },
+    {
+        .base = STDIO_RIGHTS,
+        .inheriting = 0,
+    },
+    {
+        .base = STDIO_RIGHTS,
+        .inheriting = 0,
+    },
+    {
+        .base = DIRECTORY_RIGHTS,
+        .inheriting = INHERITING_DIRECTORY_RIGHTS,
+    },
+    {
+        .base = DIRECTORY_RIGHTS,
+        .inheriting = INHERITING_DIRECTORY_RIGHTS,
+    },
+    {
+        .base = DIRECTORY_RIGHTS,
+        .inheriting = INHERITING_DIRECTORY_RIGHTS,
+    },
+    {
+        .base = DIRECTORY_RIGHTS,
+        .inheriting = INHERITING_DIRECTORY_RIGHTS,
     },
 };
 
@@ -550,24 +589,14 @@ wavm_ret_int32_t wavm_wasi_unstable_fd_fdstat_get(void *dummy, int32_t fd, int32
   {
     return pack_errno(dummy, conv_host_errno_2_wasi_errno(errno));
   }
-  fstat(fd, &host_stat);
+  if (fstat(fd, &host_stat) != 0)
+  {
+    return pack_errno(dummy, conv_host_errno_2_wasi_errno(errno));
+  }
   wasi_fdstat.fs_filetype = conv_host_mode_2_wasi_filetype(host_stat.st_mode);
   wasi_fdstat.fs_flags = conv_host_flag_2_wasi_flag(fl);
-  if (fd < 3)
-  {
-    wasi_fdstat.fs_rights_base = STDIO_RIGHTS;
-    wasi_fdstat.fs_rights_inheriting = 0;
-  }
-  else if (S_ISREG(host_stat.st_mode))
-  {
-    wasi_fdstat.fs_rights_base = REGULAR_FILE_RIGHTS;
-    wasi_fdstat.fs_rights_inheriting = REGULAR_FILE_RIGHTS;
-  }
-  else
-  {
-    wasi_fdstat.fs_rights_base = DIRECTORY_RIGHTS;
-    wasi_fdstat.fs_rights_inheriting = INHERITING_DIRECTORY_RIGHTS;
-  }
+  wasi_fdstat.fs_rights_base = fdrights[fd].base;
+  wasi_fdstat.fs_rights_inheriting = fdrights[fd].inheriting;
   *((__wasi_fdstat_t *)&memoryOffset0.base[fdstat_address]) = wasi_fdstat;
   return pack_errno(dummy, 0);
 }
@@ -997,6 +1026,9 @@ wavm_ret_int32_t wavm_wasi_unstable_path_open(void *dummy, int32_t dirfd, int32_
   {
     return pack_errno(dummy, conv_host_errno_2_wasi_errno(errno));
   }
+  fdrights[host_fd].base = requested_rights;
+  fdrights[host_fd].inheriting = requested_inheriting_rights;
+
   *((uint32_t *)&memoryOffset0.base[fd_address]) = host_fd;
   return pack_errno(dummy, 0);
 }
