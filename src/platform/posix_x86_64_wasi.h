@@ -198,6 +198,16 @@ __wasi_timestamp_t conv_posix_timespec_2_wasi_timestamp(struct timespec t)
   return t.tv_sec * 1000000000 + t.tv_nsec;
 }
 
+int32_t conv_wasi_lookupflags_2_posix_lookupflags(__wasi_lookupflags_t lookup_flags)
+{
+  int32_t f = 0;
+  if ((lookup_flags & __WASI_LOOKUP_SYMLINK_FOLLOW) == 0)
+  {
+    f |= AT_SYMLINK_NOFOLLOW;
+  }
+  return f;
+}
+
 __wasi_errno_t conv_posix_errno_2_wasi_errno(int error)
 {
   switch (error)
@@ -319,16 +329,6 @@ __wasi_filetype_t get_filetype_from_mode(mode_t mode)
   default:
     __WASI_FILETYPE_UNKNOWN;
   };
-}
-
-int32_t as_posix_lookupflags(__wasi_lookupflags_t lookup_flags)
-{
-  int32_t f = 0;
-  if ((lookup_flags & __WASI_LOOKUP_SYMLINK_FOLLOW) == 0)
-  {
-    f |= AT_SYMLINK_NOFOLLOW;
-  }
-  return f;
 }
 
 wavm_ret_int32_t pack_errno(void *dummy, int32_t value)
@@ -815,7 +815,7 @@ wavm_ret_int32_t wavm_wasi_unstable_path_filestat_get(void *dummy, int32_t dir_f
   printf("wavm_wasi_unstable_path_filestat_get dir_fd=%d path_name=%s lookup_flags=%d\n", dir_fd, path, lookup_flags);
 #endif
   struct stat posix_filestat;
-  if (fstatat(dir_fd, path, &posix_filestat, as_posix_lookupflags(lookup_flags)) != 0)
+  if (fstatat(dir_fd, path, &posix_filestat, conv_wasi_lookupflags_2_posix_lookupflags(lookup_flags)) != 0)
   {
     return pack_errno(dummy, conv_posix_errno_2_wasi_errno(errno));
   }
