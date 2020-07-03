@@ -1,6 +1,9 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdint.h>
+#include <string.h>
+
+#include "common/wavm.h"
 
 #ifndef WAVM_POSIX_X86_64_SPECTEST_H
 #define WAVM_POSIX_X86_64_SPECTEST_H
@@ -11,6 +14,8 @@
 #endif /* MEMORY0_MAX_PAGE */
 
 #ifdef MEMORY0_DEFINED
+extern memory_instance memoryOffset0;
+extern uint8_t *memory0;
 int32_t wavm_intrinsic_memory_grow(void *dummy, int32_t grow_by)
 {
   if (grow_by == 0)
@@ -25,7 +30,7 @@ int32_t wavm_intrinsic_memory_grow(void *dummy, int32_t grow_by)
   }
   size_t old_size = old_pages * WAVM_PAGE_SIZE;
   size_t new_size = new_pages * WAVM_PAGE_SIZE;
-  memory0 = realloc(memory0, new_size);
+  memory0 = (uint8_t *)realloc(memory0, new_size);
   memset(memory0 + old_size, 0, new_size - old_size);
   memoryOffset0.base = memory0;
   memoryOffset0.num_pages = new_pages;
