@@ -208,6 +208,28 @@ int32_t conv_wasi_lookupflags_2_posix_lookupflags(__wasi_lookupflags_t lookup_fl
   return f;
 }
 
+int32_t conv_wasi_advice_2_posix_advice(__wasi_advice_t wasi_advice)
+{
+  switch (wasi_advice)
+  {
+  case __WASI_ADVICE_NORMAL:
+    return POSIX_FADV_NORMAL;
+  case __WASI_ADVICE_SEQUENTIAL:
+    return POSIX_FADV_SEQUENTIAL;
+  case __WASI_ADVICE_RANDOM:
+    return POSIX_FADV_RANDOM;
+  case __WASI_ADVICE_WILLNEED:
+    return POSIX_FADV_WILLNEED;
+  case __WASI_ADVICE_DONTNEED:
+    return POSIX_FADV_DONTNEED;
+  case __WASI_ADVICE_NOREUSE:
+    return POSIX_FADV_NOREUSE;
+  default:
+    printf("unhandled advice %d\n", wasi_advice);
+    exit(1);
+  }
+}
+
 __wasi_errno_t conv_posix_errno_2_wasi_errno(int error)
 {
   switch (error)
@@ -445,7 +467,19 @@ wavm_ret_int32_t wavm_wasi_unstable_clock_time_get(void *dummy, int32_t clock_id
   return pack_errno(dummy, 0);
 }
 
-void *wavm_wasi_unstable_fd_advise(void *dummy) {}
+wavm_ret_int32_t wavm_wasi_unstable_fd_advise(void *dummy, int32_t fd, int64_t offset, int64_t num_bytes, int32_t advice)
+{
+  (void)dummy;
+#ifdef DEBUG
+  printf("wavm_wasi_unstable_fd_advise\n");
+#endif
+  if (posix_fadvise(fd, offset, num_bytes, conv_wasi_advice_2_posix_advice(advice)) != 0)
+  {
+    return pack_errno(dummy, conv_posix_errno_2_wasi_errno(errno));
+  }
+  return pack_errno(dummy, 0);
+}
+
 void *wavm_wasi_unstable_fd_allocate(void *dummy) {}
 
 wavm_ret_int32_t wavm_wasi_unstable_fd_close(void *dummy, int32_t fd)
