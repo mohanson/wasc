@@ -18,7 +18,7 @@
 #ifndef WAVM_POSIX_X86_64_WASI_H
 #define WAVM_POSIX_X86_64_WASI_H
 
-// #define DEBUG
+#define DEBUG_OFF
 
 extern int32_t g_argc;
 extern char **g_argv;
@@ -190,6 +190,8 @@ struct iovec *copy_iov_to_host(uint32_t iov_offset, uint32_t iovs_len)
   }
   return host_iov;
 }
+
+#define MAX_PATH_LENGTH 1024
 
 __wasi_errno_t as_wasi_errno(int error)
 {
@@ -783,7 +785,7 @@ wavm_ret_int32_t wavm_wasi_unstable_fd_write(void *dummy, int32_t fd, int32_t io
 wavm_ret_int32_t wavm_wasi_unstable_path_create_directory(void *dummy, int32_t dir_fd, int32_t path_address, int32_t num_path_bytes)
 {
   (void)dummy;
-  char path[256];
+  char path[MAX_PATH_LENGTH];
   memcpy(path, &memoryOffset0.base[path_address], num_path_bytes);
   path[num_path_bytes] = '\0';
 #ifdef DEBUG
@@ -799,7 +801,7 @@ wavm_ret_int32_t wavm_wasi_unstable_path_create_directory(void *dummy, int32_t d
 wavm_ret_int32_t wavm_wasi_unstable_path_filestat_get(void *dummy, int32_t dir_fd, int32_t lookup_flags, int32_t path_address, int32_t num_path_bytes, int32_t filestat_address)
 {
   (void)dummy;
-  char path[256];
+  char path[MAX_PATH_LENGTH];
   memcpy(path, &memoryOffset0.base[path_address], num_path_bytes);
   path[num_path_bytes] = '\0';
 #ifdef DEBUG
@@ -830,7 +832,7 @@ wavm_ret_int32_t wavm_wasi_unstable_path_filestat_set_times(void *dummy, int32_t
                                                             int32_t flags)
 {
   (void)dummy;
-  char path[256];
+  char path[MAX_PATH_LENGTH];
   memcpy(path, &memoryOffset0.base[path_address], num_path_bytes);
   path[num_path_bytes] = '\0';
 #ifdef DEBUG
@@ -894,7 +896,7 @@ wavm_ret_int32_t wavm_wasi_unstable_path_open(void *dummy, int32_t dirfd, int32_
                                               int64_t requested_inheriting_rights, int32_t fd_flags, int32_t fd_address)
 {
   (void)dummy;
-  char path[256];
+  char path[MAX_PATH_LENGTH];
   memcpy(path, &memoryOffset0.base[path_address], num_path_bytes);
   path[num_path_bytes] = '\0';
 #ifdef DEBUG
@@ -938,7 +940,7 @@ void *wavm_wasi_unstable_path_readlink(void *dummy) {}
 wavm_ret_int32_t wavm_wasi_unstable_path_remove_directory(void *dummy, int32_t dir_fd, int32_t path_address, int32_t num_path_bytes)
 {
   (void)dummy;
-  char path[256];
+  char path[MAX_PATH_LENGTH];
   memcpy(path, &memoryOffset0.base[path_address], num_path_bytes);
   path[num_path_bytes] = '\0';
 #ifdef DEBUG
@@ -957,7 +959,7 @@ void *wavm_wasi_unstable_path_symlink(void *dummy) {}
 wavm_ret_int32_t wavm_wasi_unstable_path_unlink_file(void *dummy, int32_t dir_fd, int32_t path_address, int32_t num_path_bytes)
 {
   (void)dummy;
-  char path[256];
+  char path[MAX_PATH_LENGTH];
   memcpy(path, &memoryOffset0.base[path_address], num_path_bytes);
   path[num_path_bytes] = '\0';
 #ifdef DEBUG
