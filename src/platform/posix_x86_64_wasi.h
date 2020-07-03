@@ -480,7 +480,18 @@ wavm_ret_int32_t wavm_wasi_unstable_fd_advise(void *dummy, int32_t fd, int64_t o
   return pack_errno(dummy, 0);
 }
 
-void *wavm_wasi_unstable_fd_allocate(void *dummy) {}
+wavm_ret_int32_t wavm_wasi_unstable_fd_allocate(void *dummy, int32_t fd, int64_t offset, int64_t num_bytes)
+{
+  (void)dummy;
+#ifdef DEBUG
+  printf("wavm_wasi_unstable_fd_allocate\n");
+#endif
+  if (posix_fallocate(fd, offset, num_bytes) != 0)
+  {
+    return pack_errno(dummy, conv_posix_errno_2_wasi_errno(errno));
+  }
+  return pack_errno(dummy, 0);
+}
 
 wavm_ret_int32_t wavm_wasi_unstable_fd_close(void *dummy, int32_t fd)
 {
