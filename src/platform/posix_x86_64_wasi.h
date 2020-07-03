@@ -665,8 +665,7 @@ wavm_ret_int32_t wavm_wasi_unstable_fd_filestat_set_size(void *dummy, int32_t fd
 #ifdef DEBUG
   printf("wavm_wasi_unstable_fd_filestat_set_size fd=%d num_bytes=%ld\n", fd, num_bytes);
 #endif
-  int result = ftruncate(fd, (off_t)num_bytes);
-  if (result != 0)
+  if (ftruncate(fd, (off_t)num_bytes) != 0)
   {
     return pack_errno(dummy, conv_host_errno_2_wasi_errno(errno));
   }
