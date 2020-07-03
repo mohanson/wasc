@@ -18,7 +18,7 @@
 #ifndef WAVM_POSIX_X86_64_WASI_H
 #define WAVM_POSIX_X86_64_WASI_H
 
-#define DEBUG
+#define DEBUG_O
 
 extern int32_t g_argc;
 extern char **g_argv;
@@ -212,76 +212,78 @@ __wasi_errno_t conv_posix_errno_2_wasi_errno(int error)
 {
   switch (error)
   {
-  case EPERM:
+  case EPERM: // 1
     return __WASI_EPERM;
-  case ENOENT:
+  case ENOENT: // 2
     return __WASI_ENOENT;
-  case ESRCH:
+  case ESRCH: // 3
     return __WASI_ESRCH;
-  case EINTR:
+  case EINTR: // 4
     return __WASI_EINTR;
-  case EIO:
+  case EIO: // 5
     return __WASI_EIO;
-  case ENXIO:
+  case ENXIO: // 6
     return __WASI_ENXIO;
-  case E2BIG:
+  case E2BIG: // 7
     return __WASI_E2BIG;
-  case ENOEXEC:
+  case ENOEXEC: // 8
     return __WASI_ENOEXEC;
-  case EBADF:
+  case EBADF: // 9
     return __WASI_EBADF;
-  case ECHILD:
+  case ECHILD: // 10
     return __WASI_ECHILD;
-  case EAGAIN:
+  case EAGAIN: // 11
     return __WASI_EAGAIN;
-  case ENOMEM:
+  case ENOMEM: // 12
     return __WASI_ENOMEM;
-  case EACCES:
+  case EACCES: // 13
     return __WASI_EACCES;
-  case EFAULT:
+  case EFAULT: // 14
     return __WASI_EFAULT;
-  case ENOTBLK:
+  case ENOTBLK: // 15
     return __WASI_FDFLAG_NONBLOCK;
-  case EBUSY:
+  case EBUSY: // 16
     return __WASI_EBUSY;
-  case EEXIST:
+  case EEXIST: // 17
     return __WASI_EEXIST;
-  case EXDEV:
+  case EXDEV: // 18
     return __WASI_EXDEV;
-  case ENODEV:
+  case ENODEV: // 19
     return __WASI_ENODEV;
-  case ENOTDIR:
+  case ENOTDIR: // 20
     return __WASI_ENOTDIR;
-  case EISDIR:
+  case EISDIR: // 21
     return __WASI_EISDIR;
-  case EINVAL:
+  case EINVAL: // 22
     return __WASI_EINVAL;
-  case ENFILE:
+  case ENFILE: // 23
     return __WASI_ENFILE;
-  case EMFILE:
+  case EMFILE: // 24
     return __WASI_EMFILE;
-  case ENOTTY:
+  case ENOTTY: // 25
     return __WASI_ENOTTY;
-  case ETXTBSY:
+  case ETXTBSY: // 26
     return __WASI_ETXTBSY;
-  case EFBIG:
+  case EFBIG: // 27
     return __WASI_EFBIG;
-  case ENOSPC:
+  case ENOSPC: // 28
     return __WASI_ENOSPC;
-  case ESPIPE:
+  case ESPIPE: // 29
     return __WASI_ESPIPE;
-  case EROFS:
+  case EROFS: // 30
     return __WASI_EROFS;
-  case EMLINK:
+  case EMLINK: // 31
     return __WASI_EMLINK;
-  case EPIPE:
+  case EPIPE: // 32
     return __WASI_EPIPE;
-  case EDOM:
+  case EDOM: // 33
     return __WASI_EDOM;
-  case ERANGE:
+  case ERANGE: // 34
     return __WASI_ERANGE;
-  case ENOTEMPTY:
+  case ENOTEMPTY: // 39
     return __WASI_ENOTEMPTY;
+  case ENOTSUP: // 95
+    return __WASI_ENOTSUP;
   default:
     printf("unhandled posix errno=%d %s\n", errno, strerror(errno));
     exit(1);
@@ -420,11 +422,11 @@ wavm_ret_int32_t wavm_wasi_unstable_clock_res_get(void *dummy, int32_t clock_id,
   printf("wavm_wasi_unstable_clock_res_get\n");
 #endif
   struct timespec tp;
-  if (clock_getres(clock_id, &tp))
+  if (clock_getres(clock_id, &tp) != 0)
   {
-    return pack_errno(dummy, __WASI_EINVAL);
+    return pack_errno(dummy, conv_posix_errno_2_wasi_errno(errno));
   }
-  *((uint64_t *)&memoryOffset0.base[resolution_address]) = tp.tv_sec * 1000000000 + tp.tv_nsec;
+  *((uint64_t *)&memoryOffset0.base[resolution_address]) = conv_posix_timespec_2_wasi_timestamp(tp);
   return pack_errno(dummy, 0);
 }
 
@@ -435,11 +437,11 @@ wavm_ret_int32_t wavm_wasi_unstable_clock_time_get(void *dummy, int32_t clock_id
   printf("wavm_wasi_unstable_clock_time_get\n");
 #endif
   struct timespec tp;
-  if (clock_gettime(clock_id, &tp))
+  if (clock_gettime(clock_id, &tp) != 0)
   {
-    return pack_errno(dummy, __WASI_EINVAL);
+    return pack_errno(dummy, conv_posix_errno_2_wasi_errno(errno));
   }
-  *((uint64_t *)&memoryOffset0.base[time_address]) = tp.tv_sec * 1000000000 + tp.tv_nsec;
+  *((uint64_t *)&memoryOffset0.base[time_address]) = conv_posix_timespec_2_wasi_timestamp(tp);
   return pack_errno(dummy, 0);
 }
 
