@@ -940,7 +940,7 @@ wavm_ret_int32_t wavm_wasi_unstable_path_create_directory(void *dummy, int32_t d
 #ifdef DEBUG
   printf("wavm_wasi_unstable_path_create_directory dir_fd=%d path_name=%s\n", dir_fd, path);
 #endif
-  if (mkdirat(dir_fd, (char *)&memoryOffset0.base[path_address], 0666) != 0)
+  if (mkdirat(dir_fd, path, 0666) != 0)
   {
     return pack_errno(dummy, conv_host_errno_2_wasi_errno(errno));
   }
@@ -989,7 +989,7 @@ wavm_ret_int32_t wavm_wasi_unstable_path_filestat_set_times(void *dummy, int32_t
   printf("wavm_wasi_unstable_path_filestat_set_times path=%s\n", path);
 #endif
   struct timespec tp;
-  if (clock_gettime(CLOCK_REALTIME, &tp))
+  if (clock_gettime(CLOCK_REALTIME, &tp) != 0)
   {
     return pack_errno(dummy, __WASI_EINVAL);
   }
@@ -1019,8 +1019,7 @@ wavm_ret_int32_t wavm_wasi_unstable_path_filestat_set_times(void *dummy, int32_t
     timespecs[1].tv_nsec = UTIME_OMIT;
   }
 
-  int mode = 0644;
-  int host_fd = openat(dir_fd, path, flags, mode);
+  int host_fd = openat(dir_fd, path, flags, 0644);
   if (host_fd < 0)
   {
     return pack_errno(dummy, conv_host_errno_2_wasi_errno(errno));
@@ -1037,7 +1036,26 @@ wavm_ret_int32_t wavm_wasi_unstable_path_filestat_set_times(void *dummy, int32_t
   }
 }
 
-void *wavm_wasi_unstable_path_link(void *dummy) {}
+wavm_ret_int32_t wavm_wasi_unstable_path_link(void *dummy, int32_t dir_fd, int32_t lookup_flags,
+                                              int32_t old_path_address, int32_t num_old_path_bytes, int32_t new_fd,
+                                              int32_t new_path_address, int32_t num_new_path_bytes)
+{
+  (void)dummy;
+  char old_path[MAX_PATH_LENGTH];
+  memcpy(old_path, &memoryOffset0.base[old_path_address], num_old_path_bytes);
+  old_path[num_old_path_bytes] = '\0';
+  char new_path[MAX_PATH_LENGTH];
+  memcpy(new_path, &memoryOffset0.base[new_path_address], num_new_path_bytes);
+  new_path[num_new_path_bytes] = '\0';
+#ifdef DEBUG
+  printf("wavm_wasi_unstable_path_link old_path=%s new_path=%s\n", old_path, new_path);
+#endif
+  if (linkat(dir_fd, old_path, new_fd, new_path, conv_wasi_lookupflags_2_host_lookupflags(lookup_flags)) != 0)
+  {
+    return pack_errno(dummy, conv_host_errno_2_wasi_errno(errno));
+  }
+  return pack_errno(dummy, 0);
+}
 
 wavm_ret_int32_t wavm_wasi_unstable_path_open(void *dummy, int32_t dirfd, int32_t dirflags, int32_t path_address,
                                               int32_t num_path_bytes, int32_t open_flags, int64_t requested_rights,
