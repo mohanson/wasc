@@ -499,15 +499,25 @@ wavm_ret_int32_t wavm_wasi_unstable_fd_close(void *dummy, int32_t fd)
 #ifdef DEBUG
   printf("wavm_wasi_unstable_fd_close fd=%d\n", fd);
 #endif
-  int32_t r = close(fd);
-  if (r != 0)
+  if (close(fd) != 0)
   {
-    return pack_errno(dummy, __WASI_EBADF);
+    return pack_errno(dummy, conv_posix_errno_2_wasi_errno(errno));
   }
   return pack_errno(dummy, 0);
 }
 
-void *wavm_wasi_unstable_fd_datasync(void *dummy) {}
+wavm_ret_int32_t wavm_wasi_unstable_fd_datasync(void *dummy, int32_t fd)
+{
+  (void)dummy;
+#ifdef DEBUG
+  printf("wavm_wasi_unstable_fd_datasync fd=%d\n", fd);
+#endif
+  if (fdatasync(fd) != 0)
+  {
+    return pack_errno(dummy, conv_posix_errno_2_wasi_errno(errno));
+  }
+  return pack_errno(dummy, 0);
+}
 
 // There is a bug here, when the directory is very large, only a part will be displayed.
 wavm_ret_int32_t wavm_wasi_unstable_fd_fdstat_get(void *dummy, int32_t fd, int32_t fdstat_address)
