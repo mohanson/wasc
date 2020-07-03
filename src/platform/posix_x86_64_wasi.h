@@ -18,7 +18,7 @@
 #ifndef WAVM_POSIX_X86_64_WASI_H
 #define WAVM_POSIX_X86_64_WASI_H
 
-#define DEBUG_O
+#define DEBUG_
 
 extern int32_t g_argc;
 extern char **g_argv;
@@ -143,6 +143,45 @@ Preopen preopen[PREOPEN_CNT] = {
     },
 };
 
+#define FD_RIGHTS_CNT 1024
+
+typedef struct Fdrights
+{
+  __wasi_rights_t base;
+  __wasi_rights_t inheriting;
+} Fdrights;
+
+Fdrights fdrights[FD_RIGHTS_CNT] = {
+    {
+        .base = STDIO_RIGHTS,
+        .inheriting = 0,
+    },
+    {
+        .base = STDIO_RIGHTS,
+        .inheriting = 0,
+    },
+    {
+        .base = STDIO_RIGHTS,
+        .inheriting = 0,
+    },
+    {
+        .base = DIRECTORY_RIGHTS,
+        .inheriting = INHERITING_DIRECTORY_RIGHTS,
+    },
+    {
+        .base = DIRECTORY_RIGHTS,
+        .inheriting = INHERITING_DIRECTORY_RIGHTS,
+    },
+    {
+        .base = DIRECTORY_RIGHTS,
+        .inheriting = INHERITING_DIRECTORY_RIGHTS,
+    },
+    {
+        .base = DIRECTORY_RIGHTS,
+        .inheriting = INHERITING_DIRECTORY_RIGHTS,
+    },
+};
+
 void init_wasi()
 {
   for (int fd = 3; fd < PREOPEN_CNT; fd++)
@@ -193,12 +232,12 @@ struct iovec *copy_iov_to_host(uint32_t iov_offset, uint32_t iovs_len)
 
 #define MAX_PATH_LENGTH 1024
 
-__wasi_timestamp_t conv_posix_timespec_2_wasi_timestamp(struct timespec t)
+__wasi_timestamp_t conv_host_timespec_2_wasi_timestamp(struct timespec t)
 {
   return t.tv_sec * 1000000000 + t.tv_nsec;
 }
 
-struct timespec conv_wasi_timestamp_2_posix_timespec(__wasi_timestamp_t t)
+struct timespec conv_wasi_timestamp_2_host_timespec(__wasi_timestamp_t t)
 {
   struct timespec r;
   r.tv_sec = t / 1000000000;
@@ -206,7 +245,7 @@ struct timespec conv_wasi_timestamp_2_posix_timespec(__wasi_timestamp_t t)
   return r;
 }
 
-int32_t conv_wasi_lookupflags_2_posix_lookupflags(__wasi_lookupflags_t lookup_flags)
+int32_t conv_wasi_lookupflags_2_host_lookupflags(__wasi_lookupflags_t lookup_flags)
 {
   int32_t f = 0;
   if ((lookup_flags & __WASI_LOOKUP_SYMLINK_FOLLOW) == 0)
@@ -216,7 +255,7 @@ int32_t conv_wasi_lookupflags_2_posix_lookupflags(__wasi_lookupflags_t lookup_fl
   return f;
 }
 
-int32_t conv_wasi_advice_2_posix_advice(__wasi_advice_t wasi_advice)
+int32_t conv_wasi_advice_2_host_advice(__wasi_advice_t wasi_advice)
 {
   switch (wasi_advice)
   {
@@ -238,7 +277,7 @@ int32_t conv_wasi_advice_2_posix_advice(__wasi_advice_t wasi_advice)
   }
 }
 
-__wasi_errno_t conv_posix_errno_2_wasi_errno(int error)
+__wasi_errno_t conv_host_errno_2_wasi_errno(int error)
 {
   switch (error)
   {
@@ -320,6 +359,38 @@ __wasi_errno_t conv_posix_errno_2_wasi_errno(int error)
   }
 }
 
+__wasi_filetype_t conv_host_mode_2_wasi_filetype(mode_t mode)
+{
+  switch (mode & S_IFMT)
+  {
+  case S_IFBLK:
+    return __WASI_FILETYPE_BLOCK_DEVICE;
+  case S_IFCHR:
+    return __WASI_FILETYPE_CHARACTER_DEVICE;
+  case S_IFIFO:
+    return __WASI_FILETYPE_UNKNOWN;
+  case S_IFREG:
+    return __WASI_FILETYPE_REGULAR_FILE;
+  case S_IFDIR:
+    return __WASI_FILETYPE_DIRECTORY;
+  case S_IFLNK:
+    return __WASI_FILETYPE_SYMBOLIC_LINK;
+  case S_IFSOCK:
+    return __WASI_FILETYPE_SOCKET_STREAM;
+  default:
+    return __WASI_FILETYPE_UNKNOWN;
+  };
+}
+
+__wasi_fdflags_t conv_host_flag_2_wasi_flag(int32_t flag)
+{
+  return ((flag & O_APPEND) ? __WASI_FDFLAG_APPEND : 0) |
+         ((flag & O_DSYNC) ? __WASI_FDFLAG_DSYNC : 0) |
+         ((flag & O_NONBLOCK) ? __WASI_FDFLAG_NONBLOCK : 0) |
+         ((flag & O_RSYNC) ? __WASI_FDFLAG_RSYNC : 0) |
+         ((flag & O_SYNC) ? __WASI_FDFLAG_SYNC : 0);
+}
+
 __wasi_filetype_t as_wasi_file_type(mode_t mode)
 {
   switch (mode)
@@ -338,28 +409,6 @@ __wasi_filetype_t as_wasi_file_type(mode_t mode)
     return __WASI_FILETYPE_REGULAR_FILE;
   default:
     return __WASI_FILETYPE_UNKNOWN;
-  };
-}
-
-__wasi_filetype_t get_filetype_from_mode(mode_t mode)
-{
-  switch (mode & S_IFMT)
-  {
-  case S_IFBLK:
-    return __WASI_FILETYPE_BLOCK_DEVICE;
-  case S_IFCHR:
-    return __WASI_FILETYPE_CHARACTER_DEVICE;
-  case S_IFIFO:
-    return __WASI_FILETYPE_UNKNOWN;
-  case S_IFREG:
-    return __WASI_FILETYPE_REGULAR_FILE;
-  case S_IFDIR:
-    return __WASI_FILETYPE_DIRECTORY;
-  case S_IFLNK:
-    return __WASI_FILETYPE_SYMBOLIC_LINK;
-  case S_IFSOCK:
-  default:
-    __WASI_FILETYPE_UNKNOWN;
   };
 }
 
@@ -454,9 +503,9 @@ wavm_ret_int32_t wavm_wasi_unstable_clock_res_get(void *dummy, int32_t clock_id,
   struct timespec tp;
   if (clock_getres(clock_id, &tp) != 0)
   {
-    return pack_errno(dummy, conv_posix_errno_2_wasi_errno(errno));
+    return pack_errno(dummy, conv_host_errno_2_wasi_errno(errno));
   }
-  *((uint64_t *)&memoryOffset0.base[resolution_address]) = conv_posix_timespec_2_wasi_timestamp(tp);
+  *((uint64_t *)&memoryOffset0.base[resolution_address]) = conv_host_timespec_2_wasi_timestamp(tp);
   return pack_errno(dummy, 0);
 }
 
@@ -469,9 +518,9 @@ wavm_ret_int32_t wavm_wasi_unstable_clock_time_get(void *dummy, int32_t clock_id
   struct timespec tp;
   if (clock_gettime(clock_id, &tp) != 0)
   {
-    return pack_errno(dummy, conv_posix_errno_2_wasi_errno(errno));
+    return pack_errno(dummy, conv_host_errno_2_wasi_errno(errno));
   }
-  *((uint64_t *)&memoryOffset0.base[time_address]) = conv_posix_timespec_2_wasi_timestamp(tp);
+  *((uint64_t *)&memoryOffset0.base[time_address]) = conv_host_timespec_2_wasi_timestamp(tp);
   return pack_errno(dummy, 0);
 }
 
@@ -481,9 +530,9 @@ wavm_ret_int32_t wavm_wasi_unstable_fd_advise(void *dummy, int32_t fd, int64_t o
 #ifdef DEBUG
   printf("wavm_wasi_unstable_fd_advise\n");
 #endif
-  if (posix_fadvise(fd, offset, num_bytes, conv_wasi_advice_2_posix_advice(advice)) != 0)
+  if (posix_fadvise(fd, offset, num_bytes, conv_wasi_advice_2_host_advice(advice)) != 0)
   {
-    return pack_errno(dummy, conv_posix_errno_2_wasi_errno(errno));
+    return pack_errno(dummy, conv_host_errno_2_wasi_errno(errno));
   }
   return pack_errno(dummy, 0);
 }
@@ -496,7 +545,7 @@ wavm_ret_int32_t wavm_wasi_unstable_fd_allocate(void *dummy, int32_t fd, int64_t
 #endif
   if (posix_fallocate(fd, offset, num_bytes) != 0)
   {
-    return pack_errno(dummy, conv_posix_errno_2_wasi_errno(errno));
+    return pack_errno(dummy, conv_host_errno_2_wasi_errno(errno));
   }
   return pack_errno(dummy, 0);
 }
@@ -509,7 +558,7 @@ wavm_ret_int32_t wavm_wasi_unstable_fd_close(void *dummy, int32_t fd)
 #endif
   if (close(fd) != 0)
   {
-    return pack_errno(dummy, conv_posix_errno_2_wasi_errno(errno));
+    return pack_errno(dummy, conv_host_errno_2_wasi_errno(errno));
   }
   return pack_errno(dummy, 0);
 }
@@ -522,54 +571,33 @@ wavm_ret_int32_t wavm_wasi_unstable_fd_datasync(void *dummy, int32_t fd)
 #endif
   if (fdatasync(fd) != 0)
   {
-    return pack_errno(dummy, conv_posix_errno_2_wasi_errno(errno));
+    return pack_errno(dummy, conv_host_errno_2_wasi_errno(errno));
   }
   return pack_errno(dummy, 0);
 }
 
-// There is a bug here, when the directory is very large, only a part will be displayed.
 wavm_ret_int32_t wavm_wasi_unstable_fd_fdstat_get(void *dummy, int32_t fd, int32_t fdstat_address)
 {
   (void)dummy;
 #ifdef DEBUG
   printf("wavm_wasi_unstable_fd_fdstat_get fd=%d\n", fd);
 #endif
-  struct stat fd_stat;
-  struct __wasi_fdstat_t fdstat;
-  int fl = fcntl(fd, F_GETFL);
+  struct stat host_stat;
+  struct __wasi_fdstat_t wasi_fdstat;
+  int32_t fl = fcntl(fd, F_GETFL);
   if (fl < 0)
   {
-    return pack_errno(dummy, conv_posix_errno_2_wasi_errno(errno));
+    return pack_errno(dummy, conv_host_errno_2_wasi_errno(errno));
   }
-  fstat(fd, &fd_stat);
-  int mode = fd_stat.st_mode;
-  fdstat.fs_filetype = (S_ISBLK(mode) ? __WASI_FILETYPE_BLOCK_DEVICE : 0) |
-                       (S_ISCHR(mode) ? __WASI_FILETYPE_CHARACTER_DEVICE : 0) |
-                       (S_ISDIR(mode) ? __WASI_FILETYPE_DIRECTORY : 0) |
-                       (S_ISREG(mode) ? __WASI_FILETYPE_REGULAR_FILE : 0) |
-                       (S_ISSOCK(mode) ? __WASI_FILETYPE_SOCKET_STREAM : 0) |
-                       (S_ISLNK(mode) ? __WASI_FILETYPE_SYMBOLIC_LINK : 0);
-  fdstat.fs_flags = ((fl & O_APPEND) ? __WASI_FDFLAG_APPEND : 0) |
-                    ((fl & O_DSYNC) ? __WASI_FDFLAG_DSYNC : 0) |
-                    ((fl & O_NONBLOCK) ? __WASI_FDFLAG_NONBLOCK : 0) |
-                    ((fl & O_RSYNC) ? __WASI_FDFLAG_RSYNC : 0) |
-                    ((fl & O_SYNC) ? __WASI_FDFLAG_SYNC : 0);
-  if (fd < 3)
+  if (fstat(fd, &host_stat) != 0)
   {
-    fdstat.fs_rights_base = STDIO_RIGHTS;
-    fdstat.fs_rights_inheriting = 0;
+    return pack_errno(dummy, conv_host_errno_2_wasi_errno(errno));
   }
-  else if (S_ISREG(mode))
-  {
-    fdstat.fs_rights_base = REGULAR_FILE_RIGHTS;
-    fdstat.fs_rights_inheriting = REGULAR_FILE_RIGHTS;
-  }
-  else
-  {
-    fdstat.fs_rights_base = DIRECTORY_RIGHTS;
-    fdstat.fs_rights_inheriting = INHERITING_DIRECTORY_RIGHTS;
-  }
-  *((__wasi_fdstat_t *)&memoryOffset0.base[fdstat_address]) = fdstat;
+  wasi_fdstat.fs_filetype = conv_host_mode_2_wasi_filetype(host_stat.st_mode);
+  wasi_fdstat.fs_flags = conv_host_flag_2_wasi_flag(fl);
+  wasi_fdstat.fs_rights_base = fdrights[fd].base;
+  wasi_fdstat.fs_rights_inheriting = fdrights[fd].inheriting;
+  *((__wasi_fdstat_t *)&memoryOffset0.base[fdstat_address]) = wasi_fdstat;
   return pack_errno(dummy, 0);
 }
 
@@ -586,7 +614,7 @@ wavm_ret_int32_t wavm_wasi_unstable_fd_fdstat_set_flags(void *dummy, int32_t fd,
                  ((flags & __WASI_FDFLAG_SYNC) ? O_SYNC : 0);
   if (fcntl(fd, F_SETFL, fd_flags) != 0)
   {
-    return pack_errno(dummy, conv_posix_errno_2_wasi_errno(errno));
+    return pack_errno(dummy, conv_host_errno_2_wasi_errno(errno));
   }
   return pack_errno(dummy, 0);
 }
@@ -599,20 +627,20 @@ wavm_ret_int32_t wavm_wasi_unstable_fd_filestat_get(void *dummy, int32_t fd, int
 #ifdef DEBUG
   printf("wavm_wasi_unstable_fd_filestat_get fd=%d\n", fd);
 #endif
-  struct stat posix_filestat;
-  if (fstat(fd, &posix_filestat))
+  struct stat host_filestat;
+  if (fstat(fd, &host_filestat))
   {
-    return pack_errno(dummy, conv_posix_errno_2_wasi_errno(errno));
+    return pack_errno(dummy, conv_host_errno_2_wasi_errno(errno));
   }
   __wasi_filestat_t wasi_filestat;
-  wasi_filestat.st_dev = (__wasi_device_t)posix_filestat.st_dev;
-  wasi_filestat.st_ino = (__wasi_inode_t)posix_filestat.st_ino;
-  wasi_filestat.st_filetype = (__wasi_filetype_t)get_filetype_from_mode(posix_filestat.st_mode);
-  wasi_filestat.st_nlink = (__wasi_linkcount_t)posix_filestat.st_nlink;
-  wasi_filestat.st_size = (__wasi_filesize_t)posix_filestat.st_size;
-  wasi_filestat.st_atim = conv_posix_timespec_2_wasi_timestamp(posix_filestat.st_atim);
-  wasi_filestat.st_mtim = conv_posix_timespec_2_wasi_timestamp(posix_filestat.st_mtim);
-  wasi_filestat.st_ctim = conv_posix_timespec_2_wasi_timestamp(posix_filestat.st_ctim);
+  wasi_filestat.st_dev = (__wasi_device_t)host_filestat.st_dev;
+  wasi_filestat.st_ino = (__wasi_inode_t)host_filestat.st_ino;
+  wasi_filestat.st_filetype = (__wasi_filetype_t)conv_host_mode_2_wasi_filetype(host_filestat.st_mode);
+  wasi_filestat.st_nlink = (__wasi_linkcount_t)host_filestat.st_nlink;
+  wasi_filestat.st_size = (__wasi_filesize_t)host_filestat.st_size;
+  wasi_filestat.st_atim = conv_host_timespec_2_wasi_timestamp(host_filestat.st_atim);
+  wasi_filestat.st_mtim = conv_host_timespec_2_wasi_timestamp(host_filestat.st_mtim);
+  wasi_filestat.st_ctim = conv_host_timespec_2_wasi_timestamp(host_filestat.st_ctim);
   *((__wasi_filestat_t *)&memoryOffset0.base[filestat_address]) = wasi_filestat;
   return pack_errno(dummy, 0);
 }
@@ -626,7 +654,7 @@ wavm_ret_int32_t wavm_wasi_unstable_fd_filestat_set_size(void *dummy, int32_t fd
   int result = ftruncate(fd, (off_t)num_bytes);
   if (result != 0)
   {
-    return pack_errno(dummy, conv_posix_errno_2_wasi_errno(errno));
+    return pack_errno(dummy, conv_host_errno_2_wasi_errno(errno));
   }
   return pack_errno(dummy, 0);
 }
@@ -647,7 +675,7 @@ wavm_ret_int32_t wavm_wasi_unstable_fd_filestat_set_times(void *dummy, int32_t f
   struct timespec timespecs[2];
   if (flags & __WASI_FILESTAT_SET_ATIM)
   {
-    timespecs[0] = conv_wasi_timestamp_2_posix_timespec(last_access_time64);
+    timespecs[0] = conv_wasi_timestamp_2_host_timespec(last_access_time64);
   }
   else if (flags & __WASI_FILESTAT_SET_ATIM_NOW)
   {
@@ -660,7 +688,7 @@ wavm_ret_int32_t wavm_wasi_unstable_fd_filestat_set_times(void *dummy, int32_t f
 
   if (flags & __WASI_FILESTAT_SET_MTIM)
   {
-    timespecs[1] = conv_wasi_timestamp_2_posix_timespec(last_write_time64);
+    timespecs[1] = conv_wasi_timestamp_2_host_timespec(last_write_time64);
   }
   else if (flags & __WASI_FILESTAT_SET_MTIM_NOW)
   {
@@ -672,7 +700,7 @@ wavm_ret_int32_t wavm_wasi_unstable_fd_filestat_set_times(void *dummy, int32_t f
   }
   if (futimens(fd, timespecs) != 0)
   {
-    return pack_errno(dummy, conv_posix_errno_2_wasi_errno(errno));
+    return pack_errno(dummy, conv_host_errno_2_wasi_errno(errno));
   }
   return pack_errno(dummy, 0);
 }
@@ -688,7 +716,7 @@ wavm_ret_int32_t wavm_wasi_unstable_fd_pread(void *dummy, int32_t fd, int32_t io
   size_t ret = preadv(fd, iovs, num_iovs, offset);
   if (ret < 0)
   {
-    return pack_errno(dummy, conv_posix_errno_2_wasi_errno(errno));
+    return pack_errno(dummy, conv_host_errno_2_wasi_errno(errno));
   }
   *((uint32_t *)&memoryOffset0.base[num_bytes_read_address]) = ret;
   return pack_errno(dummy, 0);
@@ -735,7 +763,7 @@ wavm_ret_int32_t wavm_wasi_unstable_fd_pwrite(void *dummy, int32_t fd, int32_t i
   ssize_t ret = pwritev(fd, iovs, num_iovs, offset);
   if (ret < 0)
   {
-    return pack_errno(dummy, conv_posix_errno_2_wasi_errno(errno));
+    return pack_errno(dummy, conv_host_errno_2_wasi_errno(errno));
   }
   *((uint32_t *)&memoryOffset0.base[num_bytes_written_address]) = ret;
   return pack_errno(dummy, 0);
@@ -752,7 +780,7 @@ wavm_ret_int32_t wavm_wasi_unstable_fd_read(void *dummy, int32_t fd, int32_t iov
   size_t ret = readv(fd, iovs, num_iovs);
   if (ret < 0)
   {
-    return pack_errno(dummy, conv_posix_errno_2_wasi_errno(errno));
+    return pack_errno(dummy, conv_host_errno_2_wasi_errno(errno));
   }
   *((uint32_t *)&memoryOffset0.base[num_bytes_read_address]) = ret;
   return pack_errno(dummy, 0);
@@ -770,7 +798,7 @@ wavm_ret_int32_t wavm_wasi_unstable_fd_readdir(void *dummy, int32_t dir_fd, int3
   DIR *dir = fdopendir(dir_fd);
   if (!dir)
   {
-    return pack_errno(dummy, conv_posix_errno_2_wasi_errno(errno));
+    return pack_errno(dummy, conv_host_errno_2_wasi_errno(errno));
   }
   seekdir(dir, first_cookie);
 
@@ -824,7 +852,7 @@ wavm_ret_int32_t wavm_wasi_unstable_fd_seek(void *dummy, int32_t fd, int64_t off
   int64_t result = lseek(fd, (off_t)offset, whence);
   if (result < 0)
   {
-    return pack_errno(dummy, conv_posix_errno_2_wasi_errno(errno));
+    return pack_errno(dummy, conv_host_errno_2_wasi_errno(errno));
   }
   *((uint64_t *)&memoryOffset0.base[new_offset_address]) = result;
   return pack_errno(dummy, 0);
@@ -844,7 +872,7 @@ wavm_ret_int32_t wavm_wasi_unstable_fd_write(void *dummy, int32_t fd, int32_t io
   ssize_t ret = writev(fd, iovs, num_iovs);
   if (ret < 0)
   {
-    return pack_errno(dummy, conv_posix_errno_2_wasi_errno(errno));
+    return pack_errno(dummy, conv_host_errno_2_wasi_errno(errno));
   }
   *((uint32_t *)&memoryOffset0.base[num_bytes_written_address]) = ret;
   return pack_errno(dummy, 0);
@@ -861,7 +889,7 @@ wavm_ret_int32_t wavm_wasi_unstable_path_create_directory(void *dummy, int32_t d
 #endif
   if (mkdirat(dir_fd, (char *)&memoryOffset0.base[path_address], 0666) != 0)
   {
-    return pack_errno(dummy, conv_posix_errno_2_wasi_errno(errno));
+    return pack_errno(dummy, conv_host_errno_2_wasi_errno(errno));
   }
   return pack_errno(dummy, 0);
 }
@@ -877,20 +905,20 @@ wavm_ret_int32_t wavm_wasi_unstable_path_filestat_get(void *dummy, int32_t dir_f
 #ifdef DEBUG
   printf("wavm_wasi_unstable_path_filestat_get dir_fd=%d path_name=%s lookup_flags=%d\n", dir_fd, path, lookup_flags);
 #endif
-  struct stat posix_filestat;
-  if (fstatat(dir_fd, path, &posix_filestat, conv_wasi_lookupflags_2_posix_lookupflags(lookup_flags)) != 0)
+  struct stat host_filestat;
+  if (fstatat(dir_fd, path, &host_filestat, conv_wasi_lookupflags_2_host_lookupflags(lookup_flags)) != 0)
   {
-    return pack_errno(dummy, conv_posix_errno_2_wasi_errno(errno));
+    return pack_errno(dummy, conv_host_errno_2_wasi_errno(errno));
   }
   __wasi_filestat_t wasi_filestat;
-  wasi_filestat.st_dev = (__wasi_device_t)posix_filestat.st_dev;
-  wasi_filestat.st_ino = (__wasi_inode_t)posix_filestat.st_ino;
-  wasi_filestat.st_filetype = (__wasi_filetype_t)get_filetype_from_mode(posix_filestat.st_mode);
-  wasi_filestat.st_nlink = (__wasi_linkcount_t)posix_filestat.st_nlink;
-  wasi_filestat.st_size = (__wasi_filesize_t)posix_filestat.st_size;
-  wasi_filestat.st_atim = conv_posix_timespec_2_wasi_timestamp(posix_filestat.st_atim);
-  wasi_filestat.st_mtim = conv_posix_timespec_2_wasi_timestamp(posix_filestat.st_mtim);
-  wasi_filestat.st_ctim = conv_posix_timespec_2_wasi_timestamp(posix_filestat.st_ctim);
+  wasi_filestat.st_dev = (__wasi_device_t)host_filestat.st_dev;
+  wasi_filestat.st_ino = (__wasi_inode_t)host_filestat.st_ino;
+  wasi_filestat.st_filetype = (__wasi_filetype_t)conv_host_mode_2_wasi_filetype(host_filestat.st_mode);
+  wasi_filestat.st_nlink = (__wasi_linkcount_t)host_filestat.st_nlink;
+  wasi_filestat.st_size = (__wasi_filesize_t)host_filestat.st_size;
+  wasi_filestat.st_atim = conv_host_timespec_2_wasi_timestamp(host_filestat.st_atim);
+  wasi_filestat.st_mtim = conv_host_timespec_2_wasi_timestamp(host_filestat.st_mtim);
+  wasi_filestat.st_ctim = conv_host_timespec_2_wasi_timestamp(host_filestat.st_ctim);
   *((__wasi_filestat_t *)&memoryOffset0.base[filestat_address]) = wasi_filestat;
   return pack_errno(dummy, 0);
 }
@@ -915,7 +943,7 @@ wavm_ret_int32_t wavm_wasi_unstable_path_filestat_set_times(void *dummy, int32_t
   struct timespec timespecs[2];
   if (flags & __WASI_FILESTAT_SET_ATIM)
   {
-    timespecs[0] = conv_wasi_timestamp_2_posix_timespec(last_access_time64);
+    timespecs[0] = conv_wasi_timestamp_2_host_timespec(last_access_time64);
   }
   else if (flags & __WASI_FILESTAT_SET_ATIM_NOW)
   {
@@ -927,7 +955,7 @@ wavm_ret_int32_t wavm_wasi_unstable_path_filestat_set_times(void *dummy, int32_t
   }
   if (flags & __WASI_FILESTAT_SET_MTIM)
   {
-    timespecs[1] = conv_wasi_timestamp_2_posix_timespec(last_write_time64);
+    timespecs[1] = conv_wasi_timestamp_2_host_timespec(last_write_time64);
   }
   else if (flags & __WASI_FILESTAT_SET_MTIM_NOW)
   {
@@ -942,12 +970,12 @@ wavm_ret_int32_t wavm_wasi_unstable_path_filestat_set_times(void *dummy, int32_t
   int host_fd = openat(dir_fd, path, flags, mode);
   if (host_fd < 0)
   {
-    return pack_errno(dummy, conv_posix_errno_2_wasi_errno(errno));
+    return pack_errno(dummy, conv_host_errno_2_wasi_errno(errno));
   }
   if (futimens(host_fd, timespecs) != 0)
   {
     close(host_fd);
-    return pack_errno(dummy, conv_posix_errno_2_wasi_errno(errno));
+    return pack_errno(dummy, conv_host_errno_2_wasi_errno(errno));
   }
   else
   {
@@ -996,8 +1024,11 @@ wavm_ret_int32_t wavm_wasi_unstable_path_open(void *dummy, int32_t dirfd, int32_
   int host_fd = openat(dirfd, path, flags, mode);
   if (host_fd < 0)
   {
-    return pack_errno(dummy, conv_posix_errno_2_wasi_errno(errno));
+    return pack_errno(dummy, conv_host_errno_2_wasi_errno(errno));
   }
+  fdrights[host_fd].base = requested_rights;
+  fdrights[host_fd].inheriting = requested_inheriting_rights;
+
   *((uint32_t *)&memoryOffset0.base[fd_address]) = host_fd;
   return pack_errno(dummy, 0);
 }
@@ -1015,7 +1046,7 @@ wavm_ret_int32_t wavm_wasi_unstable_path_remove_directory(void *dummy, int32_t d
 #endif
   if (unlinkat(dir_fd, path, AT_REMOVEDIR) != 0)
   {
-    return pack_errno(dummy, conv_posix_errno_2_wasi_errno(errno));
+    return pack_errno(dummy, conv_host_errno_2_wasi_errno(errno));
   }
   return pack_errno(dummy, 0);
 }
@@ -1034,7 +1065,7 @@ wavm_ret_int32_t wavm_wasi_unstable_path_unlink_file(void *dummy, int32_t dir_fd
 #endif
   if (unlinkat(dir_fd, path, 0) != 0)
   {
-    return pack_errno(dummy, conv_posix_errno_2_wasi_errno(errno));
+    return pack_errno(dummy, conv_host_errno_2_wasi_errno(errno));
   }
   return pack_errno(dummy, 0);
 }
