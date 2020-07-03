@@ -870,23 +870,49 @@ wavm_ret_int32_t wavm_wasi_unstable_fd_renumber(void *dummy, int32_t from_fd, in
   return pack_errno(dummy, 0);
 }
 
-wavm_ret_int32_t wavm_wasi_unstable_fd_seek(void *dummy, int32_t fd, int64_t offset, int32_t whence, int32_t new_offset_address)
+wavm_ret_int32_t wavm_wasi_unstable_fd_seek(void *dummy, int32_t fd, int64_t offset, int32_t whence,
+                                            int32_t new_offset_address)
 {
   (void)dummy;
 #ifdef DEBUG
   printf("wavm_wasi_unstable_fd_seek fd=%d offset=%ld whence=%d\n", fd, offset, whence);
 #endif
-  int64_t result = lseek(fd, (off_t)offset, whence);
-  if (result < 0)
+  int64_t off = lseek(fd, (off_t)offset, whence);
+  if (off < 0)
   {
     return pack_errno(dummy, conv_host_errno_2_wasi_errno(errno));
   }
-  *((uint64_t *)&memoryOffset0.base[new_offset_address]) = result;
+  *((uint64_t *)&memoryOffset0.base[new_offset_address]) = off;
   return pack_errno(dummy, 0);
 }
 
-void *wavm_wasi_unstable_fd_sync(void *dummy) {}
-void *wavm_wasi_unstable_fd_tell(void *dummy) {}
+wavm_ret_int32_t wavm_wasi_unstable_fd_sync(void *dummy, int32_t fd)
+{
+  (void)dummy;
+#ifdef DEBUG
+  printf("wavm_wasi_unstable_fd_sync fd=%d\n", fd);
+#endif
+  if (fsync(fd) != 0)
+  {
+    return pack_errno(dummy, conv_host_errno_2_wasi_errno(errno));
+  }
+  return pack_errno(dummy, 0);
+}
+
+wavm_ret_int32_t wavm_wasi_unstable_fd_tell(void *dummy, int32_t fd, int32_t offset_address)
+{
+  (void)dummy;
+#ifdef DEBUG
+  printf("wavm_wasi_unstable_fd_tell fd=%d\n", fd);
+#endif
+  int64_t off = lseek(fd, 0, SEEK_CUR);
+  if (off < 0)
+  {
+    return pack_errno(dummy, conv_host_errno_2_wasi_errno(errno));
+  }
+  *((uint64_t *)&memoryOffset0.base[offset_address]) = off;
+  return pack_errno(dummy, 0);
+}
 
 wavm_ret_int32_t wavm_wasi_unstable_fd_write(void *dummy, int32_t fd, int32_t iovs_address, int32_t num_iovs,
                                              int32_t num_bytes_written_address)
