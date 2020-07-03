@@ -320,6 +320,38 @@ __wasi_errno_t conv_host_errno_2_wasi_errno(int error)
   }
 }
 
+__wasi_filetype_t conv_host_mode_2_wasi_filetype(mode_t mode)
+{
+  switch (mode & S_IFMT)
+  {
+  case S_IFBLK:
+    return __WASI_FILETYPE_BLOCK_DEVICE;
+  case S_IFCHR:
+    return __WASI_FILETYPE_CHARACTER_DEVICE;
+  case S_IFIFO:
+    return __WASI_FILETYPE_UNKNOWN;
+  case S_IFREG:
+    return __WASI_FILETYPE_REGULAR_FILE;
+  case S_IFDIR:
+    return __WASI_FILETYPE_DIRECTORY;
+  case S_IFLNK:
+    return __WASI_FILETYPE_SYMBOLIC_LINK;
+  case S_IFSOCK:
+    return __WASI_FILETYPE_SOCKET_STREAM;
+  default:
+    return __WASI_FILETYPE_UNKNOWN;
+  };
+}
+
+__wasi_fdflags_t conv_host_flag_2_wasi_flag(int32_t flag)
+{
+  return ((flag & O_APPEND) ? __WASI_FDFLAG_APPEND : 0) |
+         ((flag & O_DSYNC) ? __WASI_FDFLAG_DSYNC : 0) |
+         ((flag & O_NONBLOCK) ? __WASI_FDFLAG_NONBLOCK : 0) |
+         ((flag & O_RSYNC) ? __WASI_FDFLAG_RSYNC : 0) |
+         ((flag & O_SYNC) ? __WASI_FDFLAG_SYNC : 0);
+}
+
 __wasi_filetype_t as_wasi_file_type(mode_t mode)
 {
   switch (mode)
@@ -338,28 +370,6 @@ __wasi_filetype_t as_wasi_file_type(mode_t mode)
     return __WASI_FILETYPE_REGULAR_FILE;
   default:
     return __WASI_FILETYPE_UNKNOWN;
-  };
-}
-
-__wasi_filetype_t get_filetype_from_mode(mode_t mode)
-{
-  switch (mode & S_IFMT)
-  {
-  case S_IFBLK:
-    return __WASI_FILETYPE_BLOCK_DEVICE;
-  case S_IFCHR:
-    return __WASI_FILETYPE_CHARACTER_DEVICE;
-  case S_IFIFO:
-    return __WASI_FILETYPE_UNKNOWN;
-  case S_IFREG:
-    return __WASI_FILETYPE_REGULAR_FILE;
-  case S_IFDIR:
-    return __WASI_FILETYPE_DIRECTORY;
-  case S_IFLNK:
-    return __WASI_FILETYPE_SYMBOLIC_LINK;
-  case S_IFSOCK:
-  default:
-    __WASI_FILETYPE_UNKNOWN;
   };
 }
 
@@ -535,30 +545,20 @@ wavm_ret_int32_t wavm_wasi_unstable_fd_fdstat_get(void *dummy, int32_t fd, int32
 #endif
   struct stat host_stat;
   struct __wasi_fdstat_t wasi_fdstat;
-  int fl = fcntl(fd, F_GETFL);
+  int32_t fl = fcntl(fd, F_GETFL);
   if (fl < 0)
   {
     return pack_errno(dummy, conv_host_errno_2_wasi_errno(errno));
   }
   fstat(fd, &host_stat);
-  int mode = host_stat.st_mode;
-  wasi_fdstat.fs_filetype = (S_ISBLK(mode) ? __WASI_FILETYPE_BLOCK_DEVICE : 0) |
-                            (S_ISCHR(mode) ? __WASI_FILETYPE_CHARACTER_DEVICE : 0) |
-                            (S_ISDIR(mode) ? __WASI_FILETYPE_DIRECTORY : 0) |
-                            (S_ISREG(mode) ? __WASI_FILETYPE_REGULAR_FILE : 0) |
-                            (S_ISSOCK(mode) ? __WASI_FILETYPE_SOCKET_STREAM : 0) |
-                            (S_ISLNK(mode) ? __WASI_FILETYPE_SYMBOLIC_LINK : 0);
-  wasi_fdstat.fs_flags = ((fl & O_APPEND) ? __WASI_FDFLAG_APPEND : 0) |
-                         ((fl & O_DSYNC) ? __WASI_FDFLAG_DSYNC : 0) |
-                         ((fl & O_NONBLOCK) ? __WASI_FDFLAG_NONBLOCK : 0) |
-                         ((fl & O_RSYNC) ? __WASI_FDFLAG_RSYNC : 0) |
-                         ((fl & O_SYNC) ? __WASI_FDFLAG_SYNC : 0);
+  wasi_fdstat.fs_filetype = conv_host_mode_2_wasi_filetype(host_stat.st_mode);
+  wasi_fdstat.fs_flags = conv_host_flag_2_wasi_flag(fl);
   if (fd < 3)
   {
     wasi_fdstat.fs_rights_base = STDIO_RIGHTS;
     wasi_fdstat.fs_rights_inheriting = 0;
   }
-  else if (S_ISREG(mode))
+  else if (S_ISREG(host_stat.st_mode))
   {
     wasi_fdstat.fs_rights_base = REGULAR_FILE_RIGHTS;
     wasi_fdstat.fs_rights_inheriting = REGULAR_FILE_RIGHTS;
@@ -606,7 +606,7 @@ wavm_ret_int32_t wavm_wasi_unstable_fd_filestat_get(void *dummy, int32_t fd, int
   __wasi_filestat_t wasi_filestat;
   wasi_filestat.st_dev = (__wasi_device_t)host_filestat.st_dev;
   wasi_filestat.st_ino = (__wasi_inode_t)host_filestat.st_ino;
-  wasi_filestat.st_filetype = (__wasi_filetype_t)get_filetype_from_mode(host_filestat.st_mode);
+  wasi_filestat.st_filetype = (__wasi_filetype_t)conv_host_mode_2_wasi_filetype(host_filestat.st_mode);
   wasi_filestat.st_nlink = (__wasi_linkcount_t)host_filestat.st_nlink;
   wasi_filestat.st_size = (__wasi_filesize_t)host_filestat.st_size;
   wasi_filestat.st_atim = conv_host_timespec_2_wasi_timestamp(host_filestat.st_atim);
@@ -884,7 +884,7 @@ wavm_ret_int32_t wavm_wasi_unstable_path_filestat_get(void *dummy, int32_t dir_f
   __wasi_filestat_t wasi_filestat;
   wasi_filestat.st_dev = (__wasi_device_t)host_filestat.st_dev;
   wasi_filestat.st_ino = (__wasi_inode_t)host_filestat.st_ino;
-  wasi_filestat.st_filetype = (__wasi_filetype_t)get_filetype_from_mode(host_filestat.st_mode);
+  wasi_filestat.st_filetype = (__wasi_filetype_t)conv_host_mode_2_wasi_filetype(host_filestat.st_mode);
   wasi_filestat.st_nlink = (__wasi_linkcount_t)host_filestat.st_nlink;
   wasi_filestat.st_size = (__wasi_filesize_t)host_filestat.st_size;
   wasi_filestat.st_atim = conv_host_timespec_2_wasi_timestamp(host_filestat.st_atim);
