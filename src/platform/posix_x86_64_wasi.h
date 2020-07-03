@@ -465,7 +465,8 @@ wavm_ret_int32_t wavm_wasi_unstable_args_get(void *dummy, int32_t argv_address, 
 
 extern char **environ;
 
-wavm_ret_int32_t wavm_wasi_unstable_environ_sizes_get(void *dummy, int32_t env_count_address, int32_t env_buf_size_address)
+wavm_ret_int32_t wavm_wasi_unstable_environ_sizes_get(void *dummy, int32_t env_count_address,
+                                                      int32_t env_buf_size_address)
 {
   (void)dummy;
 #ifdef DEBUG
@@ -518,7 +519,8 @@ wavm_ret_int32_t wavm_wasi_unstable_clock_res_get(void *dummy, int32_t clock_id,
   return pack_errno(dummy, 0);
 }
 
-wavm_ret_int32_t wavm_wasi_unstable_clock_time_get(void *dummy, int32_t clock_id, int64_t precision, int32_t time_address)
+wavm_ret_int32_t wavm_wasi_unstable_clock_time_get(void *dummy, int32_t clock_id, int64_t precision,
+                                                   int32_t time_address)
 {
   (void)dummy;
 #ifdef DEBUG
@@ -533,7 +535,8 @@ wavm_ret_int32_t wavm_wasi_unstable_clock_time_get(void *dummy, int32_t clock_id
   return pack_errno(dummy, 0);
 }
 
-wavm_ret_int32_t wavm_wasi_unstable_fd_advise(void *dummy, int32_t fd, int64_t offset, int64_t num_bytes, int32_t advice)
+wavm_ret_int32_t wavm_wasi_unstable_fd_advise(void *dummy, int32_t fd, int64_t offset, int64_t num_bytes,
+                                              int32_t advice)
 {
   (void)dummy;
 #ifdef DEBUG
@@ -624,7 +627,8 @@ wavm_ret_int32_t wavm_wasi_unstable_fd_fdstat_set_flags(void *dummy, int32_t fd,
   return pack_errno(dummy, 0);
 }
 
-wavm_ret_int32_t wavm_wasi_unstable_fd_fdstat_set_rights(void *dummy, int32_t fd, int32_t rights, int32_t inheriting_rights)
+wavm_ret_int32_t wavm_wasi_unstable_fd_fdstat_set_rights(void *dummy, int32_t fd, int32_t rights,
+                                                         int32_t inheriting_rights)
 {
   (void)dummy;
 #ifdef DEBUG
@@ -665,15 +669,15 @@ wavm_ret_int32_t wavm_wasi_unstable_fd_filestat_set_size(void *dummy, int32_t fd
 #ifdef DEBUG
   printf("wavm_wasi_unstable_fd_filestat_set_size fd=%d num_bytes=%ld\n", fd, num_bytes);
 #endif
-  int result = ftruncate(fd, (off_t)num_bytes);
-  if (result != 0)
+  if (ftruncate(fd, (off_t)num_bytes) != 0)
   {
     return pack_errno(dummy, conv_host_errno_2_wasi_errno(errno));
   }
   return pack_errno(dummy, 0);
 }
 
-wavm_ret_int32_t wavm_wasi_unstable_fd_filestat_set_times(void *dummy, int32_t fd, int64_t last_access_time64, int64_t last_write_time64, int32_t flags)
+wavm_ret_int32_t wavm_wasi_unstable_fd_filestat_set_times(void *dummy, int32_t fd, int64_t last_access_time64,
+                                                          int64_t last_write_time64, int32_t flags)
 {
   (void)dummy;
 #ifdef DEBUG
@@ -681,7 +685,7 @@ wavm_ret_int32_t wavm_wasi_unstable_fd_filestat_set_times(void *dummy, int32_t f
          fd, last_access_time64, last_write_time64, flags);
 #endif
   struct timespec tp;
-  if (clock_gettime(CLOCK_REALTIME, &tp))
+  if (clock_gettime(CLOCK_REALTIME, &tp) != 0)
   {
     return pack_errno(dummy, __WASI_EINVAL);
   }
@@ -719,7 +723,8 @@ wavm_ret_int32_t wavm_wasi_unstable_fd_filestat_set_times(void *dummy, int32_t f
   return pack_errno(dummy, 0);
 }
 
-wavm_ret_int32_t wavm_wasi_unstable_fd_pread(void *dummy, int32_t fd, int32_t iovs_address, int32_t num_iovs, int64_t offset, int32_t num_bytes_read_address)
+wavm_ret_int32_t wavm_wasi_unstable_fd_pread(void *dummy, int32_t fd, int32_t iovs_address, int32_t num_iovs,
+                                             int64_t offset, int32_t num_bytes_read_address)
 {
   (void)dummy;
 #ifdef DEBUG
@@ -727,12 +732,12 @@ wavm_ret_int32_t wavm_wasi_unstable_fd_pread(void *dummy, int32_t fd, int32_t io
          fd, iovs_address, num_iovs, num_bytes_read_address);
 #endif
   struct iovec *iovs = copy_iov_to_host(iovs_address, num_iovs);
-  size_t ret = preadv(fd, iovs, num_iovs, offset);
-  if (ret < 0)
+  size_t size = preadv(fd, iovs, num_iovs, offset);
+  if (size < 0)
   {
     return pack_errno(dummy, conv_host_errno_2_wasi_errno(errno));
   }
-  *((uint32_t *)&memoryOffset0.base[num_bytes_read_address]) = ret;
+  *((uint32_t *)&memoryOffset0.base[num_bytes_read_address]) = size;
   return pack_errno(dummy, 0);
 }
 
@@ -751,7 +756,8 @@ wavm_ret_int32_t wavm_wasi_unstable_fd_prestat_get(void *dummy, int32_t fd, int3
   return pack_errno(dummy, 0);
 }
 
-wavm_ret_int32_t wavm_wasi_unstable_fd_prestat_dir_name(void *dummy, int32_t fd, int32_t buffer_address, int32_t buffer_length)
+wavm_ret_int32_t wavm_wasi_unstable_fd_prestat_dir_name(void *dummy, int32_t fd, int32_t buffer_address,
+                                                        int32_t buffer_length)
 {
   (void)dummy;
 #ifdef DEBUG
@@ -774,16 +780,17 @@ wavm_ret_int32_t wavm_wasi_unstable_fd_pwrite(void *dummy, int32_t fd, int32_t i
   printf("wavm_wasi_unstable_fd_pwrite fd=%d num_iovs=%d\n", fd, num_iovs);
 #endif
   struct iovec *iovs = copy_iov_to_host(iovs_address, num_iovs);
-  ssize_t ret = pwritev(fd, iovs, num_iovs, offset);
-  if (ret < 0)
+  ssize_t size = pwritev(fd, iovs, num_iovs, offset);
+  if (size < 0)
   {
     return pack_errno(dummy, conv_host_errno_2_wasi_errno(errno));
   }
-  *((uint32_t *)&memoryOffset0.base[num_bytes_written_address]) = ret;
+  *((uint32_t *)&memoryOffset0.base[num_bytes_written_address]) = size;
   return pack_errno(dummy, 0);
 }
 
-wavm_ret_int32_t wavm_wasi_unstable_fd_read(void *dummy, int32_t fd, int32_t iovs_address, int32_t num_iovs, int32_t num_bytes_read_address)
+wavm_ret_int32_t wavm_wasi_unstable_fd_read(void *dummy, int32_t fd, int32_t iovs_address, int32_t num_iovs,
+                                            int32_t num_bytes_read_address)
 {
   (void)dummy;
 #ifdef DEBUG
@@ -791,12 +798,12 @@ wavm_ret_int32_t wavm_wasi_unstable_fd_read(void *dummy, int32_t fd, int32_t iov
          fd, iovs_address, num_iovs, num_bytes_read_address);
 #endif
   struct iovec *iovs = copy_iov_to_host(iovs_address, num_iovs);
-  size_t ret = readv(fd, iovs, num_iovs);
-  if (ret < 0)
+  size_t size = readv(fd, iovs, num_iovs);
+  if (size < 0)
   {
     return pack_errno(dummy, conv_host_errno_2_wasi_errno(errno));
   }
-  *((uint32_t *)&memoryOffset0.base[num_bytes_read_address]) = ret;
+  *((uint32_t *)&memoryOffset0.base[num_bytes_read_address]) = size;
   return pack_errno(dummy, 0);
 }
 
@@ -852,8 +859,14 @@ wavm_ret_int32_t wavm_wasi_unstable_fd_renumber(void *dummy, int32_t from_fd, in
 #ifdef DEBUG
   printf("wavm_wasi_unstable_fd_renumber from_fd=%d to_fd=%d\n", from_fd, to_fd);
 #endif
-  close(to_fd);
-  fcntl(from_fd, F_DUPFD);
+  if (close(to_fd) < 0)
+  {
+    return pack_errno(dummy, conv_host_errno_2_wasi_errno(errno));
+  }
+  if (fcntl(from_fd, F_DUPFD) < 0)
+  {
+    return pack_errno(dummy, conv_host_errno_2_wasi_errno(errno));
+  }
   return pack_errno(dummy, 0);
 }
 
@@ -883,12 +896,12 @@ wavm_ret_int32_t wavm_wasi_unstable_fd_write(void *dummy, int32_t fd, int32_t io
   printf("wavm_wasi_unstable_fd_write fd=%d num_iovs=%d\n", fd, num_iovs);
 #endif
   struct iovec *iovs = copy_iov_to_host(iovs_address, num_iovs);
-  ssize_t ret = writev(fd, iovs, num_iovs);
-  if (ret < 0)
+  ssize_t size = writev(fd, iovs, num_iovs);
+  if (size < 0)
   {
     return pack_errno(dummy, conv_host_errno_2_wasi_errno(errno));
   }
-  *((uint32_t *)&memoryOffset0.base[num_bytes_written_address]) = ret;
+  *((uint32_t *)&memoryOffset0.base[num_bytes_written_address]) = size;
   return pack_errno(dummy, 0);
 }
 
