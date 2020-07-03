@@ -116,8 +116,8 @@ def test_path_filestat_set_times():
 def test_preadwrite():
     print('test_preadwrite')
     r = subprocess.getoutput('res/wasi_wasc/preadwrite_build/preadwrite /tmp/a').split('\n')
-    assert(r[0], 'pread(5000): Hello 5000!')
-    assert(r[1], 'pread(500): Hello 500!')
+    assert(r[0] == 'pread(5000): Hello 5000!')
+    assert(r[1] == 'pread(500): Hello 500!')
     subprocess.getoutput('rm /tmp/a')
 
 
