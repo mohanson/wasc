@@ -624,7 +624,16 @@ wavm_ret_int32_t wavm_wasi_unstable_fd_fdstat_set_flags(void *dummy, int32_t fd,
   return pack_errno(dummy, 0);
 }
 
-void *wavm_wasi_unstable_fd_fdstat_set_rights(void *dummy) {}
+wavm_ret_int32_t wavm_wasi_unstable_fd_fdstat_set_rights(void *dummy, int32_t fd, int32_t rights, int32_t inheriting_rights)
+{
+  (void)dummy;
+#ifdef DEBUG
+  printf("wavm_wasi_unstable_fd_fdstat_set_rights fd=%d rights=%d inheriting_rights=%d\n", fd, rights, inheriting_rights);
+#endif
+  fdrights[fd].base = rights;
+  fdrights[fd].inheriting = inheriting_rights;
+  return pack_errno(dummy, 0);
+}
 
 wavm_ret_int32_t wavm_wasi_unstable_fd_filestat_get(void *dummy, int32_t fd, int32_t filestat_address)
 {
