@@ -382,7 +382,7 @@ __wasi_filetype_t conv_host_mode_2_wasi_filetype(mode_t mode)
   };
 }
 
-__wasi_fdflags_t conv_host_flag_2_wasi_flag(int32_t flag)
+__wasi_fdflags_t conv_host_fdflag_2_wasi_fdflag(int32_t flag)
 {
   return ((flag & O_APPEND) ? __WASI_FDFLAG_APPEND : 0) |
          ((flag & O_DSYNC) ? __WASI_FDFLAG_DSYNC : 0) |
@@ -391,13 +391,21 @@ __wasi_fdflags_t conv_host_flag_2_wasi_flag(int32_t flag)
          ((flag & O_SYNC) ? __WASI_FDFLAG_SYNC : 0);
 }
 
-int32_t conv_wasi_flag_2_host_flag(__wasi_fdflags_t flag)
+int32_t conv_wasi_fdflag_2_host_fdflag(__wasi_fdflags_t flag)
 {
   return ((flag & __WASI_FDFLAG_APPEND) ? O_APPEND : 0) |
          ((flag & __WASI_FDFLAG_DSYNC) ? O_DSYNC : 0) |
          ((flag & __WASI_FDFLAG_NONBLOCK) ? O_NONBLOCK : 0) |
          ((flag & __WASI_FDFLAG_RSYNC) ? O_RSYNC : 0) |
          ((flag & __WASI_FDFLAG_SYNC) ? O_SYNC : 0);
+}
+
+__wasi_fdflags_t conv_wasi_opflag_2_host_opflag(int32_t flag)
+{
+  return ((flag & __WASI_O_CREAT) ? O_CREAT : 0) |
+         ((flag & __WASI_O_DIRECTORY) ? O_DIRECTORY : 0) |
+         ((flag & __WASI_O_EXCL) ? O_EXCL : 0) |
+         ((flag & __WASI_O_TRUNC) ? O_TRUNC : 0);
 }
 
 __wasi_filetype_t as_wasi_file_type(mode_t mode)
@@ -606,7 +614,7 @@ wavm_ret_int32_t wavm_wasi_unstable_fd_fdstat_get(void *dummy, int32_t fd, int32
     return pack_errno(dummy, conv_host_errno_2_wasi_errno(errno));
   }
   wasi_fdstat.fs_filetype = conv_host_mode_2_wasi_filetype(host_stat.st_mode);
-  wasi_fdstat.fs_flags = conv_host_flag_2_wasi_flag(fl);
+  wasi_fdstat.fs_flags = conv_host_fdflag_2_wasi_fdflag(fl);
   wasi_fdstat.fs_rights_base = fdrights[fd].base;
   wasi_fdstat.fs_rights_inheriting = fdrights[fd].inheriting;
   *((__wasi_fdstat_t *)&memoryOffset0.base[fdstat_address]) = wasi_fdstat;
@@ -619,7 +627,7 @@ wavm_ret_int32_t wavm_wasi_unstable_fd_fdstat_set_flags(void *dummy, int32_t fd,
 #ifdef DEBUG
   printf("wavm_wasi_unstable_fd_fdstat_set_flags fd=%d flags=%d\n", fd, flags);
 #endif
-  int32_t flag = conv_wasi_flag_2_host_flag(flags);
+  int32_t flag = conv_wasi_fdflag_2_host_fdflag(flags);
   if (fcntl(fd, F_SETFL, flag) != 0)
   {
     return pack_errno(dummy, conv_host_errno_2_wasi_errno(errno));
@@ -1069,15 +1077,7 @@ wavm_ret_int32_t wavm_wasi_unstable_path_open(void *dummy, int32_t dirfd, int32_
   printf("wavm_wasi_unstable_path_open path=%s dirflags=%d open_flags=%d requested_rights=%ld requested_inheriting_rights=%ld fd_flags=%d\n",
          path, dirflags, open_flags, requested_rights, requested_inheriting_rights, fd_flags);
 #endif
-  int flags = ((open_flags & __WASI_O_CREAT) ? O_CREAT : 0) |
-              ((open_flags & __WASI_O_DIRECTORY) ? O_DIRECTORY : 0) |
-              ((open_flags & __WASI_O_EXCL) ? O_EXCL : 0) |
-              ((open_flags & __WASI_O_TRUNC) ? O_TRUNC : 0) |
-              ((fd_flags & __WASI_FDFLAG_APPEND) ? O_APPEND : 0) |
-              ((fd_flags & __WASI_FDFLAG_DSYNC) ? O_DSYNC : 0) |
-              ((fd_flags & __WASI_FDFLAG_NONBLOCK) ? O_NONBLOCK : 0) |
-              ((fd_flags & __WASI_FDFLAG_RSYNC) ? O_RSYNC : 0) |
-              ((fd_flags & __WASI_FDFLAG_SYNC) ? O_SYNC : 0);
+  int flags = conv_wasi_opflag_2_host_opflag(open_flags) | conv_wasi_fdflag_2_host_fdflag(fd_flags);
   if ((requested_rights & __WASI_RIGHT_FD_READ) &&
       (requested_rights & __WASI_RIGHT_FD_WRITE))
   {
@@ -1091,15 +1091,13 @@ wavm_ret_int32_t wavm_wasi_unstable_path_open(void *dummy, int32_t dirfd, int32_
   {
     flags |= O_RDONLY;
   }
-  int mode = 0644;
-  int host_fd = openat(dirfd, path, flags, mode);
+  int host_fd = openat(dirfd, path, flags, 0644);
   if (host_fd < 0)
   {
     return pack_errno(dummy, conv_host_errno_2_wasi_errno(errno));
   }
   fdrights[host_fd].base = requested_rights;
   fdrights[host_fd].inheriting = requested_inheriting_rights;
-
   *((uint32_t *)&memoryOffset0.base[fd_address]) = host_fd;
   return pack_errno(dummy, 0);
 }
