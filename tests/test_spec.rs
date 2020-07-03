@@ -2,7 +2,7 @@ use wasc::aot_generator;
 use wasc::code_builder;
 use wasc::compile;
 use wasc::context;
-use wasc::dummy;
+use wasc::gcc;
 
 mod misc;
 
@@ -14,15 +14,11 @@ fn test_spec_single_test<P: AsRef<std::path::Path>>(
     config.platform = context::Platform::PosixX8664Spectest;
     config.binary_wavm = "./third_party/WAVM/build/bin/wavm".to_string();
 
-    let mut middle = compile::compile(&wasm_path, config)?;
-    aot_generator::generate(&mut middle)?;
+    let middle = compile::compile(&wasm_path, config)?;
 
     let mut ep_file = code_builder::CodeBuilder::place(&middle.path_c);
     ep_file.write(format!("#include \"{}_glue.h\"", middle.file_stem).as_str());
-    ep_file.write(format!(
-        "#include \"./{}_platform/posix_x86_64_spectest.h\"",
-        &middle.file_stem
-    ));
+    ep_file.write("#include \"platform/posix_x86_64_spectest.h\"");
     ep_file.write("");
     ep_file.write("int main() {");
     ep_file.write("init();");
@@ -177,8 +173,11 @@ fn test_spec_single_test<P: AsRef<std::path::Path>>(
     ep_file.write("}");
     ep_file.close()?;
 
-    dummy::gcc_build(&middle)?;
-    let exit_status = dummy::run(&middle)?;
+    gcc::build(&middle)?;
+
+    let mut cmd = std::process::Command::new(middle.path_prog.join(middle.file_stem.clone()).to_str().unwrap());
+    let exit_status = cmd.spawn()?.wait()?;
+
     rog::debugln!("{:?} {}", middle.path_c, exit_status);
     assert!(exit_status.success());
     Ok(())

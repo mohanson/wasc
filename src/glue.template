@@ -3,33 +3,10 @@
 #include<stdlib.h>
 #include<string.h>
 
+#include "platform/common/wavm.h"
+
 #ifndef {}
 #define {}
-
-typedef struct {{
-  void* dummy;
-  int32_t value;
-}} wavm_ret_int32_t;
-
-typedef struct {{
-  void* dummy;
-  int64_t value;
-}} wavm_ret_int64_t;
-
-typedef struct {{
-  void* dummy;
-  float value;
-}} wavm_ret_float;
-
-typedef struct {{
-  void* dummy;
-  double value;
-}} wavm_ret_double;
-
-typedef struct memory_instance {{
-  uint8_t* base;
-  uint64_t num_pages;
-}} memory_instance;
 
 const uint64_t functionDefMutableData = 0;
 const uint64_t biasedInstanceId = 0;

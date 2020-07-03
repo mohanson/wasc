@@ -5,4 +5,5 @@
 
 /res/spectest_bugs_wasc
 /res/spectest_wasc
+/res/wasi_wasc
 /res/testsuite

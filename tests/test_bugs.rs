@@ -1,8 +1,7 @@
-use wasc::aot_generator;
 use wasc::code_builder;
 use wasc::compile;
 use wasc::context;
-use wasc::dummy;
+use wasc::gcc;
 
 mod misc;
 
@@ -10,19 +9,10 @@ fn test_spec_single_test<P: AsRef<std::path::Path>>(wasm_path: P) -> Result<i32,
     let mut config = wasc::context::Config::default();
     config.platform = context::Platform::PosixX8664Spectest;
     config.binary_wavm = String::from("./third_party/WAVM/build/bin/wavm");
-
-    let mut middle = compile::compile(&wasm_path, config)?;
-    aot_generator::generate(&mut middle)?;
-
+    let middle = compile::compile(&wasm_path, config)?;
     let mut dummy_file = code_builder::CodeBuilder::place(&middle.path_c);
     dummy_file.write(format!("#include \"{}_glue.h\"", middle.file_stem).as_str());
-    dummy_file.write(
-        format!(
-            "#include \"./{}_platform/posix_x86_64_spectest.h\"",
-            middle.file_stem.clone()
-        )
-        .as_str(),
-    );
+    dummy_file.write("#include \"platform/posix_x86_64_spectest.h\"");
     dummy_file.write("");
     dummy_file.write("int main() {");
     dummy_file.write("wavm_ret_int32_t wavm_ret = wavm_exported_function_main(NULL);");
@@ -30,9 +20,10 @@ fn test_spec_single_test<P: AsRef<std::path::Path>>(wasm_path: P) -> Result<i32,
     dummy_file.write("}");
     dummy_file.close()?;
 
-    dummy::gcc_build(&middle)?;
+    gcc::build(&middle)?;
 
-    let exit_status = dummy::run(&middle)?;
+    let mut cmd = std::process::Command::new(middle.path_prog.join(middle.file_stem.clone()).to_str().unwrap());
+    let exit_status = cmd.spawn()?.wait()?;
     rog::debugln!("{:?} {}", wasm_path.as_ref(), exit_status);
     Ok(exit_status.code().unwrap())
 }
