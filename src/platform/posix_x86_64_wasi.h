@@ -18,7 +18,7 @@
 #ifndef WAVM_POSIX_X86_64_WASI_H
 #define WAVM_POSIX_X86_64_WASI_H
 
-#define DEBUG_OFF
+#define DEBUG
 
 extern int32_t g_argc;
 extern char **g_argv;
@@ -192,6 +192,11 @@ struct iovec *copy_iov_to_host(uint32_t iov_offset, uint32_t iovs_len)
 }
 
 #define MAX_PATH_LENGTH 1024
+
+__wasi_timestamp_t conv_posix_timespec_2_wasi_timestamp(struct timespec t)
+{
+  return t.tv_sec * 1000000000 + t.tv_nsec;
+}
 
 __wasi_errno_t as_wasi_errno(int error)
 {
@@ -535,14 +540,14 @@ wavm_ret_int32_t wavm_wasi_unstable_fd_filestat_get(void *dummy, int32_t fd, int
     return pack_errno(dummy, as_wasi_errno(errno));
   }
   __wasi_filestat_t wasi_filestat;
-  wasi_filestat.st_dev = filestat.st_dev;
-  wasi_filestat.st_ino = filestat.st_ino;
-  wasi_filestat.st_filetype = get_filetype_from_mode(filestat.st_mode);
-  wasi_filestat.st_nlink = filestat.st_nlink;
-  wasi_filestat.st_size = filestat.st_size;
-  wasi_filestat.st_atim = (__wasi_timestamp_t)filestat.st_atim.tv_nsec;
-  wasi_filestat.st_mtim = (__wasi_timestamp_t)filestat.st_mtim.tv_nsec;
-  wasi_filestat.st_ctim = (__wasi_timestamp_t)filestat.st_ctim.tv_nsec;
+  wasi_filestat.st_dev = (__wasi_device_t)filestat.st_dev;
+  wasi_filestat.st_ino = (__wasi_inode_t)filestat.st_ino;
+  wasi_filestat.st_filetype = (__wasi_filetype_t)get_filetype_from_mode(filestat.st_mode);
+  wasi_filestat.st_nlink = (__wasi_linkcount_t)filestat.st_nlink;
+  wasi_filestat.st_size = (__wasi_filesize_t)filestat.st_size;
+  wasi_filestat.st_atim = conv_posix_timespec_2_wasi_timestamp(filestat.st_atim);
+  wasi_filestat.st_mtim = conv_posix_timespec_2_wasi_timestamp(filestat.st_mtim);
+  wasi_filestat.st_ctim = conv_posix_timespec_2_wasi_timestamp(filestat.st_ctim);
   *((__wasi_filestat_t *)&memoryOffset0.base[filestat_address]) = wasi_filestat;
   return pack_errno(dummy, 0);
 }
