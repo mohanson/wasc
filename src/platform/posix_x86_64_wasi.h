@@ -198,6 +198,14 @@ __wasi_timestamp_t conv_posix_timespec_2_wasi_timestamp(struct timespec t)
   return t.tv_sec * 1000000000 + t.tv_nsec;
 }
 
+struct timespec conv_wasi_timestamp_2_posix_timespec(__wasi_timestamp_t t)
+{
+  struct timespec r;
+  r.tv_sec = t / 1000000000;
+  r.tv_nsec = t % 1000000000;
+  return r;
+}
+
 int32_t conv_wasi_lookupflags_2_posix_lookupflags(__wasi_lookupflags_t lookup_flags)
 {
   int32_t f = 0;
@@ -639,8 +647,7 @@ wavm_ret_int32_t wavm_wasi_unstable_fd_filestat_set_times(void *dummy, int32_t f
   struct timespec timespecs[2];
   if (flags & __WASI_FILESTAT_SET_ATIM)
   {
-    timespecs[0].tv_sec = last_access_time64 / 1000000000;
-    timespecs[0].tv_nsec = last_access_time64 % 1000000000;
+    timespecs[0] = conv_wasi_timestamp_2_posix_timespec(last_access_time64);
   }
   else if (flags & __WASI_FILESTAT_SET_ATIM_NOW)
   {
@@ -653,8 +660,7 @@ wavm_ret_int32_t wavm_wasi_unstable_fd_filestat_set_times(void *dummy, int32_t f
 
   if (flags & __WASI_FILESTAT_SET_MTIM)
   {
-    timespecs[1].tv_sec = last_write_time64 / 1000000000;
-    timespecs[1].tv_nsec = last_write_time64 % 1000000000;
+    timespecs[1] = conv_wasi_timestamp_2_posix_timespec(last_write_time64);
   }
   else if (flags & __WASI_FILESTAT_SET_MTIM_NOW)
   {
@@ -909,8 +915,7 @@ wavm_ret_int32_t wavm_wasi_unstable_path_filestat_set_times(void *dummy, int32_t
   struct timespec timespecs[2];
   if (flags & __WASI_FILESTAT_SET_ATIM)
   {
-    timespecs[0].tv_sec = last_access_time64 / 1000000000;
-    timespecs[0].tv_nsec = last_access_time64 % 1000000000;
+    timespecs[0] = conv_wasi_timestamp_2_posix_timespec(last_access_time64);
   }
   else if (flags & __WASI_FILESTAT_SET_ATIM_NOW)
   {
@@ -922,8 +927,7 @@ wavm_ret_int32_t wavm_wasi_unstable_path_filestat_set_times(void *dummy, int32_t
   }
   if (flags & __WASI_FILESTAT_SET_MTIM)
   {
-    timespecs[1].tv_sec = last_write_time64 / 1000000000;
-    timespecs[1].tv_nsec = last_write_time64 % 1000000000;
+    timespecs[1] = conv_wasi_timestamp_2_posix_timespec(last_write_time64);
   }
   else if (flags & __WASI_FILESTAT_SET_MTIM_NOW)
   {
