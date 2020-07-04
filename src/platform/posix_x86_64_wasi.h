@@ -1102,7 +1102,16 @@ wavm_ret_int32_t wavm_wasi_unstable_path_open(void *dummy, int32_t dirfd, int32_
   return pack_errno(dummy, 0);
 }
 
-void *wavm_wasi_unstable_path_readlink(void *dummy) {}
+wavm_ret_int32_t wavm_wasi_unstable_path_readlink(void *dummy, int32_t fd, int32_t path_address, int32_t num_path_bytes,
+                                                  int32_t buffer_address, int32_t num_buffer_bytes,
+                                                  int32_t out_num_buffer_bytes_used_address)
+{
+  (void)dummy;
+#ifdef DEBUG
+  printf("wavm_wasi_unstable_path_readlink\n");
+#endif
+  return pack_errno(dummy, __WASI_EPERM);
+}
 
 wavm_ret_int32_t wavm_wasi_unstable_path_remove_directory(void *dummy, int32_t dir_fd, int32_t path_address, int32_t num_path_bytes)
 {
@@ -1120,8 +1129,26 @@ wavm_ret_int32_t wavm_wasi_unstable_path_remove_directory(void *dummy, int32_t d
   return pack_errno(dummy, 0);
 }
 
-void *wavm_wasi_unstable_path_rename(void *dummy) {}
-void *wavm_wasi_unstable_path_symlink(void *dummy) {}
+wavm_ret_int32_t wavm_wasi_unstable_path_rename(void *dummy, int32_t old_fd, int32_t old_path_address,
+                                                int32_t num_old_path_bytes, int32_t new_fd, int32_t new_path_address,
+                                                int32_t num_new_path_bytes)
+{
+  (void)dummy;
+#ifdef DEBUG
+  printf("wavm_wasi_unstable_path_rename\n");
+#endif
+  return pack_errno(dummy, __WASI_EPERM);
+}
+
+wavm_ret_int32_t wavm_wasi_unstable_path_symlink(void *dummy, int32_t old_path_address, int32_t num_old_path_bytes,
+                                                 int32_t fd, int32_t new_path_address, int32_t num_new_path_bytes)
+{
+  (void)dummy;
+#ifdef DEBUG
+  printf("wavm_wasi_unstable_path_symlink\n");
+#endif
+  return pack_errno(dummy, __WASI_EPERM);
+}
 
 wavm_ret_int32_t wavm_wasi_unstable_path_unlink_file(void *dummy, int32_t dir_fd, int32_t path_address, int32_t num_path_bytes)
 {
@@ -1139,7 +1166,16 @@ wavm_ret_int32_t wavm_wasi_unstable_path_unlink_file(void *dummy, int32_t dir_fd
   return pack_errno(dummy, 0);
 }
 
-void *wavm_wasi_unstable_poll_oneoff(void *dummy) {}
+wavm_ret_int32_t wavm_wasi_unstable_poll_oneoff(void *dummy, int32_t in_address, int32_t out_address,
+                                                int32_t num_subscriptions, int32_t out_num_events_address)
+{
+  (void)dummy;
+#ifdef DEBUG
+  printf("wavm_wasi_unstable_poll_oneoff\n");
+#endif
+  return pack_errno(dummy, __WASI_EPERM);
+}
+
 void *wavm_wasi_unstable_proc_exit(void *dummy, int32_t code)
 {
 #ifdef DEBUG
@@ -1149,8 +1185,15 @@ void *wavm_wasi_unstable_proc_exit(void *dummy, int32_t code)
   exit(code);
   return dummy;
 }
-void *wavm_wasi_unstable_proc_raise(void *dummy) {}
-void *wavm_wasi_unstable_sched_yield(void *dummy) {}
+
+wavm_ret_int32_t wavm_wasi_unstable_sched_yield(void *dummy)
+{
+  (void)dummy;
+#ifdef DEBUG
+  printf("wavm_wasi_unstable_sched_yield\n");
+#endif
+  return pack_errno(dummy, 0);
+}
 
 wavm_ret_int32_t wavm_wasi_unstable_random_get(void *dummy, int32_t buffer_address, int32_t num_buffer_bytes)
 {
@@ -1165,8 +1208,33 @@ wavm_ret_int32_t wavm_wasi_unstable_random_get(void *dummy, int32_t buffer_addre
   return pack_errno(dummy, 0);
 }
 
-void *wavm_wasi_unstable_sock_recv(void *dummy) {}
-void *wavm_wasi_unstable_sock_send(void *dummy) {}
-void *wavm_wasi_unstable_sock_shutdown(void *dummy) {}
+wavm_ret_int32_t wavm_wasi_unstable_sock_recv(void *dummy, int32_t sock, int32_t ri_data, int32_t ri_data_len,
+                                              int32_t ri_flags, int32_t ro_datalen, int32_t ro_flags)
+{
+  (void)dummy;
+#ifdef DEBUG
+  printf("wavm_wasi_unstable_sock_recv\n");
+#endif
+  return pack_errno(dummy, 0);
+}
+
+wavm_ret_int32_t wavm_wasi_unstable_sock_send(void *dummy, int32_t sock, int32_t si_data, int32_t si_data_len,
+                                              int32_t si_flags, int32_t so_datalen)
+{
+  (void)dummy;
+#ifdef DEBUG
+  printf("wavm_wasi_unstable_sock_send\n");
+#endif
+  return pack_errno(dummy, 0);
+}
+
+wavm_ret_int32_t wavm_wasi_unstable_sock_shutdown(void *dummy, int32_t sock, int32_t how)
+{
+  (void)dummy;
+#ifdef DEBUG
+  printf("wavm_wasi_unstable_sock_shutdown\n");
+#endif
+  return pack_errno(dummy, 0);
+}
 
 #endif /* WAVM_POSIX_X86_64_WASI_H */
