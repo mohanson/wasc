@@ -20,6 +20,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut fl_platform = String::from("");
     let mut fl_wavm = String::from("wavm");
     let mut fl_verbose = false;
+    let mut fl_save = false;
     {
         let mut ap = argparse::ArgumentParser::new();
         ap.set_description("WASC: WebAssembly native compilter");
@@ -34,6 +35,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             .add_option(&["--wavm"], argparse::Store, "WAVM binary");
         ap.refer(&mut fl_verbose)
             .add_option(&["-v", "--verbose"], argparse::StoreTrue, "");
+        ap.refer(&mut fl_save)
+            .add_option(&["-s", "--save"], argparse::StoreTrue, "save temporary files");
         ap.parse_args_or_exit();
     }
     if fl_source.is_empty() {
@@ -81,5 +84,13 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     gcc::build(&middle)?;
 
+    std::fs::copy(
+        middle.path_output.clone(),
+        middle.file.parent().unwrap().join(middle.file_stem.clone()),
+    )?;
+
+    if !fl_save {
+        std::fs::remove_dir_all(middle.path_platform_code_folder)?;
+    }
     Ok(())
 }

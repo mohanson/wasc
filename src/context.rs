@@ -70,6 +70,7 @@ pub struct Middle {
     pub path_glue: std::path::PathBuf,                        // xx_build/xx_glue.h
     pub path_c: std::path::PathBuf,                           // xx_build/xx.c
     pub path_precompiled: std::path::PathBuf,                 // xx_build/xx_precompiled.wasm
+    pub path_output: std::path::PathBuf,                      // xx
 }
 
 impl Middle {
@@ -109,5 +110,6 @@ impl Middle {
         self.path_precompiled = self.path_prog.join(self.file_stem.clone() + "_precompiled.wasm");
         self.path_platform_common_wavm_h = self.path_platform_common_code_folder.join("wavm.h");
         self.path_platform_common_wasi_h = self.path_platform_common_code_folder.join("wasi.h");
+        self.path_output = self.path_prog.join(self.file_stem.clone());
     }
 }
