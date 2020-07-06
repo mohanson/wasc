@@ -18,7 +18,14 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     //   posix_x86_64_wasi
     let mut fl_source = String::from("");
     let mut fl_platform = String::from("");
-    let mut fl_wavm = String::from("wavm");
+    let mut fl_wavm = String::from(
+        std::env::current_exe()?
+            .parent()
+            .unwrap()
+            .join("wavm")
+            .to_str()
+            .unwrap(),
+    );
     let mut fl_verbose = false;
     let mut fl_save = false;
     {
