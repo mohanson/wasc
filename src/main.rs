@@ -90,7 +90,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     )?;
 
     if !fl_save {
-        std::fs::remove_dir_all(middle.path_platform_code_folder)?;
+        rog::debugln!("remove {}", middle.path_prog.to_str().unwrap());
+        std::fs::remove_dir_all(middle.path_prog)?;
     }
     Ok(())
 }
