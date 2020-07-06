@@ -437,11 +437,11 @@ wavm_ret_int32_t pack_errno(void *dummy, int32_t value)
   return ret;
 }
 
-wavm_ret_int32_t wavm_wasi_unstable_args_sizes_get(void *dummy, int32_t argc_address, int32_t arg_buf_size_address)
+wavm_ret_int32_t wavm_wasi_args_sizes_get(void *dummy, int32_t argc_address, int32_t arg_buf_size_address)
 {
   (void)dummy;
 #ifdef DEBUG
-  printf("wavm_wasi_unstable_args_sizes_get\n");
+  printf("wavm_wasi_args_sizes_get\n");
 #endif
   int32_t num_arg_buffer_bytes = 0;
   for (int32_t i = 0; i < g_argc; i++)
@@ -453,11 +453,11 @@ wavm_ret_int32_t wavm_wasi_unstable_args_sizes_get(void *dummy, int32_t argc_add
   return pack_errno(dummy, 0);
 }
 
-wavm_ret_int32_t wavm_wasi_unstable_args_get(void *dummy, int32_t argv_address, int32_t arg_buf_address)
+wavm_ret_int32_t wavm_wasi_args_get(void *dummy, int32_t argv_address, int32_t arg_buf_address)
 {
   (void)dummy;
 #ifdef DEBUG
-  printf("wavm_wasi_unstable_args_get\n");
+  printf("wavm_wasi_args_get\n");
 #endif
   int32_t next_arg_buf_address = arg_buf_address;
   for (int32_t i = 0; i < g_argc; ++i)
@@ -473,12 +473,12 @@ wavm_ret_int32_t wavm_wasi_unstable_args_get(void *dummy, int32_t argv_address, 
 
 extern char **environ;
 
-wavm_ret_int32_t wavm_wasi_unstable_environ_sizes_get(void *dummy, int32_t env_count_address,
+wavm_ret_int32_t wavm_wasi_environ_sizes_get(void *dummy, int32_t env_count_address,
                                                       int32_t env_buf_size_address)
 {
   (void)dummy;
 #ifdef DEBUG
-  printf("wavm_wasi_unstable_environ_sizes_get\n");
+  printf("wavm_wasi_environ_sizes_get\n");
 #endif
   int32_t num_env_buffer_bytes = 0;
   int32_t envc = 0;
@@ -492,11 +492,11 @@ wavm_ret_int32_t wavm_wasi_unstable_environ_sizes_get(void *dummy, int32_t env_c
   return pack_errno(dummy, 0);
 }
 
-wavm_ret_int32_t wavm_wasi_unstable_environ_get(void *dummy, int32_t env_address, int32_t env_buf_address)
+wavm_ret_int32_t wavm_wasi_environ_get(void *dummy, int32_t env_address, int32_t env_buf_address)
 {
   (void)dummy;
 #ifdef DEBUG
-  printf("wavm_wasi_unstable_environ_get\n");
+  printf("wavm_wasi_environ_get\n");
 #endif
   int32_t next_env_buf_address = env_buf_address;
   int32_t i = 0;
@@ -512,11 +512,11 @@ wavm_ret_int32_t wavm_wasi_unstable_environ_get(void *dummy, int32_t env_address
   return pack_errno(dummy, 0);
 }
 
-wavm_ret_int32_t wavm_wasi_unstable_clock_res_get(void *dummy, int32_t clock_id, int32_t resolution_address)
+wavm_ret_int32_t wavm_wasi_clock_res_get(void *dummy, int32_t clock_id, int32_t resolution_address)
 {
   (void)dummy;
 #ifdef DEBUG
-  printf("wavm_wasi_unstable_clock_res_get\n");
+  printf("wavm_wasi_clock_res_get\n");
 #endif
   struct timespec tp;
   if (clock_getres(clock_id, &tp) != 0)
@@ -527,12 +527,12 @@ wavm_ret_int32_t wavm_wasi_unstable_clock_res_get(void *dummy, int32_t clock_id,
   return pack_errno(dummy, 0);
 }
 
-wavm_ret_int32_t wavm_wasi_unstable_clock_time_get(void *dummy, int32_t clock_id, int64_t precision,
+wavm_ret_int32_t wavm_wasi_clock_time_get(void *dummy, int32_t clock_id, int64_t precision,
                                                    int32_t time_address)
 {
   (void)dummy;
 #ifdef DEBUG
-  printf("wavm_wasi_unstable_clock_time_get\n");
+  printf("wavm_wasi_clock_time_get\n");
 #endif
   struct timespec tp;
   if (clock_gettime(clock_id, &tp) != 0)
@@ -543,12 +543,12 @@ wavm_ret_int32_t wavm_wasi_unstable_clock_time_get(void *dummy, int32_t clock_id
   return pack_errno(dummy, 0);
 }
 
-wavm_ret_int32_t wavm_wasi_unstable_fd_advise(void *dummy, int32_t fd, int64_t offset, int64_t num_bytes,
+wavm_ret_int32_t wavm_wasi_fd_advise(void *dummy, int32_t fd, int64_t offset, int64_t num_bytes,
                                               int32_t advice)
 {
   (void)dummy;
 #ifdef DEBUG
-  printf("wavm_wasi_unstable_fd_advise\n");
+  printf("wavm_wasi_fd_advise\n");
 #endif
   if (posix_fadvise(fd, offset, num_bytes, conv_wasi_advice_2_host_advice(advice)) != 0)
   {
@@ -557,11 +557,11 @@ wavm_ret_int32_t wavm_wasi_unstable_fd_advise(void *dummy, int32_t fd, int64_t o
   return pack_errno(dummy, 0);
 }
 
-wavm_ret_int32_t wavm_wasi_unstable_fd_allocate(void *dummy, int32_t fd, int64_t offset, int64_t num_bytes)
+wavm_ret_int32_t wavm_wasi_fd_allocate(void *dummy, int32_t fd, int64_t offset, int64_t num_bytes)
 {
   (void)dummy;
 #ifdef DEBUG
-  printf("wavm_wasi_unstable_fd_allocate\n");
+  printf("wavm_wasi_fd_allocate\n");
 #endif
   if (posix_fallocate(fd, offset, num_bytes) != 0)
   {
@@ -570,11 +570,11 @@ wavm_ret_int32_t wavm_wasi_unstable_fd_allocate(void *dummy, int32_t fd, int64_t
   return pack_errno(dummy, 0);
 }
 
-wavm_ret_int32_t wavm_wasi_unstable_fd_close(void *dummy, int32_t fd)
+wavm_ret_int32_t wavm_wasi_fd_close(void *dummy, int32_t fd)
 {
   (void)dummy;
 #ifdef DEBUG
-  printf("wavm_wasi_unstable_fd_close fd=%d\n", fd);
+  printf("wavm_wasi_fd_close fd=%d\n", fd);
 #endif
   if (close(fd) != 0)
   {
@@ -583,11 +583,11 @@ wavm_ret_int32_t wavm_wasi_unstable_fd_close(void *dummy, int32_t fd)
   return pack_errno(dummy, 0);
 }
 
-wavm_ret_int32_t wavm_wasi_unstable_fd_datasync(void *dummy, int32_t fd)
+wavm_ret_int32_t wavm_wasi_fd_datasync(void *dummy, int32_t fd)
 {
   (void)dummy;
 #ifdef DEBUG
-  printf("wavm_wasi_unstable_fd_datasync fd=%d\n", fd);
+  printf("wavm_wasi_fd_datasync fd=%d\n", fd);
 #endif
   if (fdatasync(fd) != 0)
   {
@@ -596,11 +596,11 @@ wavm_ret_int32_t wavm_wasi_unstable_fd_datasync(void *dummy, int32_t fd)
   return pack_errno(dummy, 0);
 }
 
-wavm_ret_int32_t wavm_wasi_unstable_fd_fdstat_get(void *dummy, int32_t fd, int32_t fdstat_address)
+wavm_ret_int32_t wavm_wasi_fd_fdstat_get(void *dummy, int32_t fd, int32_t fdstat_address)
 {
   (void)dummy;
 #ifdef DEBUG
-  printf("wavm_wasi_unstable_fd_fdstat_get fd=%d\n", fd);
+  printf("wavm_wasi_fd_fdstat_get fd=%d\n", fd);
 #endif
   struct stat host_stat;
   struct __wasi_fdstat_t wasi_fdstat;
@@ -621,11 +621,11 @@ wavm_ret_int32_t wavm_wasi_unstable_fd_fdstat_get(void *dummy, int32_t fd, int32
   return pack_errno(dummy, 0);
 }
 
-wavm_ret_int32_t wavm_wasi_unstable_fd_fdstat_set_flags(void *dummy, int32_t fd, int32_t flags)
+wavm_ret_int32_t wavm_wasi_fd_fdstat_set_flags(void *dummy, int32_t fd, int32_t flags)
 {
   (void)dummy;
 #ifdef DEBUG
-  printf("wavm_wasi_unstable_fd_fdstat_set_flags fd=%d flags=%d\n", fd, flags);
+  printf("wavm_wasi_fd_fdstat_set_flags fd=%d flags=%d\n", fd, flags);
 #endif
   int32_t flag = conv_wasi_fdflag_2_host_fdflag(flags);
   if (fcntl(fd, F_SETFL, flag) != 0)
@@ -635,23 +635,23 @@ wavm_ret_int32_t wavm_wasi_unstable_fd_fdstat_set_flags(void *dummy, int32_t fd,
   return pack_errno(dummy, 0);
 }
 
-wavm_ret_int32_t wavm_wasi_unstable_fd_fdstat_set_rights(void *dummy, int32_t fd, int32_t rights,
+wavm_ret_int32_t wavm_wasi_fd_fdstat_set_rights(void *dummy, int32_t fd, int32_t rights,
                                                          int32_t inheriting_rights)
 {
   (void)dummy;
 #ifdef DEBUG
-  printf("wavm_wasi_unstable_fd_fdstat_set_rights fd=%d rights=%d inheriting_rights=%d\n", fd, rights, inheriting_rights);
+  printf("wavm_wasi_fd_fdstat_set_rights fd=%d rights=%d inheriting_rights=%d\n", fd, rights, inheriting_rights);
 #endif
   fdrights[fd].base = rights;
   fdrights[fd].inheriting = inheriting_rights;
   return pack_errno(dummy, 0);
 }
 
-wavm_ret_int32_t wavm_wasi_unstable_fd_filestat_get(void *dummy, int32_t fd, int32_t filestat_address)
+wavm_ret_int32_t wavm_wasi_fd_filestat_get(void *dummy, int32_t fd, int32_t filestat_address)
 {
   (void)dummy;
 #ifdef DEBUG
-  printf("wavm_wasi_unstable_fd_filestat_get fd=%d\n", fd);
+  printf("wavm_wasi_fd_filestat_get fd=%d\n", fd);
 #endif
   struct stat host_filestat;
   if (fstat(fd, &host_filestat))
@@ -671,11 +671,11 @@ wavm_ret_int32_t wavm_wasi_unstable_fd_filestat_get(void *dummy, int32_t fd, int
   return pack_errno(dummy, 0);
 }
 
-wavm_ret_int32_t wavm_wasi_unstable_fd_filestat_set_size(void *dummy, int32_t fd, int64_t num_bytes)
+wavm_ret_int32_t wavm_wasi_fd_filestat_set_size(void *dummy, int32_t fd, int64_t num_bytes)
 {
   (void)dummy;
 #ifdef DEBUG
-  printf("wavm_wasi_unstable_fd_filestat_set_size fd=%d num_bytes=%ld\n", fd, num_bytes);
+  printf("wavm_wasi_fd_filestat_set_size fd=%d num_bytes=%ld\n", fd, num_bytes);
 #endif
   if (ftruncate(fd, (off_t)num_bytes) != 0)
   {
@@ -684,12 +684,12 @@ wavm_ret_int32_t wavm_wasi_unstable_fd_filestat_set_size(void *dummy, int32_t fd
   return pack_errno(dummy, 0);
 }
 
-wavm_ret_int32_t wavm_wasi_unstable_fd_filestat_set_times(void *dummy, int32_t fd, int64_t last_access_time64,
+wavm_ret_int32_t wavm_wasi_fd_filestat_set_times(void *dummy, int32_t fd, int64_t last_access_time64,
                                                           int64_t last_write_time64, int32_t flags)
 {
   (void)dummy;
 #ifdef DEBUG
-  printf("wavm_wasi_unstable_fd_filestat_set_times fd=%d last_access_time64=%ld last_write_time64=%ld flags=%d\n",
+  printf("wavm_wasi_fd_filestat_set_times fd=%d last_access_time64=%ld last_write_time64=%ld flags=%d\n",
          fd, last_access_time64, last_write_time64, flags);
 #endif
   struct timespec tp;
@@ -731,12 +731,12 @@ wavm_ret_int32_t wavm_wasi_unstable_fd_filestat_set_times(void *dummy, int32_t f
   return pack_errno(dummy, 0);
 }
 
-wavm_ret_int32_t wavm_wasi_unstable_fd_pread(void *dummy, int32_t fd, int32_t iovs_address, int32_t num_iovs,
+wavm_ret_int32_t wavm_wasi_fd_pread(void *dummy, int32_t fd, int32_t iovs_address, int32_t num_iovs,
                                              int64_t offset, int32_t num_bytes_read_address)
 {
   (void)dummy;
 #ifdef DEBUG
-  printf("wavm_wasi_unstable_fd_pread fd=%d iovs_address=%d num_iovs=%d num_bytes_read_address=%d\n",
+  printf("wavm_wasi_fd_pread fd=%d iovs_address=%d num_iovs=%d num_bytes_read_address=%d\n",
          fd, iovs_address, num_iovs, num_bytes_read_address);
 #endif
   struct iovec *iovs = copy_iov_to_host(iovs_address, num_iovs);
@@ -749,11 +749,11 @@ wavm_ret_int32_t wavm_wasi_unstable_fd_pread(void *dummy, int32_t fd, int32_t io
   return pack_errno(dummy, 0);
 }
 
-wavm_ret_int32_t wavm_wasi_unstable_fd_prestat_get(void *dummy, int32_t fd, int32_t prestat_address)
+wavm_ret_int32_t wavm_wasi_fd_prestat_get(void *dummy, int32_t fd, int32_t prestat_address)
 {
   (void)dummy;
 #ifdef DEBUG
-  printf("wavm_wasi_unstable_fd_prestat_get fd=%d\n", fd);
+  printf("wavm_wasi_fd_prestat_get fd=%d\n", fd);
 #endif
   if (fd < 3 || fd >= PREOPEN_CNT)
   {
@@ -764,12 +764,12 @@ wavm_ret_int32_t wavm_wasi_unstable_fd_prestat_get(void *dummy, int32_t fd, int3
   return pack_errno(dummy, 0);
 }
 
-wavm_ret_int32_t wavm_wasi_unstable_fd_prestat_dir_name(void *dummy, int32_t fd, int32_t buffer_address,
+wavm_ret_int32_t wavm_wasi_fd_prestat_dir_name(void *dummy, int32_t fd, int32_t buffer_address,
                                                         int32_t buffer_length)
 {
   (void)dummy;
 #ifdef DEBUG
-  printf("wavm_wasi_unstable_fd_prestat_dir_name fd=%d\n", fd);
+  printf("wavm_wasi_fd_prestat_dir_name fd=%d\n", fd);
 #endif
   if (fd < 3 || fd >= PREOPEN_CNT)
   {
@@ -780,12 +780,12 @@ wavm_ret_int32_t wavm_wasi_unstable_fd_prestat_dir_name(void *dummy, int32_t fd,
   return pack_errno(dummy, 0);
 }
 
-wavm_ret_int32_t wavm_wasi_unstable_fd_pwrite(void *dummy, int32_t fd, int32_t iovs_address, int32_t num_iovs,
+wavm_ret_int32_t wavm_wasi_fd_pwrite(void *dummy, int32_t fd, int32_t iovs_address, int32_t num_iovs,
                                               int64_t offset, int32_t num_bytes_written_address)
 {
   (void)dummy;
 #ifdef DEBUG
-  printf("wavm_wasi_unstable_fd_pwrite fd=%d num_iovs=%d\n", fd, num_iovs);
+  printf("wavm_wasi_fd_pwrite fd=%d num_iovs=%d\n", fd, num_iovs);
 #endif
   struct iovec *iovs = copy_iov_to_host(iovs_address, num_iovs);
   ssize_t size = pwritev(fd, iovs, num_iovs, offset);
@@ -797,12 +797,12 @@ wavm_ret_int32_t wavm_wasi_unstable_fd_pwrite(void *dummy, int32_t fd, int32_t i
   return pack_errno(dummy, 0);
 }
 
-wavm_ret_int32_t wavm_wasi_unstable_fd_read(void *dummy, int32_t fd, int32_t iovs_address, int32_t num_iovs,
+wavm_ret_int32_t wavm_wasi_fd_read(void *dummy, int32_t fd, int32_t iovs_address, int32_t num_iovs,
                                             int32_t num_bytes_read_address)
 {
   (void)dummy;
 #ifdef DEBUG
-  printf("wavm_wasi_unstable_fd_read fd=%d iovs_address=%d num_iovs=%d num_bytes_read_address=%d\n",
+  printf("wavm_wasi_fd_read fd=%d iovs_address=%d num_iovs=%d num_bytes_read_address=%d\n",
          fd, iovs_address, num_iovs, num_bytes_read_address);
 #endif
   struct iovec *iovs = copy_iov_to_host(iovs_address, num_iovs);
@@ -815,13 +815,13 @@ wavm_ret_int32_t wavm_wasi_unstable_fd_read(void *dummy, int32_t fd, int32_t iov
   return pack_errno(dummy, 0);
 }
 
-wavm_ret_int32_t wavm_wasi_unstable_fd_readdir(void *dummy, int32_t dir_fd, int32_t buffer_address,
+wavm_ret_int32_t wavm_wasi_fd_readdir(void *dummy, int32_t dir_fd, int32_t buffer_address,
                                                int32_t num_buffer_bytes, int64_t first_cookie,
                                                int32_t out_num_buffer_bytes_used_address)
 {
   (void)dummy;
 #ifdef DEBUG
-  printf("wavm_wasi_unstable_fd_readdir dir_fd=%d buffer_address=%d num_buffer_bytes=%d first_cookie=%ld\n",
+  printf("wavm_wasi_fd_readdir dir_fd=%d buffer_address=%d num_buffer_bytes=%d first_cookie=%ld\n",
          dir_fd, buffer_address, num_buffer_bytes, first_cookie);
 #endif
   DIR *dir = fdopendir(dir_fd);
@@ -861,11 +861,11 @@ wavm_ret_int32_t wavm_wasi_unstable_fd_readdir(void *dummy, int32_t dir_fd, int3
   return pack_errno(dummy, 0);
 }
 
-wavm_ret_int32_t wavm_wasi_unstable_fd_renumber(void *dummy, int32_t from_fd, int32_t to_fd)
+wavm_ret_int32_t wavm_wasi_fd_renumber(void *dummy, int32_t from_fd, int32_t to_fd)
 {
   (void)dummy;
 #ifdef DEBUG
-  printf("wavm_wasi_unstable_fd_renumber from_fd=%d to_fd=%d\n", from_fd, to_fd);
+  printf("wavm_wasi_fd_renumber from_fd=%d to_fd=%d\n", from_fd, to_fd);
 #endif
   if (close(to_fd) < 0)
   {
@@ -878,12 +878,12 @@ wavm_ret_int32_t wavm_wasi_unstable_fd_renumber(void *dummy, int32_t from_fd, in
   return pack_errno(dummy, 0);
 }
 
-wavm_ret_int32_t wavm_wasi_unstable_fd_seek(void *dummy, int32_t fd, int64_t offset, int32_t whence,
+wavm_ret_int32_t wavm_wasi_fd_seek(void *dummy, int32_t fd, int64_t offset, int32_t whence,
                                             int32_t new_offset_address)
 {
   (void)dummy;
 #ifdef DEBUG
-  printf("wavm_wasi_unstable_fd_seek fd=%d offset=%ld whence=%d\n", fd, offset, whence);
+  printf("wavm_wasi_fd_seek fd=%d offset=%ld whence=%d\n", fd, offset, whence);
 #endif
   int64_t off = lseek(fd, (off_t)offset, whence);
   if (off < 0)
@@ -894,11 +894,11 @@ wavm_ret_int32_t wavm_wasi_unstable_fd_seek(void *dummy, int32_t fd, int64_t off
   return pack_errno(dummy, 0);
 }
 
-wavm_ret_int32_t wavm_wasi_unstable_fd_sync(void *dummy, int32_t fd)
+wavm_ret_int32_t wavm_wasi_fd_sync(void *dummy, int32_t fd)
 {
   (void)dummy;
 #ifdef DEBUG
-  printf("wavm_wasi_unstable_fd_sync fd=%d\n", fd);
+  printf("wavm_wasi_fd_sync fd=%d\n", fd);
 #endif
   if (fsync(fd) != 0)
   {
@@ -907,11 +907,11 @@ wavm_ret_int32_t wavm_wasi_unstable_fd_sync(void *dummy, int32_t fd)
   return pack_errno(dummy, 0);
 }
 
-wavm_ret_int32_t wavm_wasi_unstable_fd_tell(void *dummy, int32_t fd, int32_t offset_address)
+wavm_ret_int32_t wavm_wasi_fd_tell(void *dummy, int32_t fd, int32_t offset_address)
 {
   (void)dummy;
 #ifdef DEBUG
-  printf("wavm_wasi_unstable_fd_tell fd=%d\n", fd);
+  printf("wavm_wasi_fd_tell fd=%d\n", fd);
 #endif
   int64_t off = lseek(fd, 0, SEEK_CUR);
   if (off < 0)
@@ -922,12 +922,12 @@ wavm_ret_int32_t wavm_wasi_unstable_fd_tell(void *dummy, int32_t fd, int32_t off
   return pack_errno(dummy, 0);
 }
 
-wavm_ret_int32_t wavm_wasi_unstable_fd_write(void *dummy, int32_t fd, int32_t iovs_address, int32_t num_iovs,
+wavm_ret_int32_t wavm_wasi_fd_write(void *dummy, int32_t fd, int32_t iovs_address, int32_t num_iovs,
                                              int32_t num_bytes_written_address)
 {
   (void)dummy;
 #ifdef DEBUG
-  printf("wavm_wasi_unstable_fd_write fd=%d num_iovs=%d\n", fd, num_iovs);
+  printf("wavm_wasi_fd_write fd=%d num_iovs=%d\n", fd, num_iovs);
 #endif
   struct iovec *iovs = copy_iov_to_host(iovs_address, num_iovs);
   ssize_t size = writev(fd, iovs, num_iovs);
@@ -939,14 +939,14 @@ wavm_ret_int32_t wavm_wasi_unstable_fd_write(void *dummy, int32_t fd, int32_t io
   return pack_errno(dummy, 0);
 }
 
-wavm_ret_int32_t wavm_wasi_unstable_path_create_directory(void *dummy, int32_t dir_fd, int32_t path_address, int32_t num_path_bytes)
+wavm_ret_int32_t wavm_wasi_path_create_directory(void *dummy, int32_t dir_fd, int32_t path_address, int32_t num_path_bytes)
 {
   (void)dummy;
   char path[MAX_PATH_LENGTH];
   memcpy(path, &memoryOffset0.base[path_address], num_path_bytes);
   path[num_path_bytes] = '\0';
 #ifdef DEBUG
-  printf("wavm_wasi_unstable_path_create_directory dir_fd=%d path_name=%s\n", dir_fd, path);
+  printf("wavm_wasi_path_create_directory dir_fd=%d path_name=%s\n", dir_fd, path);
 #endif
   if (mkdirat(dir_fd, path, 0666) != 0)
   {
@@ -955,7 +955,7 @@ wavm_ret_int32_t wavm_wasi_unstable_path_create_directory(void *dummy, int32_t d
   return pack_errno(dummy, 0);
 }
 
-wavm_ret_int32_t wavm_wasi_unstable_path_filestat_get(void *dummy, int32_t dir_fd, int32_t lookup_flags,
+wavm_ret_int32_t wavm_wasi_path_filestat_get(void *dummy, int32_t dir_fd, int32_t lookup_flags,
                                                       int32_t path_address, int32_t num_path_bytes,
                                                       int32_t filestat_address)
 {
@@ -964,7 +964,7 @@ wavm_ret_int32_t wavm_wasi_unstable_path_filestat_get(void *dummy, int32_t dir_f
   memcpy(path, &memoryOffset0.base[path_address], num_path_bytes);
   path[num_path_bytes] = '\0';
 #ifdef DEBUG
-  printf("wavm_wasi_unstable_path_filestat_get dir_fd=%d path_name=%s lookup_flags=%d\n", dir_fd, path, lookup_flags);
+  printf("wavm_wasi_path_filestat_get dir_fd=%d path_name=%s lookup_flags=%d\n", dir_fd, path, lookup_flags);
 #endif
   struct stat host_filestat;
   if (fstatat(dir_fd, path, &host_filestat, conv_wasi_lookupflags_2_host_lookupflags(lookup_flags)) != 0)
@@ -984,7 +984,7 @@ wavm_ret_int32_t wavm_wasi_unstable_path_filestat_get(void *dummy, int32_t dir_f
   return pack_errno(dummy, 0);
 }
 
-wavm_ret_int32_t wavm_wasi_unstable_path_filestat_set_times(void *dummy, int32_t dir_fd, int32_t lookup_flags,
+wavm_ret_int32_t wavm_wasi_path_filestat_set_times(void *dummy, int32_t dir_fd, int32_t lookup_flags,
                                                             int32_t path_address, int32_t num_path_bytes,
                                                             int64_t last_access_time64, int64_t last_write_time64,
                                                             int32_t flags)
@@ -994,7 +994,7 @@ wavm_ret_int32_t wavm_wasi_unstable_path_filestat_set_times(void *dummy, int32_t
   memcpy(path, &memoryOffset0.base[path_address], num_path_bytes);
   path[num_path_bytes] = '\0';
 #ifdef DEBUG
-  printf("wavm_wasi_unstable_path_filestat_set_times path=%s\n", path);
+  printf("wavm_wasi_path_filestat_set_times path=%s\n", path);
 #endif
   struct timespec tp;
   if (clock_gettime(CLOCK_REALTIME, &tp) != 0)
@@ -1044,7 +1044,7 @@ wavm_ret_int32_t wavm_wasi_unstable_path_filestat_set_times(void *dummy, int32_t
   }
 }
 
-wavm_ret_int32_t wavm_wasi_unstable_path_link(void *dummy, int32_t dir_fd, int32_t lookup_flags,
+wavm_ret_int32_t wavm_wasi_path_link(void *dummy, int32_t dir_fd, int32_t lookup_flags,
                                               int32_t old_path_address, int32_t num_old_path_bytes, int32_t new_fd,
                                               int32_t new_path_address, int32_t num_new_path_bytes)
 {
@@ -1056,7 +1056,7 @@ wavm_ret_int32_t wavm_wasi_unstable_path_link(void *dummy, int32_t dir_fd, int32
   memcpy(new_path, &memoryOffset0.base[new_path_address], num_new_path_bytes);
   new_path[num_new_path_bytes] = '\0';
 #ifdef DEBUG
-  printf("wavm_wasi_unstable_path_link old_path=%s new_path=%s\n", old_path, new_path);
+  printf("wavm_wasi_path_link old_path=%s new_path=%s\n", old_path, new_path);
 #endif
   if (linkat(dir_fd, old_path, new_fd, new_path, conv_wasi_lookupflags_2_host_lookupflags(lookup_flags)) != 0)
   {
@@ -1065,7 +1065,7 @@ wavm_ret_int32_t wavm_wasi_unstable_path_link(void *dummy, int32_t dir_fd, int32
   return pack_errno(dummy, 0);
 }
 
-wavm_ret_int32_t wavm_wasi_unstable_path_open(void *dummy, int32_t dirfd, int32_t dirflags, int32_t path_address,
+wavm_ret_int32_t wavm_wasi_path_open(void *dummy, int32_t dirfd, int32_t dirflags, int32_t path_address,
                                               int32_t num_path_bytes, int32_t open_flags, int64_t requested_rights,
                                               int64_t requested_inheriting_rights, int32_t fd_flags, int32_t fd_address)
 {
@@ -1074,7 +1074,7 @@ wavm_ret_int32_t wavm_wasi_unstable_path_open(void *dummy, int32_t dirfd, int32_
   memcpy(path, &memoryOffset0.base[path_address], num_path_bytes);
   path[num_path_bytes] = '\0';
 #ifdef DEBUG
-  printf("wavm_wasi_unstable_path_open path=%s dirflags=%d open_flags=%d requested_rights=%ld requested_inheriting_rights=%ld fd_flags=%d\n",
+  printf("wavm_wasi_path_open path=%s dirflags=%d open_flags=%d requested_rights=%ld requested_inheriting_rights=%ld fd_flags=%d\n",
          path, dirflags, open_flags, requested_rights, requested_inheriting_rights, fd_flags);
 #endif
   int flags = conv_wasi_opflag_2_host_opflag(open_flags) | conv_wasi_fdflag_2_host_fdflag(fd_flags);
@@ -1102,25 +1102,25 @@ wavm_ret_int32_t wavm_wasi_unstable_path_open(void *dummy, int32_t dirfd, int32_
   return pack_errno(dummy, 0);
 }
 
-wavm_ret_int32_t wavm_wasi_unstable_path_readlink(void *dummy, int32_t fd, int32_t path_address, int32_t num_path_bytes,
+wavm_ret_int32_t wavm_wasi_path_readlink(void *dummy, int32_t fd, int32_t path_address, int32_t num_path_bytes,
                                                   int32_t buffer_address, int32_t num_buffer_bytes,
                                                   int32_t out_num_buffer_bytes_used_address)
 {
   (void)dummy;
 #ifdef DEBUG
-  printf("wavm_wasi_unstable_path_readlink\n");
+  printf("wavm_wasi_path_readlink\n");
 #endif
   return pack_errno(dummy, __WASI_EPERM);
 }
 
-wavm_ret_int32_t wavm_wasi_unstable_path_remove_directory(void *dummy, int32_t dir_fd, int32_t path_address, int32_t num_path_bytes)
+wavm_ret_int32_t wavm_wasi_path_remove_directory(void *dummy, int32_t dir_fd, int32_t path_address, int32_t num_path_bytes)
 {
   (void)dummy;
   char path[MAX_PATH_LENGTH];
   memcpy(path, &memoryOffset0.base[path_address], num_path_bytes);
   path[num_path_bytes] = '\0';
 #ifdef DEBUG
-  printf("wavm_wasi_unstable_path_remove_directory path_name=%s\n", path);
+  printf("wavm_wasi_path_remove_directory path_name=%s\n", path);
 #endif
   if (unlinkat(dir_fd, path, AT_REMOVEDIR) != 0)
   {
@@ -1129,35 +1129,35 @@ wavm_ret_int32_t wavm_wasi_unstable_path_remove_directory(void *dummy, int32_t d
   return pack_errno(dummy, 0);
 }
 
-wavm_ret_int32_t wavm_wasi_unstable_path_rename(void *dummy, int32_t old_fd, int32_t old_path_address,
+wavm_ret_int32_t wavm_wasi_path_rename(void *dummy, int32_t old_fd, int32_t old_path_address,
                                                 int32_t num_old_path_bytes, int32_t new_fd, int32_t new_path_address,
                                                 int32_t num_new_path_bytes)
 {
   (void)dummy;
 #ifdef DEBUG
-  printf("wavm_wasi_unstable_path_rename\n");
+  printf("wavm_wasi_path_rename\n");
 #endif
   return pack_errno(dummy, __WASI_EPERM);
 }
 
-wavm_ret_int32_t wavm_wasi_unstable_path_symlink(void *dummy, int32_t old_path_address, int32_t num_old_path_bytes,
+wavm_ret_int32_t wavm_wasi_path_symlink(void *dummy, int32_t old_path_address, int32_t num_old_path_bytes,
                                                  int32_t fd, int32_t new_path_address, int32_t num_new_path_bytes)
 {
   (void)dummy;
 #ifdef DEBUG
-  printf("wavm_wasi_unstable_path_symlink\n");
+  printf("wavm_wasi_path_symlink\n");
 #endif
   return pack_errno(dummy, __WASI_EPERM);
 }
 
-wavm_ret_int32_t wavm_wasi_unstable_path_unlink_file(void *dummy, int32_t dir_fd, int32_t path_address, int32_t num_path_bytes)
+wavm_ret_int32_t wavm_wasi_path_unlink_file(void *dummy, int32_t dir_fd, int32_t path_address, int32_t num_path_bytes)
 {
   (void)dummy;
   char path[MAX_PATH_LENGTH];
   memcpy(path, &memoryOffset0.base[path_address], num_path_bytes);
   path[num_path_bytes] = '\0';
 #ifdef DEBUG
-  printf("wavm_wasi_unstable_path_unlink_file path_name=%s\n", path);
+  printf("wavm_wasi_path_unlink_file path_name=%s\n", path);
 #endif
   if (unlinkat(dir_fd, path, 0) != 0)
   {
@@ -1166,39 +1166,39 @@ wavm_ret_int32_t wavm_wasi_unstable_path_unlink_file(void *dummy, int32_t dir_fd
   return pack_errno(dummy, 0);
 }
 
-wavm_ret_int32_t wavm_wasi_unstable_poll_oneoff(void *dummy, int32_t in_address, int32_t out_address,
+wavm_ret_int32_t wavm_wasi_poll_oneoff(void *dummy, int32_t in_address, int32_t out_address,
                                                 int32_t num_subscriptions, int32_t out_num_events_address)
 {
   (void)dummy;
 #ifdef DEBUG
-  printf("wavm_wasi_unstable_poll_oneoff\n");
+  printf("wavm_wasi_poll_oneoff\n");
 #endif
   return pack_errno(dummy, __WASI_EPERM);
 }
 
-void *wavm_wasi_unstable_proc_exit(void *dummy, int32_t code)
+void *wavm_wasi_proc_exit(void *dummy, int32_t code)
 {
 #ifdef DEBUG
-  printf("wavm_wasi_unstable_proc_exit code=%d\n", code);
+  printf("wavm_wasi_proc_exit code=%d\n", code);
 #endif
   (void)dummy;
   exit(code);
   return dummy;
 }
 
-wavm_ret_int32_t wavm_wasi_unstable_sched_yield(void *dummy)
+wavm_ret_int32_t wavm_wasi_sched_yield(void *dummy)
 {
   (void)dummy;
 #ifdef DEBUG
-  printf("wavm_wasi_unstable_sched_yield\n");
+  printf("wavm_wasi_sched_yield\n");
 #endif
   return pack_errno(dummy, 0);
 }
 
-wavm_ret_int32_t wavm_wasi_unstable_random_get(void *dummy, int32_t buffer_address, int32_t num_buffer_bytes)
+wavm_ret_int32_t wavm_wasi_random_get(void *dummy, int32_t buffer_address, int32_t num_buffer_bytes)
 {
 #ifdef DEBUG
-  printf("wavm_wasi_unstable_random_get buffer_address=%d num_buffer_bytes=%d\n", buffer_address, num_buffer_bytes);
+  printf("wavm_wasi_random_get buffer_address=%d num_buffer_bytes=%d\n", buffer_address, num_buffer_bytes);
 #endif
   (void)dummy;
   for (int32_t i = 0; i < num_buffer_bytes; i++)
@@ -1208,31 +1208,31 @@ wavm_ret_int32_t wavm_wasi_unstable_random_get(void *dummy, int32_t buffer_addre
   return pack_errno(dummy, 0);
 }
 
-wavm_ret_int32_t wavm_wasi_unstable_sock_recv(void *dummy, int32_t sock, int32_t ri_data, int32_t ri_data_len,
+wavm_ret_int32_t wavm_wasi_sock_recv(void *dummy, int32_t sock, int32_t ri_data, int32_t ri_data_len,
                                               int32_t ri_flags, int32_t ro_datalen, int32_t ro_flags)
 {
   (void)dummy;
 #ifdef DEBUG
-  printf("wavm_wasi_unstable_sock_recv\n");
+  printf("wavm_wasi_sock_recv\n");
 #endif
   return pack_errno(dummy, 0);
 }
 
-wavm_ret_int32_t wavm_wasi_unstable_sock_send(void *dummy, int32_t sock, int32_t si_data, int32_t si_data_len,
+wavm_ret_int32_t wavm_wasi_sock_send(void *dummy, int32_t sock, int32_t si_data, int32_t si_data_len,
                                               int32_t si_flags, int32_t so_datalen)
 {
   (void)dummy;
 #ifdef DEBUG
-  printf("wavm_wasi_unstable_sock_send\n");
+  printf("wavm_wasi_sock_send\n");
 #endif
   return pack_errno(dummy, 0);
 }
 
-wavm_ret_int32_t wavm_wasi_unstable_sock_shutdown(void *dummy, int32_t sock, int32_t how)
+wavm_ret_int32_t wavm_wasi_sock_shutdown(void *dummy, int32_t sock, int32_t how)
 {
   (void)dummy;
 #ifdef DEBUG
-  printf("wavm_wasi_unstable_sock_shutdown\n");
+  printf("wavm_wasi_sock_shutdown\n");
 #endif
   return pack_errno(dummy, 0);
 }

@@ -5,3 +5,8 @@ cd third_party
 cd $TOP
 
 cargo build --release
+
+rm -rf build
+mkdir build
+cp ./target/release/wasc ./build
+cp ./third_party/WAVM/build/bin/wavm ./build

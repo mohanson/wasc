@@ -1,9 +1,9 @@
-/target
-/third_party/WAVM
-/third_party/wasi-sdk-11.0
-/third_party/wasi-sdk
-
+/build
 /res/spectest_bugs_wasc
 /res/spectest_wasc
 /res/wasi_wasc
 /res/testsuite
+/target
+/third_party/WAVM
+/third_party/wasi-sdk-11.0
+/third_party/wasi-sdk

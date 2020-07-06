@@ -1,40 +1,34 @@
 # WASC
 
-**WASC is a WebAssembly AOT compiler**
+**WASC is a WebAssembly AOT compiler**. The main purpose is to compile the wasm program using the [WASI](https://wasi.dev/) into machine(x86 and RISC-V) code.
 
-Inspired by xuejie's [article](https://xuejie.space/2020_03_03_introduction_to_ckb_script_programming_performant_wasm/), and completed the subsequent work.
-
-**It is still in the early development stage, so the code and documentation may be changed arbitrarily.**
+**It is still in the early development stage, so the code and documentation may be changed arbitrarily.** Inspired by xuejie's [article](https://xuejie.space/2020_03_03_introduction_to_ckb_script_programming_performant_wasm/).
 
 # Build and test
 
-WASC uses [WAVM](https://github.com/WAVM/WAVM) and [LLVM-9](https://llvm.org/) to compile WebAssembly code to machine code. It has no runtime, which means that the compilation result is just a binary file that can be run separately.
-
-Let's demonstrate the installation steps under ubuntu system(I will supplement other systems later):
+**Ubuntu 18.04**
 
 ```sh
 $ apt install llvm-9
-
 $ git clone https://github.com/mohanson/wasc
 $ cd wasc
 $ ./build.sh
+$ ./build_test.sh
 ```
 
-Run tests:
+An example is the best way to show how it works:
 
 ```sh
-$ cargo test -- --nocapture --test test_spec
-
-# "/src/wasc/res/spectest_wasc/address/address_0.c" exit code: 0
-# "/src/wasc/res/spectest_wasc/address/address_2.c" exit code: 0
-# "/src/wasc/res/spectest_wasc/address/address_3.c" exit code: 0
-# "/src/wasc/res/spectest_wasc/address/address_4.c" exit code: 0
-# ... ...
+$ ./build/wasc example/echo.wasm
+$ ./example/echo Hello World!
+# Hello World!
 ```
 
-# Getting Started
+You can find more useful examples in the `./example` and `./res/wasi`.
 
-TODO
+# Appendix
+
+- [WAVM](https://github.com/WAVM/WAVM)'s is used in WASC to generate object file.
 
 # Licences
 

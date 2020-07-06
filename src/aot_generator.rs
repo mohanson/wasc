@@ -344,7 +344,11 @@ impl ModuleInstance {
         module_instance.export_list = module.export_list.clone();
         // Handle import
         for e in &module.import_list {
-            let import_name = format!("{}_{}", e.module, e.field);
+            let import_name = if e.module == "wasi_unstable" || e.module == "wasi_snapshot_preview1" {
+                format!("wasi_{}", e.field)
+            } else {
+                format!("{}_{}", e.module, e.field)
+            };
             match e.ty {
                 wasmparser::ImportSectionEntryType::Function(function_type_index) => {
                     let function_type = &module_instance.type_list[function_type_index as usize];

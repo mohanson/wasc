@@ -14,10 +14,10 @@ fn test_wasi() -> Result<(), Box<dyn std::error::Error>> {
         if !e.file_name().to_str().unwrap().ends_with(".wasm") {
             continue;
         }
-        let mut cmd = std::process::Command::new("./target/debug/wasc");
+        let mut cmd = std::process::Command::new("./build/wasc");
         cmd.arg(e.path().to_str().unwrap());
         rog::debugln!("$ {:?}", cmd);
-        cmd.spawn()?.wait()?;
+        assert_eq!(cmd.spawn()?.wait()?.code().unwrap(), 0);
     }
     Ok(())
 }
