@@ -1,9 +1,9 @@
 TOP=$(pwd)
 
 if [ ! -d "WAVM" ]; then
-    git clone --depth=1 --branch master https://github.com/WAVM/WAVM
+    git clone --depth=1 --branch master https://github.com/libraries/WAVM/
     cd WAVM
-    git checkout 725da9066f915de26aee8b557fa239eeff8b87be
+    git checkout 3a07076227663c8c87d10925d3194b1272bf64e7
     mkdir build
     cd build
     cmake .. -DLLVM_DIR=/usr/lib/llvm-9/lib/cmake/llvm
