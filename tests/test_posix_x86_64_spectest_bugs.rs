@@ -5,7 +5,7 @@ use wasc::gcc;
 
 mod misc;
 
-fn test_spec_single_test<P: AsRef<std::path::Path>>(wasm_path: P) -> Result<i32, Box<dyn std::error::Error>> {
+fn test_single_test<P: AsRef<std::path::Path>>(wasm_path: P) -> Result<i32, Box<dyn std::error::Error>> {
     let mut config = wasc::context::Config::default();
     config.platform = context::Platform::PosixX8664Spectest;
     config.binary_wavm = String::from("./third_party/WAVM/build/bin/wavm");
@@ -29,9 +29,9 @@ fn test_spec_single_test<P: AsRef<std::path::Path>>(wasm_path: P) -> Result<i32,
 }
 
 #[test]
-fn test_bugs() -> Result<(), Box<dyn std::error::Error>> {
+fn test_posix_x86_64_spectest_bugs() -> Result<(), Box<dyn std::error::Error>> {
     misc::open_log();
-    let dest = std::path::Path::new("./res/spectest_bugs_wasc");
+    let dest = std::path::Path::new("./res/posix_x86_64_spectest_bugs");
     if dest.exists() {
         std::fs::remove_dir_all(dest)?;
     }
@@ -39,9 +39,9 @@ fn test_bugs() -> Result<(), Box<dyn std::error::Error>> {
 
     let mut exit_code = 0;
     let _ = exit_code;
-    exit_code = test_spec_single_test("./res/spectest_bugs_wasc/import_global.wasm")?;
+    exit_code = test_single_test("./res/posix_x86_64_spectest_bugs/import_global.wasm")?;
     assert_eq!(exit_code, 42);
-    exit_code = test_spec_single_test("./res/spectest_bugs_wasc/import_global_add.wasm")?;
+    exit_code = test_single_test("./res/posix_x86_64_spectest_bugs/import_global_add.wasm")?;
     assert_eq!(exit_code, 52);
     Ok(())
 }

@@ -1,7 +1,7 @@
 /build
-/res/spectest_bugs_wasc
-/res/spectest_wasc
-/res/wasi_wasc
+/res/posix_x86_64_spectest_bugs
+/res/posix_x86_64_spectest
+/res/posix_x86_64_wasi
 /res/testsuite
 /target
 /third_party/WAVM
