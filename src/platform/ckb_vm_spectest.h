@@ -72,22 +72,18 @@ uintptr_t wavm_spectest_table[10] = {};
 
 void *wavm_spectest_print_i32(void *dummy, int32_t i)
 {
-  printf("wavm_spectest_print_i32 %d\n", i);
 }
 
 void *wavm_exported_function_print32(void *dummy, int32_t i)
 {
-  printf("wavm_exported_function_print32 %d\n", i);
 }
 
 void *wavm_exported_function_print64(void *dummy, int64_t i)
 {
-  printf("wavm_exported_function_print64 %ld\n", i);
 }
 
 void *wavm_spectest_print(void *dummy)
 {
-  printf("wavm_spectest_print");
 }
 
 #endif /* WAVM_POSIX_X86_64_SPECTEST_H */

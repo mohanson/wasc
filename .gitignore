@@ -9,3 +9,4 @@
 /third_party/wasi-sdk-11.0
 /third_party/wasi-sdk
 /third_party/ckb-riscv-gnu-toolchain
+/third_party/ckb-standalone-debugger
