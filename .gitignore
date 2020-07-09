@@ -1,4 +1,5 @@
 /build
+/res/ckb_vm_spectest
 /res/posix_x86_64_spectest_bugs
 /res/posix_x86_64_spectest
 /res/posix_x86_64_wasi
