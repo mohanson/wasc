@@ -24,6 +24,9 @@ pub fn build(middle: &context::Middle) -> Result<(), Box<dyn std::error::Error>>
         _ => panic!("unreachable"),
     }
 
-    cmd.spawn()?.wait()?;
+    let exit_code = cmd.spawn()?.wait()?;
+    if exit_code.code().unwrap() != 0 {
+        return Err(Box::new(std::io::Error::new(std::io::ErrorKind::Interrupted, "")));
+    }
     Ok(())
 }
