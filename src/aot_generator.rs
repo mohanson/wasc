@@ -530,7 +530,7 @@ pub fn generate(middle: &mut context::Middle) -> Result<(), Box<dyn std::error::
     }
     std::fs::write(&middle.path_object, &object_data)?;
 
-    let mut glue_file = code_builder::CodeBuilder::place(&middle.path_glue);
+    let mut glue_file = code_builder::CodeBuilder::create(&middle.path_glue);
 
     let header_id = format!("{}_GLUE_H", file_stem.to_uppercase());
     glue_file.write(format!(include_str!("glue.template"), header_id, header_id));

@@ -1,4 +1,5 @@
 use super::aot_generator;
+use super::code_builder;
 use super::context;
 
 // The main entry function for wasc compiler. It is expected that it will be a complete set of compilation work.
@@ -92,6 +93,18 @@ pub fn compile<P: AsRef<std::path::Path>>(
 
     // AOT generator
     aot_generator::generate(&mut middle)?;
+
+    let mut main_file = code_builder::CodeBuilder::create(&middle.path_c);
+    let platform_header = match middle.config.platform {
+        context::Platform::CKBSpectest => "platform/ckb_spectest.h",
+        context::Platform::PosixX8664 => "platform/posix_x86_64.h",
+        context::Platform::PosixX8664Spectest => "platform/posix_x86_64_spectest.h",
+        context::Platform::PosixX8664Wasi => "platform/posix_x86_64_wasi.h",
+        context::Platform::Unknown => panic!("unreachable"),
+    };
+    main_file.write(format!("#include \"{}_glue.h\"", middle.file_stem).as_str());
+    main_file.write(format!("#include \"{}\"", platform_header));
+    main_file.close()?;
 
     Ok(middle)
 }

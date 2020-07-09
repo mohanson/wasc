@@ -10,10 +10,7 @@ fn test_single_test<P: AsRef<std::path::Path>>(wasm_path: P) -> Result<i32, Box<
     config.platform = context::Platform::PosixX8664Spectest;
     config.binary_wavm = String::from("./third_party/WAVM/build/bin/wavm");
     let middle = compile::compile(&wasm_path, config)?;
-    let mut dummy_file = code_builder::CodeBuilder::place(&middle.path_c);
-    dummy_file.write(format!("#include \"{}_glue.h\"", middle.file_stem).as_str());
-    dummy_file.write("#include \"platform/posix_x86_64_spectest.h\"");
-    dummy_file.write("");
+    let mut dummy_file = code_builder::CodeBuilder::append(&middle.path_c)?;
     dummy_file.write("int main() {");
     dummy_file.write("wavm_ret_int32_t wavm_ret = wavm_exported_function_main(NULL);");
     dummy_file.write("return wavm_ret.value;");
