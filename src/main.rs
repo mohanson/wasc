@@ -80,6 +80,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let mut ep_file = code_builder::CodeBuilder::place(&middle.path_c);
     let platform_header = match middle.config.platform {
+        context::Platform::CKBSpectest => "platform/ckb_spectest.h",
         context::Platform::PosixX8664 => "platform/posix_x86_64.h",
         context::Platform::PosixX8664Spectest => "platform/posix_x86_64_spectest.h",
         context::Platform::PosixX8664Wasi => "platform/posix_x86_64_wasi.h",
