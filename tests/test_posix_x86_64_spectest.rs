@@ -178,7 +178,7 @@ fn test_single_test<P: AsRef<std::path::Path>>(
     let mut cmd = std::process::Command::new(middle.path_output.to_str().unwrap());
     let exit_status = cmd.spawn()?.wait()?;
 
-    rog::debugln!("{:?} {}", middle.path_c, exit_status);
+    rog::println!("{:?} {}", middle.path_c, exit_status);
     assert!(exit_status.success());
     Ok(())
 }
@@ -206,7 +206,7 @@ fn test_single_suit<P: AsRef<std::path::Path>>(
                 let file_name: &str = command["filename"].as_str().unwrap();
                 let nice_name: &str = &file_name.replacen(".", "_", 1);
                 if skip.contains(&nice_name) {
-                    rog::debugln!("skip {:?}", nice_name);
+                    rog::println!("skip {:?}", nice_name);
                     wasm_file = std::path::PathBuf::new();
                 } else {
                     wasm_file = spec_path.join(&nice_name);
@@ -226,7 +226,6 @@ fn test_single_suit<P: AsRef<std::path::Path>>(
 
 #[test]
 fn test_posix_x86_64_spec() {
-    misc::open_log();
     let wasc_path = std::path::PathBuf::from("./res/posix_x86_64_spectest");
     if wasc_path.exists() {
         std::fs::remove_dir_all(&wasc_path).unwrap();

@@ -24,13 +24,12 @@ fn test_single_test<P: AsRef<std::path::Path>>(wasm_path: P) -> Result<i32, Box<
 
     let mut cmd = std::process::Command::new(middle.path_prog.join(middle.file_stem.clone()).to_str().unwrap());
     let exit_status = cmd.spawn()?.wait()?;
-    rog::debugln!("{:?} {}", wasm_path.as_ref(), exit_status);
+    rog::println!("{:?} {}", wasm_path.as_ref(), exit_status);
     Ok(exit_status.code().unwrap())
 }
 
 #[test]
 fn test_posix_x86_64_spectest_bugs() -> Result<(), Box<dyn std::error::Error>> {
-    misc::open_log();
     let dest = std::path::Path::new("./res/posix_x86_64_spectest_bugs");
     if dest.exists() {
         std::fs::remove_dir_all(dest)?;
