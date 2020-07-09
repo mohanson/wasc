@@ -6,7 +6,7 @@ use wasc::gcc;
 
 mod misc;
 
-fn test_spec_single_test<P: AsRef<std::path::Path>>(
+fn test_single_test<P: AsRef<std::path::Path>>(
     wasm_path: P,
     commands: Vec<serde_json::Value>,
 ) -> Result<(), Box<dyn std::error::Error>> {
@@ -178,12 +178,12 @@ fn test_spec_single_test<P: AsRef<std::path::Path>>(
     let mut cmd = std::process::Command::new(middle.path_output.to_str().unwrap());
     let exit_status = cmd.spawn()?.wait()?;
 
-    rog::debugln!("{:?} {}", middle.path_c, exit_status);
+    rog::println!("{:?} {}", middle.path_c, exit_status);
     assert!(exit_status.success());
     Ok(())
 }
 
-fn test_spec_single_suit<P: AsRef<std::path::Path>>(
+fn test_single_suit<P: AsRef<std::path::Path>>(
     spec_path: P,
     skip: Vec<&str>,
 ) -> Result<(), Box<dyn std::error::Error>> {
@@ -200,13 +200,13 @@ fn test_spec_single_suit<P: AsRef<std::path::Path>>(
         match command["type"].as_str().unwrap() {
             "module" => {
                 if wasm_file.to_str().unwrap() != "" {
-                    test_spec_single_test(&wasm_file, commands.clone())?;
+                    test_single_test(&wasm_file, commands.clone())?;
                     commands.clear();
                 }
                 let file_name: &str = command["filename"].as_str().unwrap();
                 let nice_name: &str = &file_name.replacen(".", "_", 1);
                 if skip.contains(&nice_name) {
-                    rog::debugln!("skip {:?}", nice_name);
+                    rog::println!("skip {:?}", nice_name);
                     wasm_file = std::path::PathBuf::new();
                 } else {
                     wasm_file = spec_path.join(&nice_name);
@@ -218,16 +218,15 @@ fn test_spec_single_suit<P: AsRef<std::path::Path>>(
         }
     }
     if wasm_file.to_str().unwrap() != "" {
-        test_spec_single_test(&wasm_file, commands.clone())?;
+        test_single_test(&wasm_file, commands.clone())?;
         commands.clear();
     }
     Ok(())
 }
 
 #[test]
-fn test_spec() {
-    misc::open_log();
-    let wasc_path = std::path::PathBuf::from("./res/spectest_wasc");
+fn test_posix_x86_64_spec() {
+    let wasc_path = std::path::PathBuf::from("./res/posix_x86_64_spectest");
     if wasc_path.exists() {
         std::fs::remove_dir_all(&wasc_path).unwrap();
     }
@@ -246,73 +245,70 @@ fn test_spec() {
         }
     }
 
-    test_spec_single_suit("./res/spectest_wasc/address", vec![]).unwrap();
-    test_spec_single_suit("./res/spectest_wasc/align", vec![]).unwrap();
-    test_spec_single_suit("./res/spectest_wasc/binary", vec![]).unwrap();
-    test_spec_single_suit("./res/spectest_wasc/binary-leb128", vec![]).unwrap();
-    test_spec_single_suit("./res/spectest_wasc/br_if", vec![]).unwrap();
-    test_spec_single_suit("./res/spectest_wasc/br_table", vec![]).unwrap();
-    test_spec_single_suit("./res/spectest_wasc/break-drop", vec![]).unwrap();
-    test_spec_single_suit("./res/spectest_wasc/comments", vec![]).unwrap();
-    test_spec_single_suit("./res/spectest_wasc/const", vec![]).unwrap();
-    test_spec_single_suit("./res/spectest_wasc/custom", vec![]).unwrap();
-    test_spec_single_suit("./res/spectest_wasc/data", vec![]).unwrap();
-    test_spec_single_suit("./res/spectest_wasc/elem", vec!["elem_39.wasm", "elem_40.wasm"]).unwrap();
-    test_spec_single_suit("./res/spectest_wasc/endianness", vec![]).unwrap();
-    // test_spec_single_suit("./res/spectest_wasc/exports").unwrap(); // skip.
-    test_spec_single_suit("./res/spectest_wasc/f32", vec![]).unwrap();
-    test_spec_single_suit("./res/spectest_wasc/f32_bitwise", vec![]).unwrap();
-    test_spec_single_suit("./res/spectest_wasc/f32_cmp", vec![]).unwrap();
-    test_spec_single_suit("./res/spectest_wasc/f64", vec![]).unwrap();
-    test_spec_single_suit("./res/spectest_wasc/f64_bitwise", vec![]).unwrap();
-    test_spec_single_suit("./res/spectest_wasc/f64_cmp", vec![]).unwrap();
-    test_spec_single_suit("./res/spectest_wasc/float_exprs", vec![]).unwrap();
-    test_spec_single_suit("./res/spectest_wasc/float_literals", vec![]).unwrap();
-    test_spec_single_suit("./res/spectest_wasc/float_memory", vec![]).unwrap();
-    test_spec_single_suit("./res/spectest_wasc/float_misc", vec![]).unwrap();
-    test_spec_single_suit("./res/spectest_wasc/forward", vec![]).unwrap();
-    test_spec_single_suit(
-        "./res/spectest_wasc/func_ptrs",
+    test_single_suit("./res/posix_x86_64_spectest/address", vec![]).unwrap();
+    test_single_suit("./res/posix_x86_64_spectest/align", vec![]).unwrap();
+    test_single_suit("./res/posix_x86_64_spectest/binary", vec![]).unwrap();
+    test_single_suit("./res/posix_x86_64_spectest/binary-leb128", vec![]).unwrap();
+    test_single_suit("./res/posix_x86_64_spectest/br_if", vec![]).unwrap();
+    test_single_suit("./res/posix_x86_64_spectest/br_table", vec![]).unwrap();
+    test_single_suit("./res/posix_x86_64_spectest/break-drop", vec![]).unwrap();
+    test_single_suit("./res/posix_x86_64_spectest/comments", vec![]).unwrap();
+    test_single_suit("./res/posix_x86_64_spectest/const", vec![]).unwrap();
+    test_single_suit("./res/posix_x86_64_spectest/custom", vec![]).unwrap();
+    test_single_suit("./res/posix_x86_64_spectest/data", vec![]).unwrap();
+    test_single_suit("./res/posix_x86_64_spectest/elem", vec!["elem_39.wasm", "elem_40.wasm"]).unwrap();
+    test_single_suit("./res/posix_x86_64_spectest/endianness", vec![]).unwrap();
+    test_single_suit("./res/posix_x86_64_spectest/f32", vec![]).unwrap();
+    test_single_suit("./res/posix_x86_64_spectest/f32_bitwise", vec![]).unwrap();
+    test_single_suit("./res/posix_x86_64_spectest/f32_cmp", vec![]).unwrap();
+    test_single_suit("./res/posix_x86_64_spectest/f64", vec![]).unwrap();
+    test_single_suit("./res/posix_x86_64_spectest/f64_bitwise", vec![]).unwrap();
+    test_single_suit("./res/posix_x86_64_spectest/f64_cmp", vec![]).unwrap();
+    test_single_suit("./res/posix_x86_64_spectest/float_exprs", vec![]).unwrap();
+    test_single_suit("./res/posix_x86_64_spectest/float_literals", vec![]).unwrap();
+    test_single_suit("./res/posix_x86_64_spectest/float_memory", vec![]).unwrap();
+    test_single_suit("./res/posix_x86_64_spectest/float_misc", vec![]).unwrap();
+    test_single_suit("./res/posix_x86_64_spectest/forward", vec![]).unwrap();
+    test_single_suit(
+        "./res/posix_x86_64_spectest/func_ptrs",
         vec!["func_ptrs_8.wasm", "func_ptrs_9.wasm"],
     )
     .unwrap();
-    test_spec_single_suit("./res/spectest_wasc/global", vec![]).unwrap();
-    test_spec_single_suit("./res/spectest_wasc/globals", vec![]).unwrap();
-    // test_spec_single_suit("./res/spectest_wasc/imports").unwrap(); // skip
-    test_spec_single_suit("./res/spectest_wasc/inline-module", vec![]).unwrap();
-    test_spec_single_suit("./res/spectest_wasc/int_exprs", vec![]).unwrap();
-    test_spec_single_suit("./res/spectest_wasc/int_literals", vec![]).unwrap();
-    test_spec_single_suit("./res/spectest_wasc/labels", vec![]).unwrap();
-    test_spec_single_suit("./res/spectest_wasc/left-to-right", vec![]).unwrap();
-    // test_spec_single_suit("./res/spectest_wasc/linking", vec![]).unwrap(); // skip
-    test_spec_single_suit("./res/spectest_wasc/load", vec![]).unwrap();
-    test_spec_single_suit("./res/spectest_wasc/local_get", vec![]).unwrap();
-    test_spec_single_suit("./res/spectest_wasc/local_set", vec![]).unwrap();
-    test_spec_single_suit("./res/spectest_wasc/local_tee", vec![]).unwrap();
-    test_spec_single_suit("./res/spectest_wasc/memory", vec![]).unwrap();
-    test_spec_single_suit("./res/spectest_wasc/memory_grow", vec![]).unwrap();
-    test_spec_single_suit("./res/spectest_wasc/memory_redundancy", vec![]).unwrap();
-    test_spec_single_suit("./res/spectest_wasc/memory_size", vec![]).unwrap();
-    test_spec_single_suit("./res/spectest_wasc/memory_trap", vec![]).unwrap();
-    test_spec_single_suit("./res/spectest_wasc/names", vec!["names_3.wasm"]).unwrap();
-    test_spec_single_suit("./res/spectest_wasc/nop", vec![]).unwrap();
-    test_spec_single_suit("./res/spectest_wasc/return", vec![]).unwrap();
-    test_spec_single_suit("./res/spectest_wasc/select", vec![]).unwrap();
-    test_spec_single_suit("./res/spectest_wasc/skip-stack-guard-page", vec![]).unwrap();
-    test_spec_single_suit("./res/spectest_wasc/stack", vec![]).unwrap();
-    test_spec_single_suit("./res/spectest_wasc/start", vec![]).unwrap();
-    test_spec_single_suit("./res/spectest_wasc/store", vec![]).unwrap();
-    test_spec_single_suit("./res/spectest_wasc/switch", vec![]).unwrap();
-    test_spec_single_suit("./res/spectest_wasc/table", vec![]).unwrap();
-    test_spec_single_suit("./res/spectest_wasc/token", vec![]).unwrap();
-    test_spec_single_suit("./res/spectest_wasc/traps", vec![]).unwrap();
-    test_spec_single_suit("./res/spectest_wasc/type", vec![]).unwrap();
-    test_spec_single_suit("./res/spectest_wasc/typecheck", vec![]).unwrap();
-    test_spec_single_suit("./res/spectest_wasc/unreachable", vec![]).unwrap();
-    test_spec_single_suit("./res/spectest_wasc/unreached-invalid", vec![]).unwrap();
-    test_spec_single_suit("./res/spectest_wasc/unwind", vec![]).unwrap();
-    test_spec_single_suit("./res/spectest_wasc/utf8-custom-section-id", vec![]).unwrap();
-    test_spec_single_suit("./res/spectest_wasc/utf8-import-field", vec![]).unwrap();
-    test_spec_single_suit("./res/spectest_wasc/utf8-import-module", vec![]).unwrap();
-    test_spec_single_suit("./res/spectest_wasc/utf8-invalid-encoding", vec![]).unwrap();
+    test_single_suit("./res/posix_x86_64_spectest/global", vec![]).unwrap();
+    test_single_suit("./res/posix_x86_64_spectest/globals", vec![]).unwrap();
+    test_single_suit("./res/posix_x86_64_spectest/inline-module", vec![]).unwrap();
+    test_single_suit("./res/posix_x86_64_spectest/int_exprs", vec![]).unwrap();
+    test_single_suit("./res/posix_x86_64_spectest/int_literals", vec![]).unwrap();
+    test_single_suit("./res/posix_x86_64_spectest/labels", vec![]).unwrap();
+    test_single_suit("./res/posix_x86_64_spectest/left-to-right", vec![]).unwrap();
+    test_single_suit("./res/posix_x86_64_spectest/load", vec![]).unwrap();
+    test_single_suit("./res/posix_x86_64_spectest/local_get", vec![]).unwrap();
+    test_single_suit("./res/posix_x86_64_spectest/local_set", vec![]).unwrap();
+    test_single_suit("./res/posix_x86_64_spectest/local_tee", vec![]).unwrap();
+    test_single_suit("./res/posix_x86_64_spectest/memory", vec![]).unwrap();
+    test_single_suit("./res/posix_x86_64_spectest/memory_grow", vec![]).unwrap();
+    test_single_suit("./res/posix_x86_64_spectest/memory_redundancy", vec![]).unwrap();
+    test_single_suit("./res/posix_x86_64_spectest/memory_size", vec![]).unwrap();
+    test_single_suit("./res/posix_x86_64_spectest/memory_trap", vec![]).unwrap();
+    test_single_suit("./res/posix_x86_64_spectest/names", vec!["names_3.wasm"]).unwrap();
+    test_single_suit("./res/posix_x86_64_spectest/nop", vec![]).unwrap();
+    test_single_suit("./res/posix_x86_64_spectest/return", vec![]).unwrap();
+    test_single_suit("./res/posix_x86_64_spectest/select", vec![]).unwrap();
+    test_single_suit("./res/posix_x86_64_spectest/skip-stack-guard-page", vec![]).unwrap();
+    test_single_suit("./res/posix_x86_64_spectest/stack", vec![]).unwrap();
+    test_single_suit("./res/posix_x86_64_spectest/start", vec![]).unwrap();
+    test_single_suit("./res/posix_x86_64_spectest/store", vec![]).unwrap();
+    test_single_suit("./res/posix_x86_64_spectest/switch", vec![]).unwrap();
+    test_single_suit("./res/posix_x86_64_spectest/table", vec![]).unwrap();
+    test_single_suit("./res/posix_x86_64_spectest/token", vec![]).unwrap();
+    test_single_suit("./res/posix_x86_64_spectest/traps", vec![]).unwrap();
+    test_single_suit("./res/posix_x86_64_spectest/type", vec![]).unwrap();
+    test_single_suit("./res/posix_x86_64_spectest/typecheck", vec![]).unwrap();
+    test_single_suit("./res/posix_x86_64_spectest/unreachable", vec![]).unwrap();
+    test_single_suit("./res/posix_x86_64_spectest/unreached-invalid", vec![]).unwrap();
+    test_single_suit("./res/posix_x86_64_spectest/unwind", vec![]).unwrap();
+    test_single_suit("./res/posix_x86_64_spectest/utf8-custom-section-id", vec![]).unwrap();
+    test_single_suit("./res/posix_x86_64_spectest/utf8-import-field", vec![]).unwrap();
+    test_single_suit("./res/posix_x86_64_spectest/utf8-import-module", vec![]).unwrap();
+    test_single_suit("./res/posix_x86_64_spectest/utf8-invalid-encoding", vec![]).unwrap();
 }

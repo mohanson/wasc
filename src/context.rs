@@ -3,6 +3,7 @@ pub enum Platform {
     PosixX8664,
     PosixX8664Spectest,
     PosixX8664Wasi,
+    CKBSpectest,
     Unknown,
 }
 
@@ -14,6 +15,8 @@ pub struct Config {
     pub binary_wavm: String,
     // Platfrom flag and their files.
     pub platform: Platform,
+    pub platform_ckb_spectest_h: &'static str,
+    pub platform_ckb_spectest_runtime_s: &'static str,
     pub platform_posix_x86_64_h: &'static str,
     pub platform_posix_x86_64_runtime_s: &'static str,
     pub platform_posix_x86_64_spectest_h: &'static str,
@@ -30,6 +33,8 @@ impl Default for Config {
             binary_cc: String::from("gcc"),
             binary_wavm: String::from("wavm"),
             platform: Platform::Unknown,
+            platform_ckb_spectest_h: include_str!("./platform/ckb_spectest.h"),
+            platform_ckb_spectest_runtime_s: include_str!("./platform/ckb_spectest_runtime.S"),
             platform_posix_x86_64_h: include_str!("./platform/posix_x86_64.h"),
             platform_posix_x86_64_runtime_s: include_str!("./platform/posix_x86_64_runtime.S"),
             platform_posix_x86_64_spectest_h: include_str!("./platform/posix_x86_64_spectest.h"),
@@ -88,6 +93,10 @@ impl Middle {
         self.path_platform_code_folder = self.path_prog.join("platform");
         self.path_platform_common_code_folder = self.path_platform_code_folder.join("common");
         match self.config.platform {
+            Platform::CKBSpectest => {
+                self.path_platform_header = self.path_platform_code_folder.join("ckb_spectest.h");
+                self.path_platform_s = self.path_platform_code_folder.join("ckb_spectest_runtime.S");
+            }
             Platform::PosixX8664 => {
                 self.path_platform_header = self.path_platform_code_folder.join("posix_x86_64.h");
                 self.path_platform_s = self.path_platform_code_folder.join("posix_x86_64_runtime.S");

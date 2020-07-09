@@ -14,9 +14,3 @@ pub fn copy_dir<P: AsRef<std::path::Path>, Q: AsRef<std::path::Path>>(from: P, t
     }
     Ok(())
 }
-
-pub fn open_log() {
-    rog::reg("test_bugs");
-    rog::reg("test_spec");
-    rog::reg("test_wasi");
-}

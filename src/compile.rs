@@ -38,6 +38,15 @@ pub fn compile<P: AsRef<std::path::Path>>(
         &middle.config.platform_common_wavm_h,
     )?;
     match middle.config.platform {
+        context::Platform::CKBSpectest => {
+            rog::debugln!("create {}", middle.path_platform_header.to_str().unwrap());
+            std::fs::write(&middle.path_platform_header, &middle.config.platform_ckb_spectest_h)?;
+            rog::debugln!("create {}", middle.path_platform_s.to_str().unwrap());
+            std::fs::write(
+                &middle.path_platform_header,
+                &middle.config.platform_ckb_spectest_runtime_s,
+            )?;
+        }
         context::Platform::PosixX8664 => {
             rog::debugln!("create {}", middle.path_platform_header.to_str().unwrap());
             std::fs::write(&middle.path_platform_header, &middle.config.platform_posix_x86_64_h)?;
