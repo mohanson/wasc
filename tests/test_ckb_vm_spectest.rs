@@ -176,8 +176,10 @@ fn test_single_test<P: AsRef<std::path::Path>>(
 
     let args: Vec<bytes::Bytes> = vec!["main"].iter().map(|&a| a.into()).collect();
     let data = bytes::Bytes::from(std::fs::read(&middle.path_output).unwrap());
-    let r = ckb_vm::run::<u64, ckb_vm::SparseMemory<u64>>(&data, &args[..]).unwrap();
-    rog::println!("{:?}", r);
+    let exit_status = ckb_vm::run::<u64, ckb_vm::SparseMemory<u64>>(&data, &args[..]).unwrap();
+
+    rog::println!("{:?} {}", middle.path_c, exit_status);
+    assert!(exit_status == 0);
 
     Ok(())
 }
