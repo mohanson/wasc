@@ -260,12 +260,11 @@ fn test_ckb_vm_spectest() {
     test_single_suit("./res/ckb_vm_spectest/elem", vec!["elem_39.wasm", "elem_40.wasm"]).unwrap();
     test_single_suit("./res/ckb_vm_spectest/endianness", vec![]).unwrap();
     test_single_suit("./res/ckb_vm_spectest/forward", vec![]).unwrap();
-    // test_single_suit(
-    //     "./res/ckb_vm_spectest/func_ptrs",
-    //     vec!["func_ptrs_8.wasm", "func_ptrs_9.wasm"],
-    // )
-    // .unwrap();
-    // test_single_suit("./res/ckb_vm_spectest/global", vec![]).unwrap();
+    test_single_suit(
+        "./res/ckb_vm_spectest/func_ptrs",
+        vec!["func_ptrs_8.wasm", "func_ptrs_9.wasm"],
+    )
+    .unwrap();
     // test_single_suit("./res/ckb_vm_spectest/globals", vec![]).unwrap();
     // test_single_suit("./res/ckb_vm_spectest/inline-module", vec![]).unwrap();
     // test_single_suit("./res/ckb_vm_spectest/int_exprs", vec![]).unwrap();
@@ -302,4 +301,19 @@ fn test_ckb_vm_spectest() {
     // test_single_suit("./res/ckb_vm_spectest/utf8-import-field", vec![]).unwrap();
     // test_single_suit("./res/ckb_vm_spectest/utf8-import-module", vec![]).unwrap();
     // test_single_suit("./res/ckb_vm_spectest/utf8-invalid-encoding", vec![]).unwrap();
+
+    // The following test set cannot be executed because it contains floating point numbers.
+    if false {
+        test_single_suit("./res/posix_x86_64_spectest/f32", vec![]).unwrap();
+        test_single_suit("./res/posix_x86_64_spectest/f32_bitwise", vec![]).unwrap();
+        test_single_suit("./res/posix_x86_64_spectest/f32_cmp", vec![]).unwrap();
+        test_single_suit("./res/posix_x86_64_spectest/f64", vec![]).unwrap();
+        test_single_suit("./res/posix_x86_64_spectest/f64_bitwise", vec![]).unwrap();
+        test_single_suit("./res/posix_x86_64_spectest/f64_cmp", vec![]).unwrap();
+        test_single_suit("./res/posix_x86_64_spectest/float_exprs", vec![]).unwrap();
+        test_single_suit("./res/posix_x86_64_spectest/float_literals", vec![]).unwrap();
+        test_single_suit("./res/posix_x86_64_spectest/float_memory", vec![]).unwrap();
+        test_single_suit("./res/posix_x86_64_spectest/float_misc", vec![]).unwrap();
+        test_single_suit("./res/ckb_vm_spectest/global", vec![]).unwrap();
+    }
 }
