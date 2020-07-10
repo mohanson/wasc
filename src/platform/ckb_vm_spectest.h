@@ -47,6 +47,12 @@ void invalidFloatOperationTrap()
   exit(1);
 }
 
+uint64_t __atomic_load_8(void* p, int32_t _mode)
+{
+  (void) _mode;
+  return *((uint64_t*) ((uintptr_t) p));
+}
+
 int32_t wavm_spectest_global_i32 = 42;
 float wavm_spectest_global_f32 = 42.0;
 double wavm_spectest_global_f64 = 420;
