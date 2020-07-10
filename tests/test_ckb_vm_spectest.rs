@@ -270,36 +270,32 @@ fn test_ckb_vm_spectest() {
     test_single_suit("./res/ckb_vm_spectest/int_literals", vec![]).unwrap();
     test_single_suit("./res/ckb_vm_spectest/labels", vec![]).unwrap();
     test_single_suit("./res/ckb_vm_spectest/load", vec![]).unwrap();
-
-    // test_single_suit("./res/ckb_vm_spectest/local_get", vec![]).unwrap();
-    // test_single_suit("./res/ckb_vm_spectest/local_set", vec![]).unwrap();
-    // test_single_suit("./res/ckb_vm_spectest/local_tee", vec![]).unwrap();
-    // test_single_suit("./res/ckb_vm_spectest/memory", vec![]).unwrap();
-    // test_single_suit("./res/ckb_vm_spectest/memory_grow", vec![]).unwrap();
-    // test_single_suit("./res/ckb_vm_spectest/memory_redundancy", vec![]).unwrap();
-    // test_single_suit("./res/ckb_vm_spectest/memory_size", vec![]).unwrap();
-    // test_single_suit("./res/ckb_vm_spectest/memory_trap", vec![]).unwrap();
-    // test_single_suit("./res/ckb_vm_spectest/names", vec!["names_3.wasm"]).unwrap();
-    // test_single_suit("./res/ckb_vm_spectest/nop", vec![]).unwrap();
-    // test_single_suit("./res/ckb_vm_spectest/return", vec![]).unwrap();
-    // test_single_suit("./res/ckb_vm_spectest/select", vec![]).unwrap();
-    // test_single_suit("./res/ckb_vm_spectest/skip-stack-guard-page", vec![]).unwrap();
-    // test_single_suit("./res/ckb_vm_spectest/stack", vec![]).unwrap();
-    // test_single_suit("./res/ckb_vm_spectest/start", vec![]).unwrap();
-    // test_single_suit("./res/ckb_vm_spectest/store", vec![]).unwrap();
-    // test_single_suit("./res/ckb_vm_spectest/switch", vec![]).unwrap();
-    // test_single_suit("./res/ckb_vm_spectest/table", vec![]).unwrap();
-    // test_single_suit("./res/ckb_vm_spectest/token", vec![]).unwrap();
-    // test_single_suit("./res/ckb_vm_spectest/traps", vec![]).unwrap();
-    // test_single_suit("./res/ckb_vm_spectest/type", vec![]).unwrap();
-    // test_single_suit("./res/ckb_vm_spectest/typecheck", vec![]).unwrap();
-    // test_single_suit("./res/ckb_vm_spectest/unreachable", vec![]).unwrap();
-    // test_single_suit("./res/ckb_vm_spectest/unreached-invalid", vec![]).unwrap();
-    // test_single_suit("./res/ckb_vm_spectest/unwind", vec![]).unwrap();
-    // test_single_suit("./res/ckb_vm_spectest/utf8-custom-section-id", vec![]).unwrap();
-    // test_single_suit("./res/ckb_vm_spectest/utf8-import-field", vec![]).unwrap();
-    // test_single_suit("./res/ckb_vm_spectest/utf8-import-module", vec![]).unwrap();
-    // test_single_suit("./res/ckb_vm_spectest/utf8-invalid-encoding", vec![]).unwrap();
+    test_single_suit("./res/ckb_vm_spectest/memory", vec![]).unwrap();
+    test_single_suit("./res/ckb_vm_spectest/memory_grow", vec![]).unwrap();
+    test_single_suit("./res/ckb_vm_spectest/memory_redundancy", vec![]).unwrap();
+    test_single_suit("./res/ckb_vm_spectest/memory_size", vec![]).unwrap();
+    test_single_suit("./res/ckb_vm_spectest/memory_trap", vec![]).unwrap();
+    test_single_suit("./res/ckb_vm_spectest/names", vec!["names_3.wasm"]).unwrap();
+    test_single_suit("./res/ckb_vm_spectest/nop", vec![]).unwrap();
+    test_single_suit("./res/ckb_vm_spectest/return", vec![]).unwrap();
+    test_single_suit("./res/ckb_vm_spectest/select", vec![]).unwrap();
+    test_single_suit("./res/ckb_vm_spectest/skip-stack-guard-page", vec![]).unwrap();
+    test_single_suit("./res/ckb_vm_spectest/stack", vec![]).unwrap();
+    test_single_suit("./res/ckb_vm_spectest/start", vec![]).unwrap();
+    test_single_suit("./res/ckb_vm_spectest/store", vec![]).unwrap();
+    test_single_suit("./res/ckb_vm_spectest/switch", vec![]).unwrap();
+    test_single_suit("./res/ckb_vm_spectest/table", vec![]).unwrap();
+    test_single_suit("./res/ckb_vm_spectest/token", vec![]).unwrap();
+    test_single_suit("./res/ckb_vm_spectest/traps", vec![]).unwrap();
+    test_single_suit("./res/ckb_vm_spectest/type", vec![]).unwrap();
+    test_single_suit("./res/ckb_vm_spectest/typecheck", vec![]).unwrap();
+    test_single_suit("./res/ckb_vm_spectest/unreachable", vec![]).unwrap();
+    test_single_suit("./res/ckb_vm_spectest/unreached-invalid", vec![]).unwrap();
+    test_single_suit("./res/ckb_vm_spectest/unwind", vec![]).unwrap();
+    test_single_suit("./res/ckb_vm_spectest/utf8-custom-section-id", vec![]).unwrap();
+    test_single_suit("./res/ckb_vm_spectest/utf8-import-field", vec![]).unwrap();
+    test_single_suit("./res/ckb_vm_spectest/utf8-import-module", vec![]).unwrap();
+    test_single_suit("./res/ckb_vm_spectest/utf8-invalid-encoding", vec![]).unwrap();
 
     // The following test set cannot be executed because it contains floating point numbers.
     if false {
@@ -316,5 +312,8 @@ fn test_ckb_vm_spectest() {
         test_single_suit("./res/ckb_vm_spectest/global", vec![]).unwrap();
         test_single_suit("./res/ckb_vm_spectest/globals", vec![]).unwrap();
         test_single_suit("./res/ckb_vm_spectest/left-to-right", vec![]).unwrap();
+        test_single_suit("./res/ckb_vm_spectest/local_get", vec![]).unwrap();
+        test_single_suit("./res/ckb_vm_spectest/local_set", vec![]).unwrap();
+        test_single_suit("./res/ckb_vm_spectest/local_tee", vec![]).unwrap();
     }
 }
