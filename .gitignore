@@ -1,4 +1,5 @@
 /build
+/res/ckb_vm_spectest
 /res/posix_x86_64_spectest_bugs
 /res/posix_x86_64_spectest
 /res/posix_x86_64_wasi
@@ -8,3 +9,4 @@
 /third_party/wasi-sdk-11.0
 /third_party/wasi-sdk
 /third_party/ckb-riscv-gnu-toolchain
+/third_party/ckb-standalone-debugger

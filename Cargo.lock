@@ -321,6 +321,7 @@ name = "wasc"
 version = "0.1.0"
 dependencies = [
  "argparse",
+ "bytes",
  "ckb-vm",
  "hex",
  "rand",

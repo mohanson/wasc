@@ -16,10 +16,7 @@ fn test_single_test<P: AsRef<std::path::Path>>(
 
     let middle = compile::compile(&wasm_path, config)?;
 
-    let mut ep_file = code_builder::CodeBuilder::place(&middle.path_c);
-    ep_file.write(format!("#include \"{}_glue.h\"", middle.file_stem).as_str());
-    ep_file.write("#include \"platform/posix_x86_64_spectest.h\"");
-    ep_file.write("");
+    let mut ep_file = code_builder::CodeBuilder::append(&middle.path_c)?;
     ep_file.write("int main() {");
     ep_file.write("init();");
     let mut wavm_ret_index = 1;
@@ -225,7 +222,7 @@ fn test_single_suit<P: AsRef<std::path::Path>>(
 }
 
 #[test]
-fn test_posix_x86_64_spec() {
+fn test_posix_x86_64_spectest() {
     let wasc_path = std::path::PathBuf::from("./res/posix_x86_64_spectest");
     if wasc_path.exists() {
         std::fs::remove_dir_all(&wasc_path).unwrap();

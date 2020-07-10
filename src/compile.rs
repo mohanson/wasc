@@ -1,4 +1,5 @@
 use super::aot_generator;
+use super::code_builder;
 use super::context;
 
 // The main entry function for wasc compiler. It is expected that it will be a complete set of compilation work.
@@ -16,10 +17,14 @@ pub fn compile<P: AsRef<std::path::Path>>(
 
     // Get wavm precompiled module.
     let mut cmd_wavm = std::process::Command::new(&middle.config.binary_wavm);
+    cmd_wavm.arg("compile").arg("--enable").arg("all");
+    match middle.config.platform {
+        context::Platform::CKBVMSpectest => {
+            cmd_wavm.arg("--target-triple").arg("riscv64");
+        }
+        _ => {}
+    }
     cmd_wavm
-        .arg("compile")
-        .arg("--enable")
-        .arg("all")
         .arg(middle.file.clone())
         .arg(middle.path_precompiled.to_str().unwrap());
     rog::debugln!("$ {:?}", cmd_wavm);
@@ -38,23 +43,20 @@ pub fn compile<P: AsRef<std::path::Path>>(
         &middle.config.platform_common_wavm_h,
     )?;
     match middle.config.platform {
-        context::Platform::CKBSpectest => {
+        context::Platform::CKBVMSpectest => {
             rog::debugln!("create {}", middle.path_platform_header.to_str().unwrap());
-            std::fs::write(&middle.path_platform_header, &middle.config.platform_ckb_spectest_h)?;
+            std::fs::write(&middle.path_platform_header, &middle.config.platform_ckb_vm_spectest_h)?;
             rog::debugln!("create {}", middle.path_platform_s.to_str().unwrap());
             std::fs::write(
-                &middle.path_platform_header,
-                &middle.config.platform_ckb_spectest_runtime_s,
+                &middle.path_platform_s,
+                &middle.config.platform_ckb_vm_spectest_runtime_s,
             )?;
         }
         context::Platform::PosixX8664 => {
             rog::debugln!("create {}", middle.path_platform_header.to_str().unwrap());
             std::fs::write(&middle.path_platform_header, &middle.config.platform_posix_x86_64_h)?;
             rog::debugln!("create {}", middle.path_platform_s.to_str().unwrap());
-            std::fs::write(
-                &middle.path_platform_header,
-                &middle.config.platform_posix_x86_64_runtime_s,
-            )?;
+            std::fs::write(&middle.path_platform_s, &middle.config.platform_posix_x86_64_runtime_s)?;
         }
         context::Platform::PosixX8664Spectest => {
             rog::debugln!("create {}", middle.path_platform_header.to_str().unwrap());
@@ -92,6 +94,18 @@ pub fn compile<P: AsRef<std::path::Path>>(
 
     // AOT generator
     aot_generator::generate(&mut middle)?;
+
+    let mut main_file = code_builder::CodeBuilder::create(&middle.path_c);
+    let platform_header = match middle.config.platform {
+        context::Platform::CKBVMSpectest => "platform/ckb_vm_spectest.h",
+        context::Platform::PosixX8664 => "platform/posix_x86_64.h",
+        context::Platform::PosixX8664Spectest => "platform/posix_x86_64_spectest.h",
+        context::Platform::PosixX8664Wasi => "platform/posix_x86_64_wasi.h",
+        context::Platform::Unknown => panic!("unreachable"),
+    };
+    main_file.write(format!("#include \"{}_glue.h\"", middle.file_stem).as_str());
+    main_file.write(format!("#include \"{}\"", platform_header));
+    main_file.close()?;
 
     Ok(middle)
 }

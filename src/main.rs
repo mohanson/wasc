@@ -1,4 +1,3 @@
-use wasc::code_builder;
 use wasc::compile;
 use wasc::context;
 use wasc::gcc;
@@ -77,18 +76,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     config.binary_wavm = fl_wavm;
 
     let middle = compile::compile(&fl_source, config)?;
-
-    let mut ep_file = code_builder::CodeBuilder::place(&middle.path_c);
-    let platform_header = match middle.config.platform {
-        context::Platform::CKBSpectest => "platform/ckb_spectest.h",
-        context::Platform::PosixX8664 => "platform/posix_x86_64.h",
-        context::Platform::PosixX8664Spectest => "platform/posix_x86_64_spectest.h",
-        context::Platform::PosixX8664Wasi => "platform/posix_x86_64_wasi.h",
-        context::Platform::Unknown => panic!("unreachable"),
-    };
-    ep_file.write(format!("#include \"{}_glue.h\"", middle.file_stem).as_str());
-    ep_file.write(format!("#include \"{}\"", platform_header));
-    ep_file.close()?;
 
     gcc::build(&middle)?;
 

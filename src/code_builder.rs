@@ -1,18 +1,24 @@
 // A C code builder. It will automatically control the indentation by "{" and "}",
 // so as to relieve the burden of memory prefix spaces.
 pub struct CodeBuilder {
-    path: std::path::PathBuf,
-    data: String,
+    pub path: std::path::PathBuf,
+    pub data: String,
     head_whitespace: usize,
 }
 
 impl CodeBuilder {
-    pub fn place<P: AsRef<std::path::Path>>(path: P) -> Self {
+    pub fn create<P: AsRef<std::path::Path>>(path: P) -> Self {
         CodeBuilder {
             path: path.as_ref().to_path_buf(),
             data: String::new(),
             head_whitespace: 0,
         }
+    }
+
+    pub fn append<P: AsRef<std::path::Path>>(path: P) -> Result<Self, Box<dyn std::error::Error>> {
+        let mut c = CodeBuilder::create(&path);
+        c.data = std::str::from_utf8(&std::fs::read(&path)?)?.to_string();
+        return Ok(c);
     }
 
     pub fn close(&self) -> Result<(), Box<dyn std::error::Error>> {
