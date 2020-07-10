@@ -728,7 +728,7 @@ pub fn generate(middle: &mut context::Middle) -> Result<(), Box<dyn std::error::
                         glue_file.write("};");
                         glue_file.write(format!(
                             "struct memory_instance memoryOffset{} = {{ memory{}, {} }};",
-                            i, i, memory_size
+                            i, i, memory_type.limits.initial
                         ));
                         glue_file.write(format!("#define MEMORY{}_DEFINED 1", i));
                         if let Some(x) = memory_type.limits.maximum {

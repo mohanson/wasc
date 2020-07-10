@@ -11,6 +11,8 @@ pub fn build(middle: &context::Middle) -> Result<(), Box<dyn std::error::Error>>
     match middle.config.platform {
         context::Platform::CKBVMSpectest => {
             cmd.arg(middle.path_prog.join("platform/ckb_vm_spectest_runtime.S"));
+            cmd.arg("-Wl,-T");
+            cmd.arg(middle.path_prog.join("platform/ckb_vm_spectest.lds"));
         }
         context::Platform::PosixX8664 => {
             cmd.arg(middle.path_prog.join("platform/posix_x86_64_runtime.S"));
@@ -23,7 +25,7 @@ pub fn build(middle: &context::Middle) -> Result<(), Box<dyn std::error::Error>>
         }
         _ => panic!("unreachable"),
     }
-
+    rog::debugln!("$ {:?}", cmd);
     let exit_code = cmd.spawn()?.wait()?;
     if exit_code.code().unwrap() != 0 {
         return Err(Box::new(std::io::Error::new(std::io::ErrorKind::Interrupted, "")));

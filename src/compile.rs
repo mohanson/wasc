@@ -46,6 +46,14 @@ pub fn compile<P: AsRef<std::path::Path>>(
         context::Platform::CKBVMSpectest => {
             rog::debugln!("create {}", middle.path_platform_header.to_str().unwrap());
             std::fs::write(&middle.path_platform_header, &middle.config.platform_ckb_vm_spectest_h)?;
+            rog::debugln!(
+                "create {}",
+                middle.path_platform_lds.to_owned().unwrap().to_str().unwrap()
+            );
+            std::fs::write(
+                &middle.path_platform_lds.to_owned().unwrap(),
+                &middle.config.platform_ckb_vm_spectest_lds,
+            )?;
             rog::debugln!("create {}", middle.path_platform_s.to_str().unwrap());
             std::fs::write(
                 &middle.path_platform_s,

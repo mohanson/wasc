@@ -265,13 +265,12 @@ fn test_ckb_vm_spectest() {
         vec!["func_ptrs_8.wasm", "func_ptrs_9.wasm"],
     )
     .unwrap();
-    // test_single_suit("./res/ckb_vm_spectest/globals", vec![]).unwrap();
-    // test_single_suit("./res/ckb_vm_spectest/inline-module", vec![]).unwrap();
-    // test_single_suit("./res/ckb_vm_spectest/int_exprs", vec![]).unwrap();
-    // test_single_suit("./res/ckb_vm_spectest/int_literals", vec![]).unwrap();
-    // test_single_suit("./res/ckb_vm_spectest/labels", vec![]).unwrap();
-    // test_single_suit("./res/ckb_vm_spectest/left-to-right", vec![]).unwrap();
-    // test_single_suit("./res/ckb_vm_spectest/load", vec![]).unwrap();
+    test_single_suit("./res/ckb_vm_spectest/inline-module", vec![]).unwrap();
+    test_single_suit("./res/ckb_vm_spectest/int_exprs", vec![]).unwrap();
+    test_single_suit("./res/ckb_vm_spectest/int_literals", vec![]).unwrap();
+    test_single_suit("./res/ckb_vm_spectest/labels", vec![]).unwrap();
+    test_single_suit("./res/ckb_vm_spectest/load", vec![]).unwrap();
+
     // test_single_suit("./res/ckb_vm_spectest/local_get", vec![]).unwrap();
     // test_single_suit("./res/ckb_vm_spectest/local_set", vec![]).unwrap();
     // test_single_suit("./res/ckb_vm_spectest/local_tee", vec![]).unwrap();
@@ -315,5 +314,7 @@ fn test_ckb_vm_spectest() {
         test_single_suit("./res/posix_x86_64_spectest/float_memory", vec![]).unwrap();
         test_single_suit("./res/posix_x86_64_spectest/float_misc", vec![]).unwrap();
         test_single_suit("./res/ckb_vm_spectest/global", vec![]).unwrap();
+        test_single_suit("./res/ckb_vm_spectest/globals", vec![]).unwrap();
+        test_single_suit("./res/ckb_vm_spectest/left-to-right", vec![]).unwrap();
     }
 }

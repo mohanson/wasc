@@ -16,6 +16,7 @@ pub struct Config {
     // Platfrom flag and their files.
     pub platform: Platform,
     pub platform_ckb_vm_spectest_h: &'static str,
+    pub platform_ckb_vm_spectest_lds: &'static str,
     pub platform_ckb_vm_spectest_runtime_s: &'static str,
     pub platform_posix_x86_64_h: &'static str,
     pub platform_posix_x86_64_runtime_s: &'static str,
@@ -34,6 +35,7 @@ impl Default for Config {
             binary_wavm: String::from("wavm"),
             platform: Platform::Unknown,
             platform_ckb_vm_spectest_h: include_str!("./platform/ckb_vm_spectest.h"),
+            platform_ckb_vm_spectest_lds: include_str!("./platform/ckb_vm_spectest.lds"),
             platform_ckb_vm_spectest_runtime_s: include_str!("./platform/ckb_vm_spectest_runtime.S"),
             platform_posix_x86_64_h: include_str!("./platform/posix_x86_64.h"),
             platform_posix_x86_64_runtime_s: include_str!("./platform/posix_x86_64_runtime.S"),
@@ -70,6 +72,7 @@ pub struct Middle {
     pub path_platform_common_wavm_h: std::path::PathBuf,      // xx_build/platform/common/wavm.h
     pub path_platform_common_wasi_h: std::path::PathBuf,      // xx_build/platform/common/wasi.h
     pub path_platform_header: std::path::PathBuf,             // xx_build/platform/xx.h
+    pub path_platform_lds: Option<std::path::PathBuf>,        // xx_build/platform/xx.lds
     pub path_platform_s: std::path::PathBuf,                  // xx_build/platform/xx_runtime.s
     pub path_object: std::path::PathBuf,                      // xx_build/xx.o
     pub path_glue: std::path::PathBuf,                        // xx_build/xx_glue.h
@@ -95,6 +98,7 @@ impl Middle {
         match self.config.platform {
             Platform::CKBVMSpectest => {
                 self.path_platform_header = self.path_platform_code_folder.join("ckb_vm_spectest.h");
+                self.path_platform_lds = Some(self.path_platform_code_folder.join("ckb_vm_spectest.lds"));
                 self.path_platform_s = self.path_platform_code_folder.join("ckb_vm_spectest_runtime.S");
             }
             Platform::PosixX8664 => {
