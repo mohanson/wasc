@@ -247,15 +247,15 @@ fn test_ckb_vm_spectest() {
     }
 
     test_single_suit("./res/ckb_vm_spectest/address", vec![]).unwrap();
-    //     test_single_suit("./res/ckb_vm_spectest/align", vec![]).unwrap();
-    //     test_single_suit("./res/ckb_vm_spectest/binary", vec![]).unwrap();
-    //     test_single_suit("./res/ckb_vm_spectest/binary-leb128", vec![]).unwrap();
-    //     test_single_suit("./res/ckb_vm_spectest/br_if", vec![]).unwrap();
-    //     test_single_suit("./res/ckb_vm_spectest/br_table", vec![]).unwrap();
-    //     test_single_suit("./res/ckb_vm_spectest/break-drop", vec![]).unwrap();
-    //     test_single_suit("./res/ckb_vm_spectest/comments", vec![]).unwrap();
-    //     test_single_suit("./res/ckb_vm_spectest/const", vec![]).unwrap();
-    //     test_single_suit("./res/ckb_vm_spectest/custom", vec![]).unwrap();
+    test_single_suit("./res/ckb_vm_spectest/align", vec![]).unwrap();
+    test_single_suit("./res/ckb_vm_spectest/binary", vec![]).unwrap();
+    test_single_suit("./res/ckb_vm_spectest/binary-leb128", vec![]).unwrap();
+    test_single_suit("./res/ckb_vm_spectest/br_if", vec![]).unwrap();
+    test_single_suit("./res/ckb_vm_spectest/br_table", vec![]).unwrap();
+    test_single_suit("./res/ckb_vm_spectest/break-drop", vec![]).unwrap();
+    test_single_suit("./res/ckb_vm_spectest/comments", vec![]).unwrap();
+    test_single_suit("./res/ckb_vm_spectest/const", vec![]).unwrap();
+    test_single_suit("./res/ckb_vm_spectest/custom", vec![]).unwrap();
     //     test_single_suit("./res/ckb_vm_spectest/data", vec![]).unwrap();
     //     test_single_suit("./res/ckb_vm_spectest/elem", vec!["elem_39.wasm", "elem_40.wasm"]).unwrap();
     //     test_single_suit("./res/ckb_vm_spectest/endianness", vec![]).unwrap();
