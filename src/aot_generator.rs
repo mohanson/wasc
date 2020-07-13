@@ -692,7 +692,7 @@ pub fn generate(middle: &mut context::Middle) -> Result<(), Box<dyn std::error::
                         init_function_list.push(format!("init_memory{}", i));
                     }
                     // On CKB
-                    context::Platform::CKBVMSpectest => {
+                    context::Platform::CKBVMSpectest | context::Platform::CKBVMAssemblyScript => {
                         let memory_size = memory_type.limits.initial as usize * 65536;
                         let mut memory_data: Vec<u8> = vec![0x00; memory_size];
                         for (_, e) in data.iter().enumerate() {
