@@ -27,6 +27,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             .to_str()
             .unwrap(),
     );
+    let mut fl_gcc = String::from("");
     let mut fl_verbose = false;
     let mut fl_save = false;
     {
@@ -41,6 +42,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         );
         ap.refer(&mut fl_wavm)
             .add_option(&["--wavm"], argparse::Store, "WAVM binary");
+        ap.refer(&mut fl_gcc).add_option(&["--gcc"], argparse::Store, "GCC");
         ap.refer(&mut fl_verbose)
             .add_option(&["-v", "--verbose"], argparse::StoreTrue, "");
         ap.refer(&mut fl_save)
@@ -50,6 +52,17 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     if fl_source.is_empty() {
         rog::println!("wasc: missing file operand");
         std::process::exit(1);
+    }
+    if fl_gcc.is_empty() {
+        match fl_platform.as_str() {
+            "ckb_vm_assemblyscript" | "ckb_vm_spectest" => {
+                fl_gcc = String::from("riscv64-unknown-elf-gcc");
+            }
+            "posix_x86_64" | "posix_x86_64_spectest" | "posix_x86_64_wasi" => {
+                fl_gcc = String::from("gcc");
+            }
+            _ => {}
+        }
     }
     if fl_verbose {
         rog::reg("wasc");
@@ -78,6 +91,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
     };
     config.binary_wavm = fl_wavm;
+    config.binary_cc = fl_gcc;
 
     let middle = compile::compile(&fl_source, config)?;
 

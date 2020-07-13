@@ -19,7 +19,7 @@ pub fn compile<P: AsRef<std::path::Path>>(
     let mut cmd_wavm = std::process::Command::new(&middle.config.binary_wavm);
     cmd_wavm.arg("compile").arg("--enable").arg("all");
     match middle.config.platform {
-        context::Platform::CKBVMSpectest => {
+        context::Platform::CKBVMAssemblyScript | context::Platform::CKBVMSpectest => {
             cmd_wavm.arg("--target-triple").arg("riscv64");
         }
         _ => {}

@@ -944,8 +944,13 @@ pub fn generate(middle: &mut context::Middle) -> Result<(), Box<dyn std::error::
         glue_file.write("int main(int argc, char *argv[]) {");
         glue_file.write("g_argc = argc;");
         glue_file.write("g_argv = argv;");
+        match middle.config.platform {
+            context::Platform::PosixX8664Wasi => {
+                glue_file.write("init_wasi();");
+            }
+            _ => {}
+        }
         glue_file.write("init();");
-        glue_file.write("init_wasi();");
         glue_file.write("wavm_exported_function__start(NULL);");
         glue_file.write("return 0;");
         glue_file.write("}");

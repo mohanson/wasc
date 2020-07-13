@@ -55,10 +55,10 @@ void invalidFloatOperationTrap()
     exit(1);
 }
 
-uint64_t __atomic_load_8(void *p, int32_t _mode)
+uint64_t __atomic_load_8(void* p, int32_t _mode)
 {
-    (void)_mode;
-    return *((uint64_t *)((uintptr_t)p));
+  (void) _mode;
+  return *((uint64_t*) ((uintptr_t) p));
 }
 
 void* wavm_env_abort(void *dummy, int32_t a, int32_t b, int32_t c, int32_t d)
