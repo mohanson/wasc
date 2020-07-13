@@ -5,8 +5,8 @@
 
 #include "common/wavm.h"
 
-#ifndef WAVM_POSIX_X86_64_SPECTEST_H
-#define WAVM_POSIX_X86_64_SPECTEST_H
+#ifndef WAVM_CKB_VM_SPECTEST_H
+#define WAVM_CKB_VM_SPECTEST_H
 
 #define WAVM_PAGE_SIZE 0x10000
 #ifndef MEMORY0_MAX_PAGE
@@ -83,4 +83,4 @@ void *wavm_spectest_print(void *dummy)
 {
 }
 
-#endif /* WAVM_POSIX_X86_64_SPECTEST_H */
+#endif /* WAVM_CKB_VM_SPECTEST_H */

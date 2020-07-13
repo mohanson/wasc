@@ -43,6 +43,26 @@ pub fn compile<P: AsRef<std::path::Path>>(
         &middle.config.platform_common_wavm_h,
     )?;
     match middle.config.platform {
+        context::Platform::CKBVMAssemblyScript => {
+            rog::debugln!("create {}", middle.path_platform_header.to_str().unwrap());
+            std::fs::write(
+                &middle.path_platform_header,
+                &middle.config.platform_ckb_vm_assemblyscript_h,
+            )?;
+            rog::debugln!(
+                "create {}",
+                middle.path_platform_lds.to_owned().unwrap().to_str().unwrap()
+            );
+            std::fs::write(
+                &middle.path_platform_lds.to_owned().unwrap(),
+                &middle.config.platform_ckb_vm_assemblyscript_lds,
+            )?;
+            rog::debugln!("create {}", middle.path_platform_s.to_str().unwrap());
+            std::fs::write(
+                &middle.path_platform_s,
+                &middle.config.platform_ckb_vm_assemblyscript_runtime_s,
+            )?;
+        }
         context::Platform::CKBVMSpectest => {
             rog::debugln!("create {}", middle.path_platform_header.to_str().unwrap());
             std::fs::write(&middle.path_platform_header, &middle.config.platform_ckb_vm_spectest_h)?;
@@ -105,6 +125,7 @@ pub fn compile<P: AsRef<std::path::Path>>(
 
     let mut main_file = code_builder::CodeBuilder::create(&middle.path_c);
     let platform_header = match middle.config.platform {
+        context::Platform::CKBVMAssemblyScript => "platfrom/ckb_vm_assemblyscript.h",
         context::Platform::CKBVMSpectest => "platform/ckb_vm_spectest.h",
         context::Platform::PosixX8664 => "platform/posix_x86_64.h",
         context::Platform::PosixX8664Spectest => "platform/posix_x86_64_spectest.h",
