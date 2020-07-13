@@ -12,6 +12,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     //     source [WASM/WA(S)T source file]
     //
     // PLATFORM:
+    //   ckb_vm_assemblyscript
+    //   ckb_vm_spectest
     //   posix_x86_64
     //   posix_x86_64_spectest
     //   posix_x86_64_wasi
@@ -58,6 +60,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let mut config = context::Config::default();
     config.platform = match fl_platform.as_str() {
+        "ckb_vm_assemblyscript" => context::Platform::CKBVMAssemblyScript,
+        "ckb_vm_spectest" => context::Platform::CKBVMSpectest,
         "posix_x86_64" => context::Platform::PosixX8664,
         "posix_x86_64_spectest" => context::Platform::PosixX8664Spectest,
         "posix_x86_64_wasi" => context::Platform::PosixX8664Wasi,
