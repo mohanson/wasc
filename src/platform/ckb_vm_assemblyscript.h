@@ -82,11 +82,15 @@ static inline long __internal_syscall(long n, long _a0, long _a1, long _a2,
     return a0;
 }
 
+#define syscall(n, a, b, c, d, e, f)                                             \
+    __internal_syscall(n, (long)(a), (long)(b), (long)(c), (long)(d), (long)(e), \
+                       (long)(f))
+
 wavm_ret_int64_t wavm_env_syscall(void *dummy, int64_t n, int64_t _a0, int64_t _a1, int64_t _a2, int64_t _a3, int64_t _a4, int64_t _a5)
 {
     wavm_ret_int64_t ret;
     ret.dummy = dummy;
-    ret.value = __internal_syscall(n, _a0, _a1, _a2, _a3, _a4, _a5);
+    ret.value = syscall(n, _a0, _a1, _a2, _a3, _a4, _a5);
     return ret;
 }
 
