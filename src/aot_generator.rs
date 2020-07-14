@@ -692,7 +692,7 @@ pub fn generate(middle: &mut context::Middle) -> Result<(), Box<dyn std::error::
                         init_function_list.push(format!("init_memory{}", i));
                     }
                     // On CKB
-                    context::Platform::CKBVMSpectest => {
+                    context::Platform::CKBVMSpectest | context::Platform::CKBVMAssemblyScript => {
                         let memory_size = memory_type.limits.initial as usize * 65536;
                         let mut memory_data: Vec<u8> = vec![0x00; memory_size];
                         for (_, e) in data.iter().enumerate() {
@@ -944,8 +944,13 @@ pub fn generate(middle: &mut context::Middle) -> Result<(), Box<dyn std::error::
         glue_file.write("int main(int argc, char *argv[]) {");
         glue_file.write("g_argc = argc;");
         glue_file.write("g_argv = argv;");
+        match middle.config.platform {
+            context::Platform::PosixX8664Wasi => {
+                glue_file.write("init_wasi();");
+            }
+            _ => {}
+        }
         glue_file.write("init();");
-        glue_file.write("init_wasi();");
         glue_file.write("wavm_exported_function__start(NULL);");
         glue_file.write("return 0;");
         glue_file.write("}");

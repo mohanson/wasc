@@ -19,7 +19,7 @@ pub fn compile<P: AsRef<std::path::Path>>(
     let mut cmd_wavm = std::process::Command::new(&middle.config.binary_wavm);
     cmd_wavm.arg("compile").arg("--enable").arg("all");
     match middle.config.platform {
-        context::Platform::CKBVMSpectest => {
+        context::Platform::CKBVMAssemblyScript | context::Platform::CKBVMSpectest => {
             cmd_wavm.arg("--target-triple").arg("riscv64");
         }
         _ => {}
@@ -125,7 +125,7 @@ pub fn compile<P: AsRef<std::path::Path>>(
 
     let mut main_file = code_builder::CodeBuilder::create(&middle.path_c);
     let platform_header = match middle.config.platform {
-        context::Platform::CKBVMAssemblyScript => "platfrom/ckb_vm_assemblyscript.h",
+        context::Platform::CKBVMAssemblyScript => "platform/ckb_vm_assemblyscript.h",
         context::Platform::CKBVMSpectest => "platform/ckb_vm_spectest.h",
         context::Platform::PosixX8664 => "platform/posix_x86_64.h",
         context::Platform::PosixX8664Spectest => "platform/posix_x86_64_spectest.h",

@@ -9,6 +9,11 @@ pub fn build(middle: &context::Middle) -> Result<(), Box<dyn std::error::Error>>
         .arg(middle.path_object.to_str().unwrap())
         .arg(middle.path_c.to_str().unwrap());
     match middle.config.platform {
+        context::Platform::CKBVMAssemblyScript => {
+            cmd.arg(middle.path_prog.join("platform/ckb_vm_assemblyscript_runtime.S"));
+            cmd.arg("-Wl,-T");
+            cmd.arg(middle.path_prog.join("platform/ckb_vm_assemblyscript.lds"));
+        }
         context::Platform::CKBVMSpectest => {
             cmd.arg(middle.path_prog.join("platform/ckb_vm_spectest_runtime.S"));
             cmd.arg("-Wl,-T");

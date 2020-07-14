@@ -14,7 +14,7 @@ pub struct Config {
     // Path of cc, usually the result of "$ which gcc".
     pub binary_cc: String,
     pub binary_wavm: String,
-    // Platfrom flag and their files.
+    // Platform flag and their files.
     pub platform: Platform,
     pub platform_ckb_vm_assemblyscript_h: &'static str,
     pub platform_ckb_vm_assemblyscript_lds: &'static str,

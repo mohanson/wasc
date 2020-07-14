@@ -6,12 +6,16 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Usage of wasc:
     //
     // wasc
+    //     --gcc [GCC binary]
     //     -p --platform [PLATFORM]
-    //     --wasm [WAVM binary]
+    //     -s --save
     //     -v --verbose
+    //     --wasm [WAVM binary]
     //     source [WASM/WA(S)T source file]
     //
     // PLATFORM:
+    //   ckb_vm_assemblyscript
+    //   ckb_vm_spectest
     //   posix_x86_64
     //   posix_x86_64_spectest
     //   posix_x86_64_wasi
@@ -25,6 +29,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             .to_str()
             .unwrap(),
     );
+    let mut fl_gcc = String::from("");
     let mut fl_verbose = false;
     let mut fl_save = false;
     {
@@ -39,6 +44,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         );
         ap.refer(&mut fl_wavm)
             .add_option(&["--wavm"], argparse::Store, "WAVM binary");
+        ap.refer(&mut fl_gcc).add_option(&["--gcc"], argparse::Store, "GCC");
         ap.refer(&mut fl_verbose)
             .add_option(&["-v", "--verbose"], argparse::StoreTrue, "");
         ap.refer(&mut fl_save)
@@ -58,6 +64,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let mut config = context::Config::default();
     config.platform = match fl_platform.as_str() {
+        "ckb_vm_assemblyscript" => context::Platform::CKBVMAssemblyScript,
+        "ckb_vm_spectest" => context::Platform::CKBVMSpectest,
         "posix_x86_64" => context::Platform::PosixX8664,
         "posix_x86_64_spectest" => context::Platform::PosixX8664Spectest,
         "posix_x86_64_wasi" => context::Platform::PosixX8664Wasi,
@@ -73,7 +81,21 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             std::process::exit(1);
         }
     };
+    if fl_gcc.is_empty() {
+        match config.platform {
+            context::Platform::CKBVMAssemblyScript | context::Platform::CKBVMSpectest => {
+                fl_gcc = String::from("riscv64-unknown-elf-gcc");
+            }
+            context::Platform::PosixX8664
+            | context::Platform::PosixX8664Spectest
+            | context::Platform::PosixX8664Wasi => {
+                fl_gcc = String::from("gcc");
+            }
+            _ => {}
+        }
+    }
     config.binary_wavm = fl_wavm;
+    config.binary_cc = fl_gcc;
 
     let middle = compile::compile(&fl_source, config)?;
 
