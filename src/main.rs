@@ -6,9 +6,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Usage of wasc:
     //
     // wasc
+    //     --gcc [GCC binary]
     //     -p --platform [PLATFORM]
-    //     --wasm [WAVM binary]
+    //     -s --save
     //     -v --verbose
+    //     --wasm [WAVM binary]
     //     source [WASM/WA(S)T source file]
     //
     // PLATFORM:
@@ -53,17 +55,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         rog::println!("wasc: missing file operand");
         std::process::exit(1);
     }
-    if fl_gcc.is_empty() {
-        match fl_platform.as_str() {
-            "ckb_vm_assemblyscript" | "ckb_vm_spectest" => {
-                fl_gcc = String::from("riscv64-unknown-elf-gcc");
-            }
-            "posix_x86_64" | "posix_x86_64_spectest" | "posix_x86_64_wasi" => {
-                fl_gcc = String::from("gcc");
-            }
-            _ => {}
-        }
-    }
     if fl_verbose {
         rog::reg("wasc");
         rog::reg("wasc::aot_generator");
@@ -90,6 +81,19 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             std::process::exit(1);
         }
     };
+    if fl_gcc.is_empty() {
+        match config.platform {
+            context::Platform::CKBVMAssemblyScript | context::Platform::CKBVMSpectest => {
+                fl_gcc = String::from("riscv64-unknown-elf-gcc");
+            }
+            context::Platform::PosixX8664
+            | context::Platform::PosixX8664Spectest
+            | context::Platform::PosixX8664Wasi => {
+                fl_gcc = String::from("gcc");
+            }
+            _ => {}
+        }
+    }
     config.binary_wavm = fl_wavm;
     config.binary_cc = fl_gcc;
 

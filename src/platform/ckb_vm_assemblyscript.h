@@ -86,12 +86,38 @@ static inline long __internal_syscall(long n, long _a0, long _a1, long _a2,
     __internal_syscall(n, (long)(a), (long)(b), (long)(c), (long)(d), (long)(e), \
                        (long)(f))
 
-wavm_ret_int64_t wavm_env_syscall(void *dummy, int64_t n, int64_t _a0, int64_t _a1, int64_t _a2, int64_t _a3, int64_t _a4, int64_t _a5)
+#ifdef MEMORY0_DEFINED
+wavm_ret_int64_t wavm_env_syscall(void *dummy, int64_t n, int64_t _a0, int64_t _a1, int64_t _a2, int64_t _a3, int64_t _a4, int64_t _a5, int64_t mode)
 {
     wavm_ret_int64_t ret;
     ret.dummy = dummy;
+    if (mode & 0b100000)
+    {
+        _a0 = (int64_t)&memoryOffset0.base[0] + _a0;
+    }
+    if (mode & 0b010000)
+    {
+        _a1 = (int64_t)&memoryOffset0.base[0] + _a1;
+    }
+    if (mode & 0b001000)
+    {
+        _a2 = (int64_t)&memoryOffset0.base[0] + _a2;
+    }
+    if (mode & 0b000100)
+    {
+        _a3 = (int64_t)&memoryOffset0.base[0] + _a3;
+    }
+    if (mode & 0b000010)
+    {
+        _a4 = (int64_t)&memoryOffset0.base[0] + _a4;
+    }
+    if (mode & 0b000001)
+    {
+        _a5 = (int64_t)&memoryOffset0.base[0] + _a5;
+    }
     ret.value = syscall(n, _a0, _a1, _a2, _a3, _a4, _a5);
     return ret;
 }
+#endif /* MEMORY0_DEFINED */
 
 #endif /* WAVM_CKB_VM_ASSEMBLYSCRIPT_H */
