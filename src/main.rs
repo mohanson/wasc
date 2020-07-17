@@ -60,6 +60,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         rog::reg("wasc::aot_generator");
         rog::reg("wasc::code_builder");
         rog::reg("wasc::compile");
+        rog::reg("wasc::gcc");
     }
 
     let mut config = context::Config::default();
