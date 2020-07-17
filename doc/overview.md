@@ -328,6 +328,7 @@ wavm_ret_int64_t wavm_env_syscall(void *dummy, int64_t n, int64_t _a0, int64_t _
 
 ```sh
 $ cd /src/wasc_dapp_demo_assemblyscript
+$ npm i
 $ npm run asbuild
 
 $ cd build
