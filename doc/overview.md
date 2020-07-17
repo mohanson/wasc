@@ -263,7 +263,7 @@ debug: Hello World!
 exit=0 cycles=771
 ```
 
-故事并没有结束, 相反, 精彩的内容才刚刚开始! 我们将使用 AssemblyScripy 来重写这个程序, 并演示如何在 AssemblyScript 代码中实现 syscall.
+故事并没有结束, 相反, 精彩的内容才刚刚开始! 我们将使用 AssemblyScript 来重写这个程序, 并演示如何在 AssemblyScript 代码中实现 syscall.
 
 打开 `./wasc_dapp_demo_assemblyscript/assembly/index.ts` 文件, 它由 AssemblyScript 编写, 逻辑和之前 C 写的代码差不多, 其源码为:
 
