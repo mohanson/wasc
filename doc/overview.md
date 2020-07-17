@@ -37,7 +37,7 @@ $ ./build.sh
 $ apt install llvm-9
 ```
 
-希望您的安装一切顺利! 不过您必须了解, WebAssembly 与 RISC-V 工具包都是超级大的项目, 稀奇古怪的问题均可能出现, 这时候去对应的社区寻求和搜索引擎上寻求帮助是个很好的主意.
+希望您的安装一切顺利! 不过您必须了解, WebAssembly 与 RISC-V 工具包都是超级大的项目, 稀奇古怪的问题均可能出现, 这时候去对应的社区或者搜索引擎上寻求帮助是个很好的主意.
 
 WASC 项目预先构建了一个 example 程序, 它位于 `./example/echo.wasm`. 该程序最初由 C 编写而成, 然后使用 wasi-sdk 工具包编译到 WebAssembly 代码. 大体上来说, 它和我们在 Linux 下常用的 `echo` 命令差不多, 其源代码为:
 
@@ -273,7 +273,7 @@ export function _start(): i32 {
 export declare function syscall(n: i64, a: i64, b: i64, c: i64, d: i64, e: i64, f: i64, mode: i64): i64
 ```
 
-它是一个 `export declare` 函数, 表明它自己并没有实现这个函数, 需要有运行时环境为它提供. 从底层语义上来讲, 它是一个 WebAssembly 的 Import. 在 WASC 的胶水代码部分, 会为其提供实现:
+它是一个 `export declare` 函数, 表明它自己并没有实现这个函数, 需要由运行时环境为它提供. 从底层语义上来讲, 它是一个 WebAssembly 的 Import. 在 WASC 的胶水代码部分, 会为其提供实现:
 
 ```c
 wavm_ret_int64_t wavm_env_syscall(void *dummy, int64_t n, int64_t _a0, int64_t _a1, int64_t _a2, int64_t _a3, int64_t _a4, int64_t _a5, int64_t mode)
