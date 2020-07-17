@@ -280,7 +280,7 @@ export function _start(): i32 {
 }
 ```
 
-其中的 syscall 函数定义同目录的 `env.ts` 文件中:
+其中的 syscall 函数定义在同目录的 `env.ts` 文件中:
 
 ```ts
 export declare function syscall(n: i64, a: i64, b: i64, c: i64, d: i64, e: i64, f: i64, mode: i64): i64
@@ -322,7 +322,7 @@ wavm_ret_int64_t wavm_env_syscall(void *dummy, int64_t n, int64_t _a0, int64_t _
 }
 ```
 
-要额外关注的是 syscall 的最后一个参数 mode, 它目前被传入了值 0b100000. 目前 syscall 的第一个参数是 `changetype<usize>(strEncoded)`, 它是一个字符串的指针(在语法层面), 但存在问题, 因为这个字符串被定义在 WebAssembly 的内存中而非程序的运行内存中. mode 参数存在的意义便是告知我们的胶水代码, 这个传入的地址并非真实地址, 而是 WebAssembly 内存的偏移地址. 胶水代码会通过该偏移地址和 WebAssembly 内存首地址来获取真实的地址.
+要额外关注的是 syscall 的最后一个参数 mode, 它目前被传入了值 0b100000. 代码中 syscall 的第一个参数是 `changetype<usize>(strEncoded)`, 它是一个字符串的指针, 但存在问题, 因为这个字符串被定义在 WebAssembly 的内存中而非程序的运行内存中. mode 参数存在的意义便是告知我们的胶水代码, 这个传入的地址并非真实地址, 而是 WebAssembly 内存的偏移地址. 胶水代码会通过该偏移地址和 WebAssembly 内存首地址来获取真实的地址.
 
 最后, 编译这个项目, 它首先通过 AssemblyScript 的工具集生成 WebAssembly 输出, 然后经过 WASC 获得 RISC-V 的输出. 最后在 wasc_dapp_demo_ckb_vm 中执行它, 你的标准输出将同样获得相似的结果.
 
