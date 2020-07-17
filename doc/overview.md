@@ -194,7 +194,7 @@ $ gcc -g -w -o example/echo_build/echo example/echo_build/echo.o example/echo_bu
 
 WASC 的大体流程就是如此, 但是在实际实现的细节中会比上面介绍的复杂得多, 比如我们不得不采用一些汇编代码和 Linker Script 来完成一部分难以实现的功能. 如果有机会的话, 我想在一篇专门的文章中进行介绍.
 
-# AssemblyScript, RISC-V 与 CKB-VM
+# AssemblyScript, Syscall, RISC-V 与 CKB-VM
 
 RISC-V 指令集中有一个特殊的指令: ECALL. ECALL 指令用于向执行环境(通常是操作系统)发出请求, 系统 ABI 将定义如何传递请求的参数. 为了使得 WebAssembly 可以与 RISC-V 宿主环境进行交互, 在 WebAssembly 程序中实现 ECALL 是十分有必要的. 下面我们将从 AssemblyScript 编程语言开始出发, 来进行简要的描述.
 
