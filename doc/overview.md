@@ -134,26 +134,33 @@ const uint64_t typeId1 = 0;
 const uint64_t typeId2 = 0;
 const uint64_t typeId3 = 0;
 const uint64_t typeId4 = 0;
+
 const int32_t global0 = 0;
 const int32_t global1 = 1;
 const int32_t global2 = 4;
 const int32_t global3 = 8;
 const int32_t global4 = 12;
 int32_t global5 = 128;
+
 #define wavm_wasi_args_get functionImport0
 extern wavm_ret_int32_t (functionImport0) (void*, int32_t, int32_t);
+
 #define wavm_wasi_args_sizes_get functionImport1
 extern wavm_ret_int32_t (functionImport1) (void*, int32_t, int32_t);
+
 #define wavm_wasi_fd_write functionImport2
 extern wavm_ret_int32_t (functionImport2) (void*, int32_t, int32_t, int32_t, int32_t);
+
 #define wavm_wasi_proc_exit functionImport3
 extern void* (functionImport3) (void*, int32_t);
+
 extern wavm_ret_int32_t (functionDef0) (void*, int32_t);
 const uint64_t functionDefMutableDatas0 = 0;
 extern wavm_ret_int32_t (functionDef1) (void*, int32_t);
 const uint64_t functionDefMutableDatas1 = 0;
 extern void* (functionDef2) (void*);
 const uint64_t functionDefMutableDatas2 = 0;
+
 uint32_t memory0_length = 1;
 uint8_t* memory0;
 struct memory_instance memoryOffset0;
@@ -164,6 +171,7 @@ uint8_t memory0_data1[1] = {
   0x0a
 };
 #define MEMORY0_DEFINED 1
+
 void init_memory0() {
   memory0 = calloc(65536, 1);
   memcpy(memory0 + 0, memory0_data0, 1);
@@ -171,12 +179,16 @@ void init_memory0() {
   memoryOffset0.base = memory0;
   memoryOffset0.num_pages = 1;
 }
+
 #define wavm_exported_function__start functionDef2
+
 void init() {
   init_memory0();
 }
+
 int32_t g_argc;
 char **g_argv;
+
 int main(int argc, char *argv[]) {
   g_argc = argc;
   g_argv = argv;
@@ -185,6 +197,7 @@ int main(int argc, char *argv[]) {
   wavm_exported_function__start(NULL);
   return 0;
 }
+
 #endif /* ECHO_GLUE_H */
 ```
 
