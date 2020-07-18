@@ -25,7 +25,7 @@ if [ ! -d "riscv-gnu-toolchain" ]; then
     cd ckb-riscv-gnu-toolchain
     git checkout 528f06df2515352a7d395d0329a494d097ed1181
     git submodule update --init --recursive
-    ./configure --prefix=$(pwd)/build --with-arch=rv64imc
-    make linux
+    ./configure --prefix=$(pwd)/build --with-arch=rv64imac
+    make
     cd $TOP
 fi
