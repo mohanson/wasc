@@ -951,8 +951,15 @@ pub fn generate(middle: &mut context::Middle) -> Result<(), Box<dyn std::error::
             _ => {}
         }
         glue_file.write("init();");
-        glue_file.write("wavm_exported_function__start(NULL);");
-        glue_file.write("return 0;");
+        match middle.config.platform {
+            context::Platform::CKBVMAssemblyScript => {
+                glue_file.write("return wavm_exported_function__start(NULL).value;");
+            }
+            _ => {
+                glue_file.write("wavm_exported_function__start(NULL);");
+                glue_file.write("return 0;");
+            }
+        }
         glue_file.write("}");
     }
     glue_file.write(format!("#endif /* {} */", header_id));
