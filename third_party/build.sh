@@ -19,7 +19,7 @@ if [ ! -d "wasi-sdk-11.0" ]; then
     cd $TOP
 fi
 
-if [ ! -d "riscv-gnu-toolchain" ]; then
+if [ ! -d "ckb-riscv-gnu-toolchain" ]; then
     sudo apt-get install -y autoconf automake autotools-dev curl python3 libmpc-dev libmpfr-dev libgmp-dev gawk build-essential bison flex texinfo gperf libtool patchutils bc zlib1g-dev libexpat-dev
     git clone --recursive https://github.com/nervosnetwork/ckb-riscv-gnu-toolchain
     cd ckb-riscv-gnu-toolchain
