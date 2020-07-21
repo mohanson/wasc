@@ -1,3 +1,5 @@
+![img](./doc/wasc.png)
+
 # WASC
 
 **WASC is a WebAssembly AOT compiler**. The main purpose is to translate the [WASI](https://wasi.dev/) WebAssembly code into machine(x86 and RISC-V) code.
