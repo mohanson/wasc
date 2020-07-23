@@ -2,9 +2,9 @@
 
 # WASC
 
-**WASC is a WebAssembly AOT compiler**. The main purpose is to translate the [WASI](https://wasi.dev/) WebAssembly code into machine(x86 and RISC-V) code.
+**WASC is a WebAssembly AOT compiler**. The main purpose is to translate the WebAssembly code into machine(x86 and RISC-V) code.
 
-**It is still in the early development stage, so the code and documentation may be changed arbitrarily.**
+How it works: [./doc/overview_en.md](./doc/overview_en.md)
 
 # Build and test
 
