@@ -1,6 +1,4 @@
-https://github.com/mohanson/wasc/blob/master/doc/overview.md
-
-# WASM: an efficient WebAssembly to RISC-V AOT compiler
+# WASC: an efficient WebAssembly to RISC-V AOT compiler
 
 ---
 
